@@ -22,18 +22,17 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
       - run: npm clean-install
-      - name: Run ESLint
+      - name: Run static code analysis
         run: npm run precommit --workspaces=true
-      - run: npm run build --if-present --workspaces=true
-      - run: npm pack --pack-destination=$PWD --workspaces=true
+      - name: Build
+        run: npm run build --if-present --workspaces=true
+      - name: Pack tarballs
+        run: npm pack --pack-destination=$PWD --workspaces=true
       - name: Upload tarball artifact
         uses: actions/upload-artifact@v3.1.1
         with:
           name: tarball
           path: ./*.tgz
-      # TODO: Fan out the tests
-      - name: Run unit tests
-        run: npm test --workspaces=true
 
   # Verifying packages must build under Windows only so it don't break our development flow.
   build-windows:
@@ -49,7 +48,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: npm
       - run: npm clean-install
       - run: npm run build --if-present --workspaces=true
 
@@ -73,9 +72,10 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: npm
       - run: npm clean-install
-      - run: for i in `ls -1 ./*.tgz`; do echo tar --extract --file=$i --directory=./packages/`tar --extract --to-stdout --file=$i package/package.json | jq -r '.name'` --strip-components=1; done
+      - name: Extract tarballs
+        run: for i in `ls -1 ./*.tgz`; do tar --extract --file=$i --directory=./packages/`tar --extract --to-stdout --file=$i package/package.json | jq -r '.name'` --strip-components=1; done
       - name: Run unit tests
         run: |
           cd packages/${{ matrix.package-name }}
@@ -96,7 +96,7 @@ jobs:
         with:
           name: tarball
       - name: Extract tarball to root
-        run: tar -xvf ${{ matrix.package-name }}-*.tgz --strip-components=1
+        run: tar --extract --file=${{ matrix.package-name }}-*.tgz --strip-components=1
       - name: 'Sanity check: has LICENSE'
         run: compgen -G LICENSE
       - name: 'Sanity check: has README.md'
