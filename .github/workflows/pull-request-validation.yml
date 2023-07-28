@@ -8,11 +8,14 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         node-version:
           - lts/Hydrogen
+        os:
+          - ubuntu-latest
+          - windows-latest
 
     steps:
       - uses: actions/checkout@v3
@@ -26,31 +29,15 @@ jobs:
         run: npm run precommit --workspaces=true
       - name: Build
         run: npm run build --if-present --workspaces=true
-      - name: Pack tarballs
+      - if: ${{ matrix.os == 'ubuntu-latest' }}
+        name: Pack tarballs
         run: npm pack --pack-destination=$PWD --workspaces=true
-      - name: Upload tarball artifact
+      - if: ${{ matrix.os == 'ubuntu-latest' }}
+        name: Upload tarball artifact
         uses: actions/upload-artifact@v3.1.1
         with:
           name: tarball
           path: ./*.tgz
-
-  # Verifying packages must build under Windows only so it don't break our development flow.
-  build-windows:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        node-version:
-          - lts/Hydrogen
-
-    steps:
-      - uses: actions/checkout@v3
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
-      - run: npm clean-install
-      - run: npm run build --if-present --workspaces=true
 
   test:
     runs-on: ubuntu-latest
@@ -62,6 +49,9 @@ jobs:
         package-name:
           - powerva-chat-adapter
           - powerva-turn-based-chat-adapter-framework
+        os:
+          - ubuntu-latest
+          - windows-latest
 
     steps:
       - uses: actions/checkout@v3
@@ -76,10 +66,12 @@ jobs:
       - run: npm clean-install
       - name: Extract tarballs
         run: for i in `ls -1 ./*.tgz`; do tar --extract --file=$i --directory=./packages/`tar --extract --to-stdout --file=$i package/package.json | jq -r '.name'` --strip-components=1 --verbose; done
+        shell: bash
       - name: Run unit tests
         run: |
           cd packages/${{ matrix.package-name }}
           npm test --workspaces=true
+        shell: bash
 
   sanity-check:
     needs: build
