@@ -2,5 +2,6 @@
   "compilerOptions": {
     "declarationDir": "../lib/types/"
   },
+  "exclude": ["**/*.spec.*", "**/*.test.*"], // Do not emit tests.
   "extends": "../../../configs/typescript/tsconfig.declaration.json"
 }

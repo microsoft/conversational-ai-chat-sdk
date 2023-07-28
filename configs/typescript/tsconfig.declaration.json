@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "declaration": true,
-    "emitDeclarationOnly": true,
-    "target": "ESNext"
+    "declarationMap": true,
+    "emitDeclarationOnly": true
   },
   "extends": "./tsconfig.json"
 }
