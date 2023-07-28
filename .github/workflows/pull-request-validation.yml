@@ -33,11 +33,19 @@ jobs:
         name: Pack tarballs
         run: npm pack --pack-destination=$PWD --workspaces=true
       - if: ${{ matrix.os == 'ubuntu-latest' }}
+        name: Generate package names list
+        run: |
+          for i in `ls -1 ./*.tgz`; do tar --extract --file=$i --to-stdout package/package.json | jq -r '.name' >> package-names.txt; done
+          cat package-names.txt | jq -Rs '. | rtrimstr("\n") | split("\n")' > package-names.json
+          cat package-names.json
+      - if: ${{ matrix.os == 'ubuntu-latest' }}
         name: Upload tarball artifact
         uses: actions/upload-artifact@v3.1.1
         with:
           name: tarball
-          path: ./*.tgz
+          path: |
+            ./*.tgz
+            ./package-names.json
 
   test:
     runs-on: ${{ matrix.os }}
@@ -87,11 +95,6 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: tarball
-      - name: Generate local peers list
-        run: |
-          for i in `ls -1 ./*.tgz`; do tar --extract --file=$i --to-stdout package/package.json | jq -r '.name' >> localpeers.txt; done
-          cat localpeers.txt | jq -Rs '. | rtrimstr("\n") | split("\n")' > localpeers.json
-          cat localpeers.json
       - name: Extract tarball to root
         run: tar --extract --file=`ls -1 ./${{ matrix.package-name }}-*.tgz` --strip-components=1 --verbose
       - name: 'Sanity check: has LICENSE'
@@ -111,6 +114,6 @@ jobs:
       - name: 'Sanity check: no lib/**/*.test.*'
         run: '! compgen -G lib/**/*.test.*'
       - name: 'Sanity check: no production dependencies are pre-release except local peers'
-        run: cat package.json | jq --argfile localpeers localpeers.json '.dependencies + ($localpeers | with_entries(.key = .value | .value = "")) | to_entries | map(.value | select(contains("-"))) | if length > 0 then halt_error(1) else empty end'
+        run: cat package.json | jq --argfile packageNames package-names.json '.dependencies + ($packageNames | with_entries(.key = .value | .value = "")) | to_entries | map(.value | select(contains("-"))) | if length > 0 then halt_error(1) else empty end'
       - name: 'Sanity check: must from https://registry.npmjs.org/'
         run: cat package-lock.json | jq '.dependencies + .packages | to_entries | map(.value.resolved // "" | select((. == "" or startswith("https://registry.npmjs.org/")) | not)) | if length > 0 then halt_error(1) else empty end'
