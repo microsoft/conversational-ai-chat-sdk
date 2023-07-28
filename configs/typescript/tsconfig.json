@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "lib": ["ESNext"], // If needed, add "DOM" and/or "WebWorker".
+    "module": "NodeNext", // "Node16" or higher is required for named exports.
+    "strict": true
+  },
+  "exclude": ["**/*.spec.*", "**/*.test.*"] // Do not emit tests.
+}

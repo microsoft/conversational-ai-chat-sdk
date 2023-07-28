@@ -1,0 +1,20 @@
+{
+  "name": "power-virtual-agents-sdk",
+  "version": "0.0.0-0",
+  "description": "",
+  "private": "true",
+  "author": "Microsoft Corporation",
+  "license": "MIT",
+  "scripts": {
+    "build": "npm run build --workspaces=true",
+    "bump": "npm run bump --workspaces=true && npm run bump:config",
+    "bump:config": "npm run bump:config:babel",
+    "bump:config:babel": "cat ./configs/babel/babel.config.json | jq --arg CORE_JS_VERSION `cat ./node_modules/@babel/runtime-corejs3/package.json | jq -r .version` '(.plugins[] | select(.[0] == \"@babel/plugin-transform-runtime\"))[1].version = $CORE_JS_VERSION' | prettier --parser json > ./configs/babel/babel.config.json.tmp && mv ./configs/babel/babel.config.json.tmp ./configs/babel/babel.config.json",
+    "start": "echo TODO: use concurrently to run parallel",
+    "test": "npm test --workspaces=true"
+  },
+  "workspaces": [
+    "packages/powerva-turn-based-chat-adapter-framework",
+    "packages/powerva-chat-adapter"
+  ]
+}

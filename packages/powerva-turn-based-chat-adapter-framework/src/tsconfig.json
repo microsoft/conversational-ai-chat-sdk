@@ -1,0 +1,6 @@
+{
+  "compilerOptions": {
+    "declarationDir": "../lib/types/"
+  },
+  "extends": "../../../configs/typescript/tsconfig.declaration.json"
+}

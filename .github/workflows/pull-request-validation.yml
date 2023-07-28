@@ -1,0 +1,91 @@
+name: Pull request validation
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch: {} # Run on-demand for testing workflow functionality.
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version:
+          - lts
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      - run: npm clean-install
+      - name: Run ESLint
+        run: npm run precommit --workspaces=true
+      - run: npm run build --if-present --workspaces=true
+      - run: npm pack --workspaces=true
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@v3.1.1
+        with:
+          name: tarball
+          path: packages/**/*.tgz
+      # TODO: Fan out the tests
+      - name: Run unit tests
+        run: npm test --workspaces=true
+
+  # Verifying packages must build under Windows only so it don't break our development flow.
+  build-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        node-version:
+          - lts
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      - run: npm clean-install
+      - run: npm run build --if-present --workspaces=true
+
+  sanity-check:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package-name:
+          - powerva-chat-adapter
+          - powerva-turn-based-chat-adapter-framework
+
+    steps:
+      - name: Download tarball artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: tarball
+      - name: Extract tarball to root
+        run: tar -xvf ${{ matrix.package-name }}-*.tgz --strip-components=1
+      - name: 'Sanity check: has LICENSE'
+        run: compgen -G LICENSE
+      - name: 'Sanity check: has README.md'
+        run: compgen -G README.md
+      - name: 'Sanity check: at least one exports'
+        run: cat package.json | jq '.exports | to_entries | if length == 0 then halt_error(1) else empty end'
+      - name: 'Sanity check: all exports exists'
+        run: cat package.json | jq '.exports | map(flatten) | flatten | .[]' | xargs -L1 test -f $1
+      - name: 'Sanity check: all exports has "types" condition'
+        run: cat package.json | jq '.exports | map(select(.types == null)) | if length > 0 then halt_error(1) else empty end'
+      - name: 'Sanity check: has source maps'
+        run: compgen -G lib/**/*.js.map
+      - name: 'Sanity check: no lib/**/*.spec.*'
+        run: '! compgen -G lib/**/*.spec.*'
+      - name: 'Sanity check: no lib/**/*.test.*'
+        run: '! compgen -G lib/**/*.test.*'
+      - name: 'Sanity check: no production dependencies are pre-release'
+        run: cat package.json | jq '.dependencies | to_entries | map(.value | select(contains("-"))) | if length > 0 then halt_error(1) else empty end'
+      - name: 'Sanity check: must from https://registry.npmjs.org/'
+        run: cat package-lock.json | jq '.dependencies + .packages | to_entries | map(.value.resolved // "" | select((. == "" or startswith("https://registry.npmjs.org/")) | not)) | if length > 0 then halt_error(1) else empty end'

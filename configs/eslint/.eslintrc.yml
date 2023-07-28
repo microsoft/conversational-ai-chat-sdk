@@ -1,0 +1,38 @@
+env:
+  es2024: true
+extends:
+  - eslint:recommended
+ignorePatterns:
+  - '**/lib/'
+overrides:
+  - extends: ./.eslintrc.jest.yml
+    files:
+      - '**/__tests__/**'
+      - '**/*.spec.js'
+      - '**/*.spec.jsx'
+      - '**/*.spec.ts'
+      - '**/*.spec.tsx'
+      - '**/*.test.js'
+      - '**/*.test.jsx'
+      - '**/*.test.ts'
+      - '**/*.test.tsx'
+  - extends: ./.eslintrc.commonjs.yml
+    files:
+      - '**/*.cjs'
+  - extends: ./.eslintrc.react.yml
+    files:
+      - '**/*.jsx'
+      - '**/*.tsx'
+  - extends: ./.eslintrc.typescript.yml
+    files:
+      - '**/*.ts'
+      - '**/*.tsx'
+parserOptions:
+  ecmaVersion: latest
+  sourceType: module
+plugins:
+  - prettier
+root: true
+rules:
+  # Makes Prettier a requirement
+  prettier/prettier: error
