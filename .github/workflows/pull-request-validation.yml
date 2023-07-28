@@ -75,7 +75,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
       - run: npm clean-install
-      - run: for i in `ls -1 *.tgz`; tar -xvf ./${{ matrix.package-name }}-*.tgz --directory=./packages/${{ matrix.package-name }} --strip-components=1; done
+      - run: for i in `ls -1 ./*.tgz`; do echo tar --extract --file=$i --directory=./packages/`tar --extract --to-stdout --file=$i package/package.json | jq -r '.name'` --strip-components=1; done
       - name: Run unit tests
         run: |
           cd packages/${{ matrix.package-name }}
