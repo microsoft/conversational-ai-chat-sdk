@@ -75,7 +75,7 @@ jobs:
           cache: npm
       - run: npm clean-install
       - name: Extract tarballs
-        run: for i in `ls -1 ./*.tgz`; do tar --extract --file=$i --directory=./packages/`tar --extract --to-stdout --file=$i package/package.json | jq -r '.name'` --strip-components=1; done
+        run: for i in `ls -1 ./*.tgz`; do tar --extract --file=$i --directory=./packages/`tar --extract --to-stdout --file=$i package/package.json | jq -r '.name'` --strip-components=1 --verbose; done
       - name: Run unit tests
         run: |
           cd packages/${{ matrix.package-name }}
@@ -96,7 +96,7 @@ jobs:
         with:
           name: tarball
       - name: Extract tarball to root
-        run: tar --extract --file=${{ matrix.package-name }}-*.tgz --strip-components=1
+        run: tar --extract --file=`ls -1 ./${{ matrix.package-name }}-*.tgz` --strip-components=1 --verbose
       - name: 'Sanity check: has LICENSE'
         run: compgen -G LICENSE
       - name: 'Sanity check: has README.md'
