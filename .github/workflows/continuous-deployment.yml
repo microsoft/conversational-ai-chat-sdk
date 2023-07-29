@@ -1,0 +1,35 @@
+name: Continuous deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '.devcontainer/**'
+      - '.github/**'
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    outputs:
+      version: ${{ steps.set-version.outputs.version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version:
+          - lts/Hydrogen
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      - id: set-version
+        name: Run npx version-from-git --no-git-tag-version
+        run: |
+          for i in `ls ./packages/ -1`; do
+            cd ./packages/$i/
+            cat package.json | xargs -L1 npx semver@latest $1 --increment prerelease -n false --preid `git branch --show-current`.`date +%Y%m%d`.`git log --pretty=format:'%h' -1 .` | xargs -L1 npm version --no-git-tag-version $1
+            cat package.json
+          done
