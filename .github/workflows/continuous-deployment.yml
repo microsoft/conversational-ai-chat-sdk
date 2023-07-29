@@ -37,7 +37,7 @@ jobs:
 
             cat ./$i/package.json | jq -r .version | xargs -L1 semver $1 --increment prerelease -n false --preid $BRANCH.$DATE.$COMMITISH | xargs -L1 npm version --no-git-tag-version --workspace $i $1
 
-            cat ./package-versions.json | jq --arg branch $BRANCH --arg commitish $COMMITISH --argfile packageJSON ./$i/package.json -rS '. + { ($packageJSON.name): { branch: $branch, commitish: $commitish, path: $i, version: $packageJSON.version } }' > ./package-versions.json.tmp
+            cat ./package-versions.json | jq --arg branch $BRANCH --arg commitish $COMMITISH --arg path $i --argfile packageJSON ./$i/package.json -rS '. + { ($packageJSON.name): { branch: $branch, commitish: $commitish, path: $path, version: $packageJSON.version } }' > ./package-versions.json.tmp
 
             mv ./package-versions.json.tmp ./package-versions.json
           done
