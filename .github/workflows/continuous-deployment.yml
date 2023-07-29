@@ -30,6 +30,7 @@ jobs:
           for i in `ls ./packages/ -1`; do
             cd ./packages/$i/
             cat package.json | jq -r .version | xargs -L1 npx semver@latest $1 --increment prerelease -n false --preid `git branch --show-current`.`date +%Y%m%d`.`git log --pretty=format:'%h' -1 .` | xargs -L1 npm version --no-git-tag-version $1
+            cd $OLDPWD
           done
       - name: Generate versions file
         run: |
