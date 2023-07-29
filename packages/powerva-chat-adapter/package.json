@@ -53,6 +53,6 @@
   },
   "dependencies": {
     "@babel/runtime-corejs3": "7.22.6",
-    "powerva-turn-based-chat-adapter-framework": "0.0.0-0"
+    "powerva-turn-based-chat-adapter-framework": "^0.0.0-0"
   }
 }
