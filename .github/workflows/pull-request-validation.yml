@@ -117,3 +117,4 @@ jobs:
         run: cat package.json | jq --argfile packageNames package-names.json '.dependencies + ($packageNames | with_entries(.key = .value | .value = "")) | to_entries | .[] | select(.value | contains("-")) | if length > 0 then halt_error(1) else empty end'
       - name: 'Sanity check: must from https://registry.npmjs.org/'
         run: cat package-lock.json | jq '.dependencies + .packages | to_entries | map(.value.resolved // "" | select((. == "" or startswith("https://registry.npmjs.org/")) | not)) | if length > 0 then halt_error(1) else empty end'
+      # TODO: package.json/version must be pre-release
