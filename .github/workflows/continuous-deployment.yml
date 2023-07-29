@@ -9,34 +9,51 @@ on:
       - '.github/**'
   workflow_dispatch: {}
 
+env:
+  node-version: lts/Hydrogen
+
 jobs:
   build:
     outputs:
       version: ${{ steps.set-version.outputs.version }}
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version:
-          - lts/Hydrogen
     steps:
       - uses: actions/checkout@v3
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Use Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.node-version }}
           cache: 'npm'
       - run: npm install --global semver@latest
       - name: Append commitish to package version
         run: |
+          BRANCH=`git branch --show-current`
+          DATE=`date +%Y%m%d`
+
+          echo {} > package-versions.json
+
           for i in `cat package.json | jq -r '.workspaces | join("\n")'`; do
-            cat ./$i/package.json | jq -r .version | xargs -L1 semver $1 --increment prerelease -n false --preid `git branch --show-current`.`date +%Y%m%d`.`git log --pretty=format:'%h' -1 ./$i/` | xargs -L1 npm version --no-git-tag-version --workspace $i $1
-          done
-      - name: Generate versions file
-        run: |
-          echo {} > versions.json
-          for i in `cat package.json | jq -r '.workspaces | join("\n")'`; do
-            cat ./versions.json | jq --argfile packageJSON ./$i/package.json -rS '. + { ($packageJSON.name): $packageJSON.version }' > ./versions.json.tmp
-            mv ./versions.json.tmp ./versions.json
+            COMMITISH=`git log --pretty=format:'%h' -1 ./$i/`
+
+            cat ./$i/package.json | jq -r .version | xargs -L1 semver $1 --increment prerelease -n false --preid $BRANCH.$DATE.$COMMITISH | xargs -L1 npm version --no-git-tag-version --workspace $i $1
+
+            cat ./package-versions.json | jq --arg branch $BRANCH --arg commitish $COMMITISH --argfile packageJSON ./$i/package.json -rS '. + { ($packageJSON.name): { branch: $branch, commitish: $commitish, path: $i, version: $packageJSON.version } }' > ./package-versions.json.tmp
+
+            mv ./package-versions.json.tmp ./package-versions.json
           done
       - name: Show versions file
-        run: cat versions.json
+        run: cat package-versions.json
+      - name: Build
+        run: npm run build --if-present --workspaces=true
+      - name: Pack tarballs
+        run: npm pack --pack-destination=$PWD --workspaces=true
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@v3.1.1
+        with:
+          name: package-versions
+          path: ./package-versions.json
+      - name: List publishing packages
+        run: |
+          COMMITISH=`git log --pretty=format:'%h' -1 ./$i/`
+
+          cat package-versions.json | jq --arg commitish $COMMITISH -r '. | select(.commitish == $commitish)'
