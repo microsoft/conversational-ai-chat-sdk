@@ -34,7 +34,7 @@ jobs:
         run: |
           echo {} > versions.json
           for i in `cat package.json | jq -r '.workspaces | join("\n")'`; do
-            cat ./versions.json | jq --argfile packageJSON ./packages/$i/package.json -rS '. + { ($packageJSON.name): $packageJSON.version }' > ./versions.json.tmp
+            cat ./versions.json | jq --argfile packageJSON ./$i/package.json -rS '. + { ($packageJSON.name): $packageJSON.version }' > ./versions.json.tmp
             mv ./versions.json.tmp ./versions.json
           done
       - name: Show versions file
