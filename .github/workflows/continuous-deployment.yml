@@ -25,11 +25,19 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
-      - id: set-version
-        name: Run npx version-from-git --no-git-tag-version
+      - name: Append commitish to package version
         run: |
           for i in `ls ./packages/ -1`; do
             cd ./packages/$i/
             cat package.json | jq -r .version | xargs -L1 npx semver@latest $1 --increment prerelease -n false --preid `git branch --show-current`.`date +%Y%m%d`.`git log --pretty=format:'%h' -1 .` | xargs -L1 npm version --no-git-tag-version $1
-            cat package.json
           done
+      - name: Generate versions file
+        run: |
+          echo {} > versions.json
+          for i in `ls ./packages/ -1`; do
+            cd ./packages/$i/
+            cat ./package.versions.json | jq --argfile packageJSON ./packages/$i/package.json -rS '. + { ($packageJSON.name): $packageJSON.version }' > ./versions.json.tmp
+            mv ./versions.json.tmp ./versions.json
+          done
+      - name: Show versions file
+        run: cat versions.json
