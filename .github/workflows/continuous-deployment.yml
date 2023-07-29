@@ -25,10 +25,11 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
+      - run: npm install --global semver@latest
       - name: Append commitish to package version
         run: |
           for i in `cat package.json | jq -r '.workspaces | join("\n")'`; do
-            cat ./$i/package.json | jq -r .version | xargs -L1 npx semver@latest $1 --increment prerelease -n false --preid `git branch --show-current`.`date +%Y%m%d`.`git log --pretty=format:'%h' -1 .` | xargs -L1 npm version --no-git-tag-version --workspace $i $1
+            cat ./$i/package.json | jq -r .version | xargs -L1 npx --no-install semver@latest $1 --increment prerelease -n false --preid `git branch --show-current`.`date +%Y%m%d`.`git log --pretty=format:'%h' -1 ./$i/` | xargs -L1 npm version --no-git-tag-version --workspace $i $1
           done
       - name: Generate versions file
         run: |
