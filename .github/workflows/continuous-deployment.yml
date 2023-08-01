@@ -60,10 +60,11 @@ jobs:
 
           cat package-versions.json | jq --arg commitish $COMMITISH -r '. | select(.commitish == $commitish)'
       - name: Consolidate publishing packages
+        # TODO: Fix this, we are uploading everything for first time
         run: |
           mkdir -p ./publishing/
 
-          for i in `cat package-versions.json | jq --arg commitish $COMMITISH -r '. | select(.commitish == $commitish) | join("\n")'
+          for i in `cat package-versions.json | jq --arg commitish $COMMITISH -r '. | select(.commitish != $commitish) | join("\n")'`
           do
             mv ./$i/*.tgz ./publishing/
           done
@@ -74,6 +75,8 @@ jobs:
           path: ./publishing/
 
   upload-to-release:
+    needs:
+      - build
     runs-on: ubuntu-latest
     steps:
       - name: Use Node.js ${{ env.node-version }}
