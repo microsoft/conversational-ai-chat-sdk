@@ -25,6 +25,9 @@ jobs:
         with:
           cache: npm
           node-version: ${{ env.node-version }}
+      - id: get-commitish
+        name: Get commitish
+        run: echo commitish=`git log --pretty=format:'%h' -1 ./$i/` > $GITHUB_OUTPUT
       - run: npm install --global semver@latest
       - name: Append commitish to package version
         run: |
@@ -55,16 +58,13 @@ jobs:
           name: package-versions
           path: ./package-versions.json
       - name: List publishing packages
-        run: |
-          COMMITISH=`git log --pretty=format:'%h' -1 ./$i/`
-
-          cat package-versions.json | jq --arg commitish $COMMITISH -r '. | select(.commitish == $commitish)'
+        run: cat package-versions.json | jq --arg commitish ${{ steps.get-commitish.outputs.commitish }} -r '. | select(.commitish == $commitish)'
       - name: Consolidate publishing packages
         # TODO: Fix this, we are uploading everything for first time
         run: |
           mkdir -p ./publishing/
 
-          for i in `cat package-versions.json | jq --arg commitish $COMMITISH -r '. | select(.commitish != $commitish) | join("\n")'`
+          for i in `cat package-versions.json | jq --arg commitish ${{ steps.get-commitish.outputs.commitish }} -r '. | select(.commitish != $commitish) | join("\n")'`
           do
             mv ./$i/*.tgz ./publishing/
           done
@@ -82,7 +82,6 @@ jobs:
       - name: Use Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
-          cache: npm
           node-version: ${{ env.node-version }}
       - name: Download publishing packages artifact
         uses: actions/download-artifact@v3
