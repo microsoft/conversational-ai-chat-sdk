@@ -11,11 +11,10 @@ on:
 
 env:
   node-version: lts/Hydrogen
+  publish-tag: continuous-deployment
 
 jobs:
   build:
-    outputs:
-      version: ${{ steps.set-version.outputs.version }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -24,8 +23,8 @@ jobs:
       - name: Use Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
+          cache: npm
           node-version: ${{ env.node-version }}
-          cache: 'npm'
       - run: npm install --global semver@latest
       - name: Append commitish to package version
         run: |
@@ -51,7 +50,7 @@ jobs:
       - name: Pack tarballs
         run: npm pack --pack-destination=$PWD --workspaces=true
       - name: Upload tarball artifact
-        uses: actions/upload-artifact@v3.1.1
+        uses: actions/upload-artifact@v3
         with:
           name: package-versions
           path: ./package-versions.json
@@ -60,3 +59,36 @@ jobs:
           COMMITISH=`git log --pretty=format:'%h' -1 ./$i/`
 
           cat package-versions.json | jq --arg commitish $COMMITISH -r '. | select(.commitish == $commitish)'
+      - name: Consolidate publishing packages
+        run: |
+          mkdir -p ./publishing/
+
+          for i in `cat package-versions.json | jq --arg commitish $COMMITISH -r '. | select(.commitish == $commitish) | join("\n")'
+          do
+            mv ./$i/*.tgz ./publishing/
+          done
+      - name: Upload publishing packages artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: publishing-packages
+          path: ./publishing/
+
+  upload-to-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Use Node.js ${{ env.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          cache: npm
+          node-version: ${{ env.node-version }}
+      - name: Download publishing packages artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: publishing-packages
+      - name: List all publishing packages
+        run: ls -l *.tgz
+      - name: Upload packages to GitHub "${{ env.publish-tag }}" release
+        run: gh release upload ${{ env.publish-tag }} ./*.tgz --repo ${{ github.repository }}
+      - name: Summary
+        run: |
+          echo Release at https://github.com/${{ github.repository }}/releases/tag/${{ env.publish-tag }}
