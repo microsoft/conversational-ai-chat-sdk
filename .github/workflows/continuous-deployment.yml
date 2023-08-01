@@ -77,6 +77,8 @@ jobs:
   upload-to-release:
     needs:
       - build
+    permissions:
+      - releases: write
     runs-on: ubuntu-latest
     steps:
       - name: Use Node.js ${{ env.node-version }}
@@ -89,7 +91,9 @@ jobs:
           name: publishing-packages
       - name: List all publishing packages
         run: ls -l *.tgz
-      - name: Upload packages to GitHub "${{ env.publish-tag }}" release
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        name: Upload packages to GitHub "${{ env.publish-tag }}" release
         run: gh release upload ${{ env.publish-tag }} ./*.tgz --repo ${{ github.repository }}
       - name: Summary
         run: |
