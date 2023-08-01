@@ -81,10 +81,7 @@ jobs:
       contents: write # "contents" is required for modifying releases.
     runs-on: ubuntu-latest
     steps:
-      - name: Use Node.js ${{ env.node-version }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ env.node-version }}
+      - uses: actions/checkout@v3
       - name: Download publishing packages artifact
         uses: actions/download-artifact@v3
         with:
