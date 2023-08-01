@@ -95,6 +95,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         name: Upload packages to GitHub "${{ env.publish-tag }}" release
         run: gh release upload ${{ env.publish-tag }} ./*.tgz --repo ${{ github.repository }}
+      - name: Update tag
+        run: |
+          git tag -d ${{ env.publish-tag }}
+          git tag ${{ env.publish-tag }}
+          git push origin :${{ env.publish-tag }}
+          git push origin ${{ env.publish-tag }}
       - name: Summary
         run: |
           echo Release at https://github.com/${{ github.repository }}/releases/tag/${{ env.publish-tag }}
