@@ -78,7 +78,7 @@ jobs:
     needs:
       - build
     permissions:
-      - releases: write
+      releases: write
     runs-on: ubuntu-latest
     steps:
       - name: Use Node.js ${{ env.node-version }}
