@@ -64,7 +64,7 @@ jobs:
         run: |
           mkdir -p ./publishing/
 
-          for i in `cat package-versions.json | jq --arg commitish ${{ steps.get-commitish.outputs.commitish }} -r '. | select(.commitish != $commitish) | .tarball | join("\n")'`
+          for i in `cat package-versions.json | jq --arg commitish ${{ steps.get-commitish.outputs.commitish }} -r '.[] | select(.commitish != $commitish) | .tarball'`
           do
             mv $i ./publishing/
           done
