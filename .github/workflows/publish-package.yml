@@ -108,6 +108,7 @@ jobs:
       url: ${{ steps.create-release.outputs.url }}
     name: Create tag
     needs:
+      - build
       - publish-to-npm
     permissions:
       contents: write
@@ -153,6 +154,7 @@ jobs:
       url: ${{ steps.create-pull-request.outputs.url }}
     name: Create pull request to bump to prepatch
     needs:
+      - build
       - publish-to-npm
     permissions:
       contents: write
