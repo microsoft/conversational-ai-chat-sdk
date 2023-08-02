@@ -1,3 +1,4 @@
 /.env
 /*.tgz
 /node_modules
+/package-versions.json
