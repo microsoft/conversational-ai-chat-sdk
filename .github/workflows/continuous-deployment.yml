@@ -110,7 +110,7 @@ jobs:
         run: |
           for i in `ls *.tgz -1`
           do
-            gh release delete-asset ${{ env.publish-tag }} $i --repo ${{ github.repository }}
+            gh release delete-asset ${{ env.publish-tag }} $i --repo ${{ github.repository }} || true
             gh release upload ${{ env.publish-tag }} $i --repo ${{ github.repository }}
           done
       - name: Summary
