@@ -7,8 +7,8 @@ on:
   workflow_dispatch: {} # Run on-demand for testing workflow functionality.
 
 jobs:
-  root-level-sanity-check:
-    name: Root-level sanity check
+  root-package-sanity-check:
+    name: Root package sanity check
     runs-on: ubuntu-latest
 
     steps:
@@ -25,7 +25,7 @@ jobs:
   build:
     name: Build
     needs:
-      - root-level-sanity-check
+      - root-package-sanity-check
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
