@@ -120,7 +120,7 @@ jobs:
       - publish-to-npm
     permissions:
       contents: write
-      workflows: write # If the last commit is modifying workflow file, we need this permission to create a tag.
+      workflow: write # If the last commit is modifying workflow file, we need this permission to create a tag.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
