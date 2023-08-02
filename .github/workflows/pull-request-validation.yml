@@ -35,7 +35,10 @@ jobs:
       - if: ${{ matrix.os == 'ubuntu-latest' }}
         name: Generate package names list
         run: |
-          for i in `ls -1 ./*.tgz`; do tar --extract --file=$i --to-stdout package/package.json | jq -r '.name' >> package-names.txt; done
+          for i in `ls -1 ./*.tgz`
+          do
+            tar --extract --file=$i --to-stdout package/package.json | jq -r '.name' >> package-names.txt
+          done
           cat package-names.txt | jq -Rs '. | rtrimstr("\n") | split("\n")' > package-names.json
           cat package-names.json
       - if: ${{ matrix.os == 'ubuntu-latest' }}
@@ -73,7 +76,11 @@ jobs:
           cache: npm
       - run: npm clean-install
       - name: Extract tarballs
-        run: for i in `ls -1 ./*.tgz`; do tar --extract --file=$i --directory=./packages/`tar --extract --to-stdout --file=$i package/package.json | jq -r '.name'` --strip-components=1 --verbose; done
+        run: |
+          for i in `ls -1 ./*.tgz`
+          do
+            tar --extract --file=$i --directory=./packages/`tar --extract --to-stdout --file=$i package/package.json | jq -r '.name'` --strip-components=1 --verbose
+          done
         shell: bash
       - name: Run unit tests
         run: |
