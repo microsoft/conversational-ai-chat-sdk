@@ -84,18 +84,20 @@ jobs:
         id: push-tag
         name: Push tag
         run: |
+          TAG=release/${{ inputs.package-name }}/${{ needs.build.outputs.version }}
+
           git config user.email "${{ format('@{0}', github.actor) }}"
           git config user.name "${{ format('@{0}', github.actor) }}"
-          git tag release/${{ inputs.package-name }}/${{ needs.build.outputs.version }}
-          git push -u origin release/${{ inputs.package-name }}/${{ needs.build.outputs.version }}
+          git tag $TAG
+          git push -u origin $TAG
 
-          echo tag=release/${{ inputs.package-name }}/${{ needs.build.outputs.version }} >> $GITHUB_OUTPUT
-      - name: Summary
-        run: echo Tag [\`${{ steps.push-tag.outputs.tag }}\`](${{ github.server_url }}/${{ github.repository }}/tree/${{ steps.push-tag.outputs.tag }}) created. >> $GITHUB_STEP_SUMMARY
+          echo tag=$TAG >> $GITHUB_OUTPUT
 
-  bump-to-prepatch:
+          echo [Tag \`$TAG\`](${{ github.server_url }}/${{ github.repository }}/tree/$TAG) created. >> $GITHUB_STEP_SUMMARY
+
+  create-bump-prepatch-pull-request:
     environment: pull-request
-    name: Bump to prepatch
+    name: Create pull request to bump to prepatch
     needs:
       - build
     runs-on: ubuntu-latest
@@ -117,18 +119,32 @@ jobs:
           echo version=`npm version --json --workspace=${{ inputs.package-name }} | jq --arg packageName ${{ inputs.package-name }} -r '.[$packageName]'` >> $GITHUB_OUTPUT
 
           cat ${{ needs.build.outputs.package-path }}/package.json
+
+          echo Bump [\`${{ inputs.package-name }}\`](${{ github.server_url }}/${{ github.repository }}/tree/${{ github.head_ref }}/packages/${{ inputs.package-name }}/) to \`${{ steps.bump-to-prepatch.outputs.version }}\`
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        id: create-branch
         name: Create branch
         run: |
+          BRANCH_NAME=bot/publish/${{ inputs.package-name }}/${{ steps.bump-to-prepatch.outputs.version }}
+
           git config user.email "${{ format('@{0}', github.actor) }}"
           git config user.name "${{ format('@{0}', github.actor) }}"
-          git checkout -b bot/publish/${{ inputs.package-name }}/${{ steps.bump-to-prepatch.outputs.version }}
+
+          git checkout -b $BRANCH_NAME
           git add ./package-lock.json
           git add ./packages/${{ inputs.package-name }}/package.json
           git commit -m "Bump ${{ inputs.package-name }}@${{ steps.bump-to-prepatch.outputs.version }}"
-      - id: create-pull-request
+          git push --set-upstream origin $BRANCH_NAME
+
+          echo branch-name=$BRANCH_NAME >> $GITHUB_OUTPUT
+          echo Branch created at [\`$BRANCH_NAME\`](${{ github.server_url }}/${{ github.repository }}/tree/$BRANCH_NAME). >> $GITHUB_STEP_SUMMARY
+      - env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        id: create-pull-request
         name: Create pull request
-        run: echo url=`gh pr create --assignee @me --fill --label bot --repo ${{ github.repository }}` >> $GITHUB_OUTPUT
-      - name: Summary
-        run: echo Pull request to bump \`${{ inputs.package-name }}@${{ steps.bump-to-prepatch.outputs.version }}\` is created at ${{ steps.create-pull-request.outputs.url }}. >> $GITHUB_STEP_SUMMARY
+        run: |
+          $URL=`gh pr create --assignee @me --fill --label bot --repo ${{ github.repository }}`
+
+          echo url=$URL >> $GITHUB_OUTPUT
+          echo Pull request created at $URL. >> $GITHUB_STEP_SUMMARY
