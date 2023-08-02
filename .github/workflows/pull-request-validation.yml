@@ -8,6 +8,7 @@ on:
 
 jobs:
   build:
+    name: Build
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -51,6 +52,7 @@ jobs:
             ./package-names.json
 
   test:
+    name: Test
     runs-on: ${{ matrix.os }}
     needs: build
     strategy:
@@ -82,13 +84,14 @@ jobs:
             tar --extract --file=$i --directory=./packages/`tar --extract --to-stdout --file=$i package/package.json | jq -r '.name'` --strip-components=1 --verbose
           done
         shell: bash
-      - name: Run unit tests
+      - name: Run tests
         run: |
           cd packages/${{ matrix.package-name }}
           npm test --workspaces=true
         shell: bash
 
   sanity-check:
+    name: Sanity check
     needs: build
     runs-on: ubuntu-latest
     strategy:
