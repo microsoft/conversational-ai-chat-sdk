@@ -43,7 +43,7 @@ jobs:
 
           for i in `cat package.json | jq -r '.workspaces | join("\n")'`
           do
-            COMMITTER_DATE=`git log --pretty=format:'%cs' -1 ./$i/`
+            COMMITTER_DATE=`git log --date=format:%Y%m%d --pretty=format:'%cd' -1 ./$i/`
             LONG_COMMITISH=`git log --pretty=format:'%H' -1 ./$i/`
             SHORT_COMMITISH=`git log --pretty=format:'%h' -1 ./$i/`
 
