@@ -91,7 +91,7 @@ jobs:
           git config user.email "${{ format('@{0}', github.actor) }}"
           git config user.name "${{ format('@{0}', github.actor) }}"
           git tag $TAG
-          git push -u origin $TAG
+          git push --set-upstream origin $TAG
 
           echo tag=$TAG >> $GITHUB_OUTPUT
 
