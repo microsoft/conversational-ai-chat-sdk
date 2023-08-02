@@ -151,7 +151,7 @@ jobs:
           DATE=`date +%F`
           URL=${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.push-tag.outputs.tag }}
 
-          gh release create ${{ steps.push-tag.outputs.tag }} ./*.tgz --repo ${{ github.repository }} --title [${{ inputs.package-name }}@${{ needs.build.outputs.version }}] - $DATE
+          gh release create ${{ steps.push-tag.outputs.tag }} ./*.tgz --repo ${{ github.repository }} --title "[${{ inputs.package-name }}@${{ needs.build.outputs.version }}] - $DATE"
           echo url=$URL >> $GITHUB_OUTPUT
 
           echo Release at $URL >> $GITHUB_STEP_SUMMARY
