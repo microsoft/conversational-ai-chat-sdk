@@ -161,9 +161,9 @@ jobs:
           fetch-depth: 0 # Fetch all tags.
       - name: Update tag
         run: |
-          git tag -d ${{ env.publish-tag }}
+          git tag -d ${{ env.publish-tag }} || true
           git tag ${{ env.publish-tag }}
-          git push origin :${{ env.publish-tag }}
+          git push origin :${{ env.publish-tag }} || true
           git push origin ${{ env.publish-tag }}
       - # Update release after re-pushing a new tag.
         env:
