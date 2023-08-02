@@ -22,6 +22,7 @@ env:
 
 jobs:
   build:
+    name: Build
     outputs:
       should-publish: ${{ steps.list-packages.outputs.should-publish }}
     runs-on: ubuntu-latest
@@ -94,6 +95,7 @@ jobs:
 
   upload-release-asset:
     if: ${{ needs.build.outputs.should-publish == 'true' }}
+    name: Upload release asset
     needs:
       - build
     permissions:
@@ -123,6 +125,7 @@ jobs:
 
   update-tag:
     if: ${{ needs.build.outputs.should-publish == 'true' }}
+    name: Update tag
     needs:
       - upload-release-asset
     permissions:
