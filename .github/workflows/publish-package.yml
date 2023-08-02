@@ -189,7 +189,7 @@ jobs:
 
           cat ${{ needs.build.outputs.package-path }}/package.json
 
-          echo Bump [\`${{ inputs.package-name }}\`]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ github.head_ref }}/packages/${{ inputs.package-name }}/\) to \`$VERSION\`. >> $GITHUB_STEP_SUMMARY
+          echo Bump [\`${{ inputs.package-name }}\`]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref_name }}/packages/${{ inputs.package-name }}/\) to \`$VERSION\`. >> $GITHUB_STEP_SUMMARY
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         id: create-branch
