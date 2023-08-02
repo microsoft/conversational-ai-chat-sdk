@@ -21,7 +21,7 @@ concurrency: continuous-deployment
 
 env:
   node-version: lts/Hydrogen
-  publish-tag: vnext
+  publish-tag: release/vnext
 
 jobs:
   build:
