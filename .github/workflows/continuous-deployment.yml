@@ -39,7 +39,8 @@ jobs:
           cache: npm
           node-version: ${{ env.node-version }}
       - run: npm install --global semver@latest
-      - name: Append commitish to package version
+      - # `package-versions.json` is the source of truth.
+        name: Append commitish to package version
         run: |
           BRANCH=`git branch --show-current`
 
@@ -99,7 +100,13 @@ jobs:
         run: |
           echo The following packages will be published: >> $GITHUB_STEP_SUMMARY
 
-          cat package-versions.json | jq -r 'map(select(.shouldPublish)) | .[] | ("- `" + (.tarball | ltrimstr("./")) + "` [Link to source](${{ github.server_url }}/${{ github.repository }}/tree/" + .longCommitish + "/" + (.path | ltrimstr("./")) + ")")' >> $GITHUB_STEP_SUMMARY
+          cat package-versions.json | jq -r 'map(select(.shouldPublish)) | .[] | ("- `" + (.tarball | ltrimstr("./")) + "` [(Link to source)](${{ github.server_url }}/${{ github.repository }}/tree/" + .longCommitish + "/" + (.path | ltrimstr("./")) + ")")' >> $GITHUB_STEP_SUMMARY
+
+          echo \<details\>\<summary\>\<code\>package-versions.json\</code\> >> $GITHUB_STEP_SUMMARY
+          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
+          cat package-versions.json >> $GITHUB_STEP_SUMMARY
+          echo \`\`\` >> $GITHUB_STEP_SUMMARY
+          echo \</details\> >> $GITHUB_STEP_SUMMARY
 
   upload-release-asset:
     if: ${{ needs.build.outputs.should-publish == 'true' }}
@@ -131,7 +138,7 @@ jobs:
 
   update-release:
     if: ${{ needs.build.outputs.should-publish == 'true' }}
-    name: Update tag
+    name: Update release
     needs:
       - upload-release-asset
     permissions:
