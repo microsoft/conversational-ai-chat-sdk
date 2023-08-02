@@ -49,15 +49,15 @@ jobs:
         run: echo package-path=`npm ls --workspace=${{ inputs.package-name }} --json | jq --arg packageName ${{ inputs.package-name }} -r '.dependencies[$packageName].resolved | ltrimstr("file:../") | if . then . else halt_error(1) end'` >> $GITHUB_OUTPUT
       - name: 'Sanity check: found package path'
         run: |
-          ls -l ${{ steps.get-package-json.outputs.package-path }}/package.json
+          ls -l ${{ steps.get-package-json.outputs.package-path }}
           compgen -G ${{ steps.get-package-json.outputs.package-path }}/package.json
       - name: 'Sanity check: package.json/name is same as package-name'
         run: |
-          cat ${{ steps.get-package-json.outputs.package-path }}/package.json
+          cat ${{ steps.get-package-json.outputs.package-path }}/package.json | jq '.name'
           cat ${{ steps.get-package-json.outputs.package-path }}/package.json | jq '.name == "${{ inputs.package-name }}" | if . then empty else halt_error(1) end'
       - name: 'Sanity check: package.json/version must be prerelease'
         run: |
-          cat ${{ steps.get-package-json.outputs.package-path }}/package.json
+          cat ${{ steps.get-package-json.outputs.package-path }}/package.json | jq '.version'
           cat ${{ steps.get-package-json.outputs.package-path }}/package.json | jq '.version | contains("-") | if . then empty else halt_error(1) end'
       - id: bump-version
         name: Bump version
@@ -93,6 +93,14 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: package
+      - name: Use Node.js ${{ env.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          cache: npm
+          node-version: ${{ env.node-version }}
+          # TODO: Use AzDO Artifacts
+          # registry-url: https://registry.npmjs.org/
+          # token: ...
       - # TODO: Add publish to NPM
         id: publish
         name: Publish
@@ -112,6 +120,7 @@ jobs:
       - publish-to-npm
     permissions:
       contents: write
+      workflows: write # If the last commit is modifying workflow file, we need this permission to create a tag.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
