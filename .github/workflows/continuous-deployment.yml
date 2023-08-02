@@ -117,13 +117,11 @@ jobs:
             gh release delete-asset ${{ env.publish-tag }} $i --repo ${{ github.repository }} || true
             gh release upload ${{ env.publish-tag }} $i --repo ${{ github.repository }}
           done
-
-          gh release edit ${{ env.publish-tag }} --draft=false --prerelease --repo ${{ github.repository }}
       - name: Summary
         run: |
           echo Release at https://github.com/${{ github.repository }}/releases/tag/${{ env.publish-tag }} >> $GITHUB_STEP_SUMMARY
 
-  update-tag:
+  update-release:
     if: ${{ needs.build.outputs.should-publish == 'true' }}
     name: Update tag
     needs:
@@ -141,6 +139,9 @@ jobs:
           git tag ${{ env.publish-tag }}
           git push origin :${{ env.publish-tag }}
           git push origin ${{ env.publish-tag }}
+      - name: Update release
+        run: |
+          gh release edit ${{ env.publish-tag }} --draft=false --prerelease --repo ${{ github.repository }}
       - name: Summary
         run: |
           echo Tag at https://github.com/${{ github.repository }}/tree/${{ env.publish-tag }} >> $GITHUB_STEP_SUMMARY
