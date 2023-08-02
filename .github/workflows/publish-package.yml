@@ -76,7 +76,7 @@ jobs:
     name: Create tag
     needs:
       - build
-    permission:
+    permissions:
       contents: write
     runs-on: ubuntu-latest
     steps:
@@ -102,7 +102,7 @@ jobs:
     name: Create pull request to bump to prepatch
     needs:
       - build
-    permission:
+    permissions:
       contents: write
     runs-on: ubuntu-latest
     steps:
