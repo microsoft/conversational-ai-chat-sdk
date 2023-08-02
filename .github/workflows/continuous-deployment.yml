@@ -101,7 +101,7 @@ jobs:
 
           cd ./publishing/
 
-          cat package-versions.json | jq -r 'map(select(.shouldPublish)) | .[] | ("- [`" + (.tarball | ltrimstr("./")) + "`](${{ github.server_url }}/${{ github.repository }}/tree/${{ github.sha }}/" + (.path | ltrimstr("./")) + ")")'
+          cat package-versions.json | jq -r 'map(select(.shouldPublish)) | .[] | ("- [`" + (.tarball | ltrimstr("./")) + "`](${{ github.server_url }}/${{ github.repository }}/tree/" + .longCommitish + "/" + (.path | ltrimstr("./")) + ")")'
 
           for i in `ls *.tgz -1`
           do
