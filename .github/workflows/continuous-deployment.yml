@@ -9,7 +9,7 @@ on:
       - '.github/**'
   workflow_dispatch:
     inputs:
-      # This is primarily for development purpose.
+      # This option is primarily for development purpose.
       republish-all:
         default: false
         description: 'Republish all packages'
