@@ -101,12 +101,12 @@ jobs:
 
           cd ./publishing/
 
-          cat package-versions.json | jq -r 'map(select(.shouldPublish)) | .[] | ("- [`" + (.tarball | ltrimstr("./")) + "`](${{ github.server_url }}/${{ github.repository }}/tree/" + .longCommitish + "/" + (.path | ltrimstr("./")) + ")")'
+          cat package-versions.json | jq -r 'map(select(.shouldPublish)) | .[] | ("- [`" + (.tarball | ltrimstr("./")) + "`](${{ github.server_url }}/${{ github.repository }}/tree/" + .longCommitish + "/" + (.path | ltrimstr("./")) + ")")' >> $GITHUB_STEP_SUMMARY
 
-          for i in `ls *.tgz -1`
-          do
-            echo - \`$i\` >> $GITHUB_STEP_SUMMARY
-          done
+          # for i in `ls *.tgz -1`
+          # do
+          #   echo - \`$i\` >> $GITHUB_STEP_SUMMARY
+          # done
 
   upload-release-asset:
     if: ${{ needs.build.outputs.should-publish == 'true' }}
