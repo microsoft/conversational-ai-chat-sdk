@@ -7,8 +7,23 @@ on:
   workflow_dispatch: {} # Run on-demand for testing workflow functionality.
 
 jobs:
+  root-level-sanity-check:
+    name: Root level sanity check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: 'Sanity check: package path must match their package name'
+        run: |
+          for i in `cat package.json | jq -r '.workspaces | join("\n")'`
+          do
+            cat $i/package.json | jq --arg path "$i" -r '.name == ($path | ltrimstr("packages/")) | if . then empty else halt_error(1) end'
+          done
+
   build:
     name: Build
+    needs:
+      - root-level-sanity-check
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -90,8 +105,8 @@ jobs:
           npm test --workspaces=true
         shell: bash
 
-  sanity-check:
-    name: Sanity check
+  per-package-sanity-check:
+    name: Per-package sanity check
     needs: build
     runs-on: ubuntu-latest
     strategy:
