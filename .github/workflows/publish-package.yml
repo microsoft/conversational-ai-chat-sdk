@@ -17,8 +17,13 @@ on:
           - major
           - minor
           - patch
+          - custom
         required: true
         type: choice
+      custom-version:
+        description: Custom version
+        required: false
+        type: string
 
 concurrency: publish-package
 
@@ -26,8 +31,23 @@ env:
   node-version: lts/Hydrogen
 
 jobs:
+  sanity-check:
+    name: Sanity check
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Sanity check: valid version'
+        run: |
+          if [ "${{ inputs.version }}" == "custom" ]
+          then
+            npx semver "${{ inputs.custom-version }}"
+          fi
+
   build:
+    env:
+      version: ${{ inputs.version == 'custom' && inputs.custom-version || inputs.version }}
     name: Build
+    needs:
+      - sanity-check
     outputs:
       should-publish: ${{ steps.list-packages.outputs.should-publish }}
     runs-on: ubuntu-latest
@@ -41,10 +61,9 @@ jobs:
           cache: npm
           node-version: ${{ env.node-version }}
       - run: npm clean-install
-      - # Gets the path of the package which match the inputs.package-name.
+      - # Gets the path of the package which match inputs.package-name.
         id: get-package-json
         name: Get package JSON
-          # echo package-path=`cat package.json | jq -r '.workspaces | map("./" + . + "/package.json") | join("\n")' | xargs -L1 -I {} find {} -exec jq -r '.name == "${{ inputs.package-name }}" | if . then input_filename | rtrimstr("package.json") else empty end' {} \;` >> $GITHUB_OUTPUT
         run: echo package-path=`npm ls --workspace=${{ inputs.package-name }} --json | jq --arg packageName ${{ inputs.package-name }} -r '.dependencies[$packageName].resolved | ltrimstr("file:../") | if . then . else halt_error(1) end'` >> $GITHUB_OUTPUT
       - name: 'Sanity check: found package path'
         run: |
@@ -57,7 +76,7 @@ jobs:
       - id: bump-version
         name: Bump version
         run: |
-          npm version --no-git-tag-version ${{ inputs.version }} --workspace=${{ inputs.package-name }}
+          npm version --no-git-tag-version ${{ env.version }} --workspace=${{ inputs.package-name }}
           echo version=`npm version --json --workspace=${{ inputs.package-name }} | jq --arg packageName ${{ inputs.package-name }} -r '.[$packageName]'` >> $GITHUB_OUTPUT
           cat ${{ steps.get-package-json.outputs.package-path }}/package.json
       - name: Build
