@@ -146,3 +146,8 @@ jobs:
         run: cat package-lock.json | jq '.dependencies + .packages | to_entries | map(.value.resolved // "" | select((. == "" or startswith("https://registry.npmjs.org/")) | not)) | if length > 0 then halt_error(1) else empty end'
       - name: 'Sanity check: version must be prerelease'
         run: cat package.json | jq '.version | contains("-") | if . then empty else halt_error(1) end'
+      # TODO: Must contains changes in CHANGELOG.md
+      # TODO: In CHANGELOG.md, if breaking changes is modified, must bump major
+      # TODO: In CHANGELOG.md, if features are removed, must bump major
+      # TODO: In CHANGELOG.md, if features are added, must bump minor
+      # TODO: In CHANGELOG.md, if bugs are fixed, must bump patch
