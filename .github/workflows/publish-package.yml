@@ -72,7 +72,9 @@ jobs:
           path: ${{ steps.pack-tarball.outputs.tarball-path }}
 
   create-tag:
-    environment: pull-request
+    environment:
+      name: pull-request
+      url: ${{ steps.push-tag.outputs.url }}
     name: Create tag
     needs:
       - build
@@ -87,6 +89,7 @@ jobs:
         name: Push tag
         run: |
           TAG=release/${{ inputs.package-name }}/${{ needs.build.outputs.version }}
+          URL=${{ github.server_url }}/${{ github.repository }}/tree/$TAG
 
           git config user.email "${{ format('@{0}', github.actor) }}"
           git config user.name "${{ format('@{0}', github.actor) }}"
@@ -94,11 +97,14 @@ jobs:
           git push --set-upstream origin $TAG
 
           echo tag=$TAG >> $GITHUB_OUTPUT
+          echo url=$URL >> $GITHUB_OUTPUT
 
-          echo Tag [\`$TAG\`]\(${{ github.server_url }}/${{ github.repository }}/tree/$TAG\) created. >> $GITHUB_STEP_SUMMARY
+          echo Tag [\`$TAG\`]\($URL\) created. >> $GITHUB_STEP_SUMMARY
 
   create-bump-prepatch-pull-request:
-    environment: pull-request
+    environment:
+      name: pull-request
+      url: ${{ steps.create-pull-request.outputs.url }}
     name: Create pull request to bump to prepatch
     needs:
       - build
