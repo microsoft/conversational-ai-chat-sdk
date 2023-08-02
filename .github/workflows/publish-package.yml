@@ -11,19 +11,6 @@ on:
           - powerva-chat-adapter
         required: true
         type: choice
-      version:
-        description: Release version
-        options:
-          - major
-          - minor
-          - patch
-          - custom
-        required: true
-        type: choice
-      custom-version:
-        description: Custom version
-        required: false
-        type: string
 
 concurrency: publish-package
 
@@ -31,23 +18,8 @@ env:
   node-version: lts/Hydrogen
 
 jobs:
-  sanity-check:
-    name: Sanity check
-    runs-on: ubuntu-latest
-    steps:
-      - name: 'Sanity check: valid version'
-        run: |
-          if [ "${{ inputs.version }}" == "custom" ]
-          then
-            npx semver "${{ inputs.custom-version }}"
-          fi
-
   build:
-    env:
-      version: ${{ inputs.version == 'custom' && inputs.custom-version || inputs.version }}
     name: Build
-    needs:
-      - sanity-check
     outputs:
       package-path: ${{ steps.get-package-json.outputs.package-path }}
       version: ${{ steps.bump-version.outputs.version }}
@@ -74,10 +46,14 @@ jobs:
         run: |
           cat ${{ steps.get-package-json.outputs.package-path }}/package.json
           cat ${{ steps.get-package-json.outputs.package-path }}/package.json | jq '.name == "${{ inputs.package-name }}" | if . then empty else halt_error(1) end'
+      - name: 'Sanity check: package.json/version must be prerelease'
+        run: |
+          cat ${{ steps.get-package-json.outputs.package-path }}/package.json
+          cat ${{ steps.get-package-json.outputs.package-path }}/package.json | jq '.version | contains("-") | if . then empty else halt_error(1) end'
       - id: bump-version
         name: Bump version
         run: |
-          npm version --no-git-tag-version --workspace=${{ inputs.package-name }} ${{ env.version }}
+          npm version --no-git-tag-version --workspace=${{ inputs.package-name }} patch
           echo version=`npm version --json --workspace=${{ inputs.package-name }} | jq --arg packageName ${{ inputs.package-name }} -r '.[$packageName]'` >> $GITHUB_OUTPUT
           cat ${{ steps.get-package-json.outputs.package-path }}/package.json
       - name: Build
@@ -96,6 +72,7 @@ jobs:
           path: ${{ steps.pack-tarball.outputs.tarball-path }}
 
   bump-to-prepatch:
+    environment: pull-request
     name: Bump to prepatch
     needs:
       - build
@@ -109,8 +86,26 @@ jobs:
         with:
           cache: npm
           node-version: ${{ env.node-version }}
-      - name: Bump to prepatch
+      - id: bump-to-prepatch
+        name: Bump to prepatch
         run: |
           npm version --no-git-tag-version --workspace=${{ inputs.package-name }} ${{ needs.build.outputs.version }}
           npm version --no-git-tag-version --workspace=${{ inputs.package-name }} prepatch
+
+          echo version=`npm version --json --workspace=${{ inputs.package-name }} | jq --arg packageName ${{ inputs.package-name }} -r '.[$packageName]'` >> $GITHUB_OUTPUT
+
           cat ${{ needs.build.outputs.package-path }}/package.json
+      - env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        name: Create branch
+        run: |
+          git checkout -b bot/publish/${{ inputs.package-name }}/${{ steps.bump-to-prepatch.outputs.version }}
+          git add ./package-lock.json
+          git add ./packages/${{ inputs.package-name }}/package.json
+          git commit -m "Bump ${{ inputs.package-name }}@${{ steps.bump-to-prepatch.outputs.version }}"
+      - id: create-pull-request
+        name: Create pull request
+        run: echo url=`gh pr create --assignee @me --fill --label bot --repo ${{ github.repository }}` >> $GITHUB_OUTPUT
+      - name: Summary
+        run: |
+          echo Pull request to bump \`${{ inputs.package-name }}@${{ steps.bump-to-prepatch.outputs.version }}\` is created at ${{ steps.create-pull-request.outputs.url }}. >> $GITHUB_STEP_SUMMARY
