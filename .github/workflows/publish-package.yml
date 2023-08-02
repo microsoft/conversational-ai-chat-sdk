@@ -43,15 +43,10 @@ jobs:
       - # Gets the path of the package which match the inputs.package-name.
         id: get-package-json
         name: Get package JSON
-        run: |
-          echo package-path=`cat package.json | jq -r '.workspaces | map("./" + . + "/package.json") | join("\n")' | xargs -L1 -I {} find {} -exec jq -r '.name == "${{ inputs.package-name }}" | if . then input_filename | rtrimstr("package.json") else empty end' {} \;` >> $GITHUB_OUTPUT
-          echo package-path=`npm ls --workspace=powerva-chat-adapter --json | jq --arg packageName "powerva-chat-adapter" -r '.dependencies[($packageName)].resolved | ltrimstr("file:../")'` >> $GITHUB_OUTPUT
+          # echo package-path=`cat package.json | jq -r '.workspaces | map("./" + . + "/package.json") | join("\n")' | xargs -L1 -I {} find {} -exec jq -r '.name == "${{ inputs.package-name }}" | if . then input_filename | rtrimstr("package.json") else empty end' {} \;` >> $GITHUB_OUTPUT
+        run: echo package-path=`npm ls --workspace=${{ inputs.package-name }} --json | jq --arg packageName ${{ inputs.package-name }} -r '.dependencies[$packageName].resolved | ltrimstr("file:../") | if . then . else halt_error(1) end'` >> $GITHUB_OUTPUT
       - name: 'Sanity check: found package path'
-        run: |
-          if [ -z "${{ steps.get-package-json.outputs.package-path }}" ]
-          then
-            exit 1
-          fi
+        run: compgen -G ${{ steps.get-package-json.outputs.package-path }}/package.json
       - name: 'Sanity check: package.json/name is same as package-name'
         run: cat ${{ steps.get-package-json.outputs.package-path }}/package.json | jq '.name == "${{ inputs.package-name }}" | if . then empty else halt_error(1) end'
       - id: bump-version
