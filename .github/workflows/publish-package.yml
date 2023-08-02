@@ -109,9 +109,12 @@ jobs:
         id: create-release
         name: Create release
         run: |
-          gh release create ${{ steps.push-tag.outputs.tag }} ./*.tgz --repo ${{ github.repository }}
+          URL=${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.push-tag.outputs.tag }}
 
-          echo Release at ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.push-tag.outputs.tag }} >> $GITHUB_STEP_SUMMARY
+          gh release create ${{ steps.push-tag.outputs.tag }} ./*.tgz --repo ${{ github.repository }}
+          echo url=$URL >> $GITHUB_OUTPUT
+
+          echo Release at $URL >> $GITHUB_STEP_SUMMARY
 
   create-bump-prepatch-pull-request:
     environment:
