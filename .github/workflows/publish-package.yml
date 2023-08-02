@@ -7,8 +7,8 @@ on:
       package-name:
         description: Package name
         options:
-          - powerva-turn-based-chat-adapter-framework
           - powerva-chat-adapter
+          - powerva-turn-based-chat-adapter-framework
         required: true
         type: choice
 
@@ -95,7 +95,7 @@ jobs:
 
           echo tag=$TAG >> $GITHUB_OUTPUT
 
-          echo [Tag \`$TAG\`](${{ github.server_url }}/${{ github.repository }}/tree/$TAG) created. >> $GITHUB_STEP_SUMMARY
+          echo [Tag \`$TAG\`]\(${{ github.server_url }}/${{ github.repository }}/tree/$TAG\) created. >> $GITHUB_STEP_SUMMARY
 
   create-bump-prepatch-pull-request:
     environment: pull-request
@@ -126,7 +126,7 @@ jobs:
 
           cat ${{ needs.build.outputs.package-path }}/package.json
 
-          echo Bump [\`${{ inputs.package-name }}\`](${{ github.server_url }}/${{ github.repository }}/tree/${{ github.head_ref }}/packages/${{ inputs.package-name }}/) to \`$VERSION\`
+          echo Bump [\`${{ inputs.package-name }}\`]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ github.head_ref }}/packages/${{ inputs.package-name }}/\) to \`$VERSION\`
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         id: create-branch
@@ -144,7 +144,7 @@ jobs:
           git push --set-upstream origin $BRANCH_NAME
 
           echo branch-name=$BRANCH_NAME >> $GITHUB_OUTPUT
-          echo Branch created at [\`$BRANCH_NAME\`](${{ github.server_url }}/${{ github.repository }}/tree/$BRANCH_NAME). >> $GITHUB_STEP_SUMMARY
+          echo Branch created at [\`$BRANCH_NAME\`]\(${{ github.server_url }}/${{ github.repository }}/tree/$BRANCH_NAME\). >> $GITHUB_STEP_SUMMARY
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         id: create-pull-request
