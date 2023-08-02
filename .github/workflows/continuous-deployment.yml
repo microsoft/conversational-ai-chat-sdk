@@ -101,12 +101,7 @@ jobs:
 
           cat package-versions.json | jq -r 'map(select(.shouldPublish)) | .[] | ("- [`" + (.tarball | ltrimstr("./")) + "`](${{ github.server_url }}/${{ github.repository }}/tree/" + .longCommitish + "/" + (.path | ltrimstr("./")) + ")")' >> $GITHUB_STEP_SUMMARY
 
-          # cd ./publishing/
-
-          # for i in `ls *.tgz -1`
-          # do
-          #   echo - \`$i\` >> $GITHUB_STEP_SUMMARY
-          # done
+          cat package-versions.json | jq -r 'map(select(.shouldPublish)) | .[] | ("- `" + (.tarball | ltrimstr("./")) + "` [Link to source](${{ github.server_url }}/${{ github.repository }}/tree/" + .longCommitish + "/" + (.path | ltrimstr("./")) + ")")' >> $GITHUB_STEP_SUMMARY
 
   upload-release-asset:
     if: ${{ needs.build.outputs.should-publish == 'true' }}
