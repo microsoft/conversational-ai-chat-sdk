@@ -1,0 +1,70 @@
+name: Publish package
+
+on:
+  workflow_dispatch:
+    inputs:
+      # In pull-request-validation.yml, we enforce that the package name must equals to the package path.
+      package-name:
+        description: Package name
+        options:
+          - powerva-turn-based-chat-adapter-framework
+          - powerva-chat-adapter
+        required: true
+        type: choice
+      version:
+        description: Release version
+        options:
+          - major
+          - minor
+          - patch
+        required: true
+        type: string
+
+concurrency: publish-package
+
+env:
+  node-version: lts/Hydrogen
+
+jobs:
+  build:
+    name: Build
+    outputs:
+      should-publish: ${{ steps.list-packages.outputs.should-publish }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Use Node.js ${{ env.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          cache: npm
+          node-version: ${{ env.node-version }}
+      - # Gets the path of the package which match the inputs.package-name.
+        id: get-package-json
+        name: Get package JSON
+        run: echo package-path=`cat package.json | jq -r '.workspaces | map("./" + . + "/package.json") | join("\n")' | xargs -L1 -I {} find {} -exec jq -r '.name == "${{ inputs.package-name }}" | if . then input_filename | rtrimstr("package.json") else empty end' {} \;` >> $GITHUB_OUTPUT
+      - name: 'Sanity check: found package path'
+        run: |
+          if [ -z "${{ steps.get-package-json.outputs.package-path }}" ]
+          then
+            exit 1
+          fi
+      - id: bump-version
+        name: Bump version
+        run: |
+          cd ./packages/${{ steps.get-package-json.outputs.package-path }}/
+          npm version --no-git-tag-version ${{ inputs.version }}
+          echo version=`cat package.json | jq -r .version` >> $GITHUB_OUTPUT
+          cat package.json
+      - name: Build
+        run: npm run build --if-present --workspaces=true
+      - name: Pack tarballs
+        run: npm pack --pack-destination=$PWD --workspace=${{ inputs.package-name }}
+      - name: 'Sanity check: got tarball'
+        run: compgen -G ./${{ inputs.package-name }}-${{ steps.bump-version.outputs.version }}.tgz
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: package
+          path: ./${{ inputs.package-name }}-${{ steps.bump-version.outputs.version }}.tgz
