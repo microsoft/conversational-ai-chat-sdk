@@ -22,6 +22,8 @@ concurrency: continuous-deployment
 env:
   node-version: lts/Hydrogen
   publish-tag: release/vnext
+  # TODO: Change this to AzDO
+  redirect-registry-url: https://registry.npmjs.org/
 
 jobs:
   build:
@@ -38,6 +40,13 @@ jobs:
         with:
           cache: npm
           node-version: ${{ env.node-version }}
+          # TODO: Use AzDO Artifacts
+          # registry-url: https://registry.npmjs.org/
+          # token: ...
+      - name: Redirect package-lock.json
+        run: |
+          cat package-lock.json | jq -r '.packages = (.packages | with_entries(.value = (.value | (if ((.link | not) and .resolved) then (.resolved = "${{ env.redirect-registry-url }}" + (.resolved | ltrimstr("https://registry.npmjs.org/"))) else . end))))' > package-lock.json.tmp
+          mv package-lock.json.tmp package-lock.json
       - run: npm install --global semver@latest
       - # `package-versions.json` is the source of truth.
         name: Append commitish to package version
