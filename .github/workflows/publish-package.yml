@@ -120,7 +120,6 @@ jobs:
       - publish-to-npm
     permissions:
       contents: write
-      workflow: write # If the last commit is modifying workflow file, we need this permission to create a tag.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -136,10 +135,13 @@ jobs:
           TAG=release/${{ inputs.package-name }}/${{ needs.build.outputs.version }}
           URL=${{ github.server_url }}/${{ github.repository }}/tree/$TAG
 
-          git config user.email "${{ format('@{0}', github.actor) }}"
-          git config user.name "${{ format('@{0}', github.actor) }}"
-          git tag $TAG
-          git push --set-upstream origin $TAG
+        # git config user.email "${{ format('@{0}', github.actor) }}"
+        # git config user.name "${{ format('@{0}', github.actor) }}"
+
+          gh api repos/${{ github.repository }}/git/refs --field ref=refs/heads/$TAG --field sha=${{ github.sha }}
+
+        # git tag $TAG
+        # git push --set-upstream origin $TAG
 
           echo tag=$TAG >> $GITHUB_OUTPUT
           echo url=$URL >> $GITHUB_OUTPUT
