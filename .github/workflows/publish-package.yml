@@ -71,6 +71,28 @@ jobs:
           name: package
           path: ${{ steps.pack-tarball.outputs.tarball-path }}
 
+  create-tag:
+    environment: pull-request
+    name: Create tag
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        id: push-tag
+        name: Push tag
+        run: |
+          git config user.email "${{ format('@{0}', github.actor) }}"
+          git config user.name "${{ format('@{0}', github.actor) }}"
+          git tag release/${{ inputs.package-name }}/${{ needs.build.outputs.version }}
+          git push -u origin release/${{ inputs.package-name }}/${{ needs.build.outputs.version }}
+
+          echo tag=release/${{ inputs.package-name }}/${{ needs.build.outputs.version }} >> $GITHUB_OUTPUT
+      - name: Summary
+        run: echo Tag [\`${{ steps.push-tag.outputs.tag }}\`](${{ github.server_url }}/${{ github.repository }}/tree/${{ steps.push-tag.outputs.tag }}) created. >> $GITHUB_STEP_SUMMARY
+
   bump-to-prepatch:
     environment: pull-request
     name: Bump to prepatch
@@ -99,6 +121,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         name: Create branch
         run: |
+          git config user.email "${{ format('@{0}', github.actor) }}"
+          git config user.name "${{ format('@{0}', github.actor) }}"
           git checkout -b bot/publish/${{ inputs.package-name }}/${{ steps.bump-to-prepatch.outputs.version }}
           git add ./package-lock.json
           git add ./packages/${{ inputs.package-name }}/package.json
@@ -107,5 +131,4 @@ jobs:
         name: Create pull request
         run: echo url=`gh pr create --assignee @me --fill --label bot --repo ${{ github.repository }}` >> $GITHUB_OUTPUT
       - name: Summary
-        run: |
-          echo Pull request to bump \`${{ inputs.package-name }}@${{ steps.bump-to-prepatch.outputs.version }}\` is created at ${{ steps.create-pull-request.outputs.url }}. >> $GITHUB_STEP_SUMMARY
+        run: echo Pull request to bump \`${{ inputs.package-name }}@${{ steps.bump-to-prepatch.outputs.version }}\` is created at ${{ steps.create-pull-request.outputs.url }}. >> $GITHUB_STEP_SUMMARY
