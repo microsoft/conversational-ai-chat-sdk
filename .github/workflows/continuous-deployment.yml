@@ -15,6 +15,8 @@ env:
 
 jobs:
   build:
+    outputs:
+      should-publish: ${{ steps.move-packages.outputs.should-publish }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -59,31 +61,32 @@ jobs:
           path: ./package-versions.json
       - name: List publishing packages
         run: cat package-versions.json | jq --arg commitish ${{ steps.get-commitish.outputs.commitish }} -r '. | select(.commitish == $commitish)'
-      - name: Consolidate publishing packages
-        # TODO: Fix this, we are uploading everything for first time
+      - id: move-packages
+        name: Move publishing packages to /publishing/
         run: |
           mkdir -p ./publishing/
 
-          for i in `cat package-versions.json | jq --arg commitish ${{ steps.get-commitish.outputs.commitish }} -r '.[] | select(.commitish != $commitish) | .tarball'`
+          for i in `cat package-versions.json | jq --arg commitish ${{ steps.get-commitish.outputs.commitish }} -r '.[] | select(.commitish == $commitish) | .tarball'`
           do
             mv $i ./publishing/
           done
-      - name: Upload publishing packages artifact
+
+          echo should-publish=`if ls ./publishing/*>/dev/null 2>&1; then echo "true"; else echo "false"; fi` >> $GITHUB_OUTPUT
+      - if: ${{ steps.move-packages.outputs.should-publish == 'true' }}
+        name: Upload publishing packages artifact
         uses: actions/upload-artifact@v3
         with:
           name: publishing-packages
           path: ./publishing/
 
   upload-to-release:
+    if: ${{ needs.build.outputs.should-publish == 'true' }}
     needs:
       - build
     permissions:
       contents: write # "contents" is required for modifying releases.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0 # Fetch all tags.
       - name: Download publishing packages artifact
         uses: actions/download-artifact@v3
         with:
@@ -94,6 +97,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         name: Upload packages to GitHub "${{ env.publish-tag }}" release
         run: gh release upload ${{ env.publish-tag }} ./*.tgz --repo ${{ github.repository }}
+      - name: Summary
+        run: |
+          echo Release at https://github.com/${{ github.repository }}/releases/tag/${{ env.publish-tag }} >> $GITHUB_SUMMARY
+
+  update-tag:
+    if: ${{ needs.build.outputs.should-publish == 'true' }}
+    needs:
+      - upload-to-release
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Fetch all tags.
       - name: Update tag
         run: |
           git tag -d ${{ env.publish-tag }}
@@ -102,4 +120,4 @@ jobs:
           git push origin ${{ env.publish-tag }}
       - name: Summary
         run: |
-          echo Release at https://github.com/${{ github.repository }}/releases/tag/${{ env.publish-tag }}
+          echo Tag at https://github.com/${{ github.repository }}/tree/${{ env.publish-tag }} >> $GITHUB_SUMMARY
