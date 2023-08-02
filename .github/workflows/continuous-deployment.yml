@@ -9,11 +9,14 @@ on:
       - '.github/**'
   workflow_dispatch:
     inputs:
+      # This is primarily for development purpose.
       republish-all:
         default: false
         description: 'Republish all packages'
         type: boolean
 
+# Do not cancel current run. This is because we are using ${{ github.sha }} to determine what to publish.
+# If current run is cancelled, we will not publish packages for the current run.
 concurrency: continuous-deployment
 
 env:
@@ -60,7 +63,7 @@ jobs:
         run: npm run build --if-present --workspaces=true
       - name: Pack tarballs
         run: npm pack --pack-destination=$PWD --workspaces=true
-      - name: 'Check: has packed all tarballs'
+      - name: 'Sanity check: has packed all tarballs'
         run: |
           for i in `cat package-versions.json | jq -r '.[] | .tarball'`
           do
@@ -92,6 +95,18 @@ jobs:
         with:
           name: publishing-packages
           path: ./publishing/
+      - name: Summary
+        run: |
+          echo The following packages will be published: >> $GITHUB_STEP_SUMMARY
+
+          cd ./publishing/
+
+          cat package-versions.json | jq -r 'map(select(.shouldPublish)) | .[] | ("- [`" + (.tarball | ltrimstr("./")) + "`](${{ github.server_url }}/${{ github.repository }}/tree/${{ github.sha }}/" + (.path | ltrimstr("./")) + ")")'
+
+          for i in `ls *.tgz -1`
+          do
+            echo - \`$i\` >> $GITHUB_STEP_SUMMARY
+          done
 
   upload-release-asset:
     if: ${{ needs.build.outputs.should-publish == 'true' }}
@@ -139,11 +154,11 @@ jobs:
           git tag ${{ env.publish-tag }}
           git push origin :${{ env.publish-tag }}
           git push origin ${{ env.publish-tag }}
-      - env:
+      - # Update release after re-pushing a new tag.
+        env:
           GH_TOKEN: ${{ github.token }}
         name: Update release
-        run: |
-          gh release edit ${{ env.publish-tag }} --draft=false --prerelease --repo ${{ github.repository }}
+        run: gh release edit ${{ env.publish-tag }} --draft=false --prerelease --repo ${{ github.repository }}
       - name: Summary
         run: |
           echo Tag at https://github.com/${{ github.repository }}/tree/${{ env.publish-tag }} >> $GITHUB_STEP_SUMMARY
