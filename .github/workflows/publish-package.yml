@@ -1,4 +1,4 @@
-name: Publish ${{ inputs.package-name }}
+name: Publish package
 
 on:
   workflow_dispatch:
