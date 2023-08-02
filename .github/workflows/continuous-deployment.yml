@@ -139,7 +139,9 @@ jobs:
           git tag ${{ env.publish-tag }}
           git push origin :${{ env.publish-tag }}
           git push origin ${{ env.publish-tag }}
-      - name: Update release
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        name: Update release
         run: |
           gh release edit ${{ env.publish-tag }} --draft=false --prerelease --repo ${{ github.repository }}
       - name: Summary
