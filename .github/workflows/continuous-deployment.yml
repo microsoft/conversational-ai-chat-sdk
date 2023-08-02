@@ -99,9 +99,9 @@ jobs:
         run: |
           echo The following packages will be published: >> $GITHUB_STEP_SUMMARY
 
-          cd ./publishing/
-
           cat package-versions.json | jq -r 'map(select(.shouldPublish)) | .[] | ("- [`" + (.tarball | ltrimstr("./")) + "`](${{ github.server_url }}/${{ github.repository }}/tree/" + .longCommitish + "/" + (.path | ltrimstr("./")) + ")")' >> $GITHUB_STEP_SUMMARY
+
+          # cd ./publishing/
 
           # for i in `ls *.tgz -1`
           # do
