@@ -76,6 +76,8 @@ jobs:
     name: Create tag
     needs:
       - build
+    permission:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -100,6 +102,8 @@ jobs:
     name: Create pull request to bump to prepatch
     needs:
       - build
+    permission:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -116,11 +120,13 @@ jobs:
           npm version --no-git-tag-version --workspace=${{ inputs.package-name }} ${{ needs.build.outputs.version }}
           npm version --no-git-tag-version --workspace=${{ inputs.package-name }} prepatch
 
-          echo version=`npm version --json --workspace=${{ inputs.package-name }} | jq --arg packageName ${{ inputs.package-name }} -r '.[$packageName]'` >> $GITHUB_OUTPUT
+          VERSION=`npm version --json --workspace=${{ inputs.package-name }} | jq --arg packageName ${{ inputs.package-name }} -r '.[$packageName]'`
+
+          echo version=$VERSION >> $GITHUB_OUTPUT
 
           cat ${{ needs.build.outputs.package-path }}/package.json
 
-          echo Bump [\`${{ inputs.package-name }}\`](${{ github.server_url }}/${{ github.repository }}/tree/${{ github.head_ref }}/packages/${{ inputs.package-name }}/) to \`${{ steps.bump-to-prepatch.outputs.version }}\`
+          echo Bump [\`${{ inputs.package-name }}\`](${{ github.server_url }}/${{ github.repository }}/tree/${{ github.head_ref }}/packages/${{ inputs.package-name }}/) to \`$VERSION\`
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         id: create-branch
