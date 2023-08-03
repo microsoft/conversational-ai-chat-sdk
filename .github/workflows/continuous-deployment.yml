@@ -47,6 +47,10 @@ jobs:
         run: |
           npm config set //msazure.pkgs.visualstudio.com/_packaging/power-platform-ux/npm/registry/:_password=\${NODE_AUTH_PASSWORD}
           npm config set //msazure.pkgs.visualstudio.com/_packaging/power-platform-ux/npm/registry/:username=msazure
+      - env:
+          # CyberEO: When building production bits, we have to use an internal NPM instead of NPMJS.
+          NODE_AUTH_PASSWORD: ${{ secrets.NPM_PASSWORD_AZURE_DEV_OPS_READ }}
+        run: npm install --global --ignore-scripts semver
       - # CyberEO: Make sure we are installing packages from reputable source.
         name: Redirect package-lock.json
         run: |
@@ -54,14 +58,9 @@ jobs:
           mv package-lock.json.tmp package-lock.json
       - run: npm get
       - # `package-versions.json` is the source of truth.
-        env:
-          # CyberEO: When building production bits, we have to use an internal NPM instead of NPMJS.
-          NODE_AUTH_PASSWORD: ${{ secrets.NPM_TOKEN_AZURE_DEV_OPS_READ }}
         name: Append commitish to package version
         run: |
           BRANCH=`git branch --show-current`
-
-          npm clean-install --global --ignore-scripts semver
 
           echo {} > package-versions.json
 
@@ -72,7 +71,7 @@ jobs:
             LONG_COMMITISH=`git log --pretty=format:'%H' -1 ./$i/`
             SHORT_COMMITISH=`git log --pretty=format:'%h' -1 ./$i/`
 
-            cat ./$i/package.json | jq -r .version | xargs -L1 npx semver $1 --increment prerelease -n false --preid $BRANCH.$COMMITTER_DATE.$SHORT_COMMITISH | xargs -L1 npm version --no-git-tag-version --workspace $i $1 && true || exit 1
+            cat ./$i/package.json | jq -r .version | xargs -L1 npx --no-install semver $1 --increment prerelease -n false --preid $BRANCH.$COMMITTER_DATE.$SHORT_COMMITISH | xargs -L1 npm version --no-git-tag-version --workspace $i $1 && true || exit 1
 
             cat ./package-versions.json | jq --arg branch $BRANCH --arg committerDateInISO8601 $COMMITTER_DATE_IN_ISO8601 --arg longCommitish $LONG_COMMITISH --arg shortCommitish $SHORT_COMMITISH --arg path ./$i/ --argfile packageJSON ./$i/package.json -rS '. + { ($packageJSON.name): { branch: $branch, committerDate: $committerDateInISO8601, longCommitish: $longCommitish, path: $path, shortCommitish: $shortCommitish, shouldPublish: (${{ inputs.republish-all || false }} // ($longCommitish == "${{ github.sha }}")), tarball: ("./" + $packageJSON.name + "-" + $packageJSON.version + ".tgz"), version: $packageJSON.version } }' > ./package-versions.json.tmp && true || exit 1
 
@@ -82,8 +81,8 @@ jobs:
         run: cat package-versions.json
       - env:
           # CyberEO: When building production bits, we have to use an internal NPM instead of NPMJS.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_AZURE_DEV_OPS_READ }}
-        run: npm install --ignore-scripts # Skip scripts to prevent malicious scripts from stealing the token.
+          NODE_AUTH_PASSWORD: ${{ secrets.NPM_PASSWORD_AZURE_DEV_OPS_READ }}
+        run: npm clean-install --ignore-scripts # Skip scripts to prevent malicious scripts from stealing the token.
       - name: Build
         run: npm run build --if-present --workspaces=true
       - name: Pack tarballs

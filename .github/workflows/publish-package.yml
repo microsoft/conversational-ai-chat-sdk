@@ -40,7 +40,6 @@ jobs:
           node-version: ${{ env.node-version }}
           # CyberEO: When building production bits, we have to use an internal NPM instead of NPMJS.
           registry-url: ${{ vars.NPM_REGISTRY_URL_AZURE_DEV_OPS }}
-          token: ${{ secrets.NPM_TOKEN_AZURE_DEV_OPS_READ }}
       - name: Configure NPM
         run: |
           npm config set //msazure.pkgs.visualstudio.com/_packaging/power-platform-ux/npm/registry/:_password=\${NODE_AUTH_PASSWORD}
@@ -49,7 +48,7 @@ jobs:
         run: |
           cat package-lock.json | jq -r '.packages = (.packages | with_entries(.value = (.value | (if ((.link | not) and .resolved) then (.resolved = "${{ vars.NPM_REGISTRY_URL_AZURE_DEV_OPS }}" + (.resolved | ltrimstr("https://registry.npmjs.org/"))) else . end))))' > package-lock.json.tmp
           mv package-lock.json.tmp package-lock.json
-      - run: npm clean-install
+      - run: npm clean-install --ignore-scripts
       - # Gets the path of the package which match inputs.package-name.
         id: get-package-json
         name: Get package JSON
@@ -74,7 +73,7 @@ jobs:
           cat ${{ steps.get-package-json.outputs.package-path }}/package.json
       - env:
           # CyberEO: When building production bits, we have to use an internal NPM instead of NPMJS.
-          NODE_AUTH_PASSWORD: ${{ secrets.NPM_TOKEN_AZURE_DEV_OPS_READ }}
+          NODE_AUTH_PASSWORD: ${{ secrets.NPM_PASSWORD_AZURE_DEV_OPS_READ }}
         run: npm clean-install --ignore-scripts # Prevents malicious scripts from stealing our token.
       - name: Build
         run: npm run build --if-present --workspaces=true
@@ -229,7 +228,6 @@ jobs:
           echo branch-name=$BRANCH_NAME >> $GITHUB_OUTPUT
       - name: Bump CHANGELOG.md
         run: |
-          npm install --global keep-a-changelog
           npx keep-a-changelog --file="./packages/${{ inputs.package-name }}/CHANGELOG.md" --format=markdownlint --url="${{ github.server_url }}/${{ github.repository }}" --release="${{ needs.build.outputs.version }}"
           git add ./packages/${{ inputs.package-name }}/CHANGELOG.md
       - id: bump-to-prepatch
