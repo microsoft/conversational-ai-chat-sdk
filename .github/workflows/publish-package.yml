@@ -27,7 +27,7 @@ jobs:
       version: ${{ steps.bump-version.outputs.version }}
     runs-on: ubuntu-latest
     steps:
-      - uses: 'Sanity check: Valid action variables'
+      - name: 'Sanity check: Valid action variables'
         run: '[[ "${{ vars.NPM_REGISTRY_URL_AZURE_DEV_OPS }}" != */ ]] && exit 1'
       - uses: actions/checkout@v3
         with:
