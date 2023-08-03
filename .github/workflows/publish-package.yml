@@ -100,6 +100,7 @@ jobs:
           path: ${{ steps.pack-tarball.outputs.tarball-path }}
 
   prepare-to-publish:
+    name: Prepare
     needs:
       - build
     runs-on: ubuntu-latest
@@ -222,19 +223,25 @@ jobs:
         with:
           cache: npm
           node-version: ${{ env.node-version }}
+      - id: prepare
+        name: Prepare
+        run: |
+          VERSION=`npx semver -i prepatch ${{ needs.build.outputs.version }}`
+          BRANCH_NAME=bot/postpublish/${{ inputs.package-name }}/v$VERSION
+
+          echo branch-name=$BRANCH_NAME >> $GITHUB_OUTPUT
+          echo version=$VERSION >> $GITHUB_OUTPUT
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         id: create-branch
         name: Create branch
         run: |
-          BRANCH_NAME=bot/postpublish/${{ inputs.package-name }}/v${{ steps.bump-to-prepatch.outputs.version }}
-
           git config user.email "${{ format('@{0}', github.actor) }}"
           git config user.name "${{ format('@{0}', github.actor) }}"
 
-          git checkout -b $BRANCH_NAME
+          git checkout -b ${{ steps.prepare.outputs.branch-name }}
 
-          echo branch-name=$BRANCH_NAME >> $GITHUB_OUTPUT
+          echo branch-name=${{ steps.prepare.outputs.branch-name }} >> $GITHUB_OUTPUT
       - name: Bump CHANGELOG.md
         run: |
           npx keep-a-changelog --file="./packages/${{ inputs.package-name }}/CHANGELOG.md" --format=markdownlint --url="${{ github.server_url }}/${{ github.repository }}" --release="${{ needs.build.outputs.version }}"
@@ -242,10 +249,7 @@ jobs:
       - id: bump-to-prepatch
         name: Bump to prepatch
         run: |
-          VERSION=`npx semver -i prepatch ${{ needs.build.outputs.version }}`
-          echo version=$VERSION >> $GITHUB_OUTPUT
-
-          npm version --no-git-tag-version --workspace=${{ inputs.package-name }} $VERSION
+          npm version --no-git-tag-version --workspace=${{ inputs.package-name }} ${{ steps.prepare.outputs.version }}
 
           git add ./package-lock.json
           git add ./packages/${{ inputs.package-name }}/package.json
@@ -264,12 +268,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         name: Commit branch
         run: |
-          BRANCH_NAME=${{ steps.create-branch.outputs.branch-name }}
-
           git commit -m "Bump ${{ inputs.package-name }}@${{ steps.bump-to-prepatch.outputs.version }}"
-          git push --set-upstream origin $BRANCH_NAME
+          git push --set-upstream origin ${{ steps.prepare.outputs.branch-name }}
 
-          echo Branch created at [\`$BRANCH_NAME\`]\(${{ github.server_url }}/${{ github.repository }}/tree/$BRANCH_NAME\). >> $GITHUB_STEP_SUMMARY
+          echo Branch created at [\`${{ steps.prepare.outputs.branch-name }}\`]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ steps.prepare.outputs.branch-name }}\). >> $GITHUB_STEP_SUMMARY
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         id: create-pull-request
