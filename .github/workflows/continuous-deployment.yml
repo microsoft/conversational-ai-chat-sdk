@@ -43,6 +43,10 @@ jobs:
           node-version: ${{ env.node-version }}
           # CyberEO: When building production bits, we have to use an internal NPM instead of NPMJS.
           registry-url: ${{ vars.NPM_REGISTRY_URL_AZURE_DEV_OPS }}
+      - name: Configure NPM
+        run: |
+          npm config set //msazure.pkgs.visualstudio.com/_packaging/power-platform-ux/npm/registry/:_password=\${NODE_AUTH_PASSWORD}
+          npm config set //msazure.pkgs.visualstudio.com/_packaging/power-platform-ux/npm/registry/:username=msazure
       - # CyberEO: Make sure we are installing packages from reputable source.
         name: Redirect package-lock.json
         run: |
@@ -52,7 +56,7 @@ jobs:
       - # `package-versions.json` is the source of truth.
         env:
           # CyberEO: When building production bits, we have to use an internal NPM instead of NPMJS.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_AZURE_DEV_OPS_READ }}
+          NODE_AUTH_PASSWORD: ${{ secrets.NPM_TOKEN_AZURE_DEV_OPS_READ }}
         name: Append commitish to package version
         run: |
           BRANCH=`git branch --show-current`
