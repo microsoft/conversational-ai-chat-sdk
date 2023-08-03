@@ -38,6 +38,7 @@ jobs:
       - name: Use Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
+          always-auth: true
           cache: npm
           node-version: ${{ env.node-version }}
           # CyberEO: When building production bits, we have to use an internal NPM instead of NPMJS.
