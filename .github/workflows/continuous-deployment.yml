@@ -7,13 +7,7 @@ on:
     paths-ignore:
       - '.devcontainer/**'
       - '.github/**'
-  workflow_dispatch:
-    inputs:
-      # This option is primarily for development purpose.
-      republish-all:
-        default: false
-        description: 'Republish all packages'
-        type: boolean
+  workflow_dispatch: {}
 
 # Do not cancel current run. This is because we are using ${{ github.sha }} to determine what to publish.
 # If current run is cancelled, we will not publish packages for the current run.
@@ -132,7 +126,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download versions file
-        uses: actions/upload-artifact@v3
+        uses: actions/download-artifact@v3
         with:
           name: package-versions
       - name: Download packages artifact
