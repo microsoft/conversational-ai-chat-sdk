@@ -256,7 +256,7 @@ jobs:
 
           cat ./packages/${{ inputs.package-name }}/package.json
 
-          echo Bump [\`${{ inputs.package-name }}\`]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref_name }}/packages/${{ inputs.package-name }}/\) to \`$VERSION\`. >> $GITHUB_STEP_SUMMARY
+          echo Bump [\`${{ inputs.package-name }}\`]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref_name }}/packages/${{ inputs.package-name }}/\) to \`${{ steps.prepare.outputs.version }}\`. >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
           echo \<details\>\<summary\>Content of \<code\>packages/${{ inputs.package-name }}/package.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
