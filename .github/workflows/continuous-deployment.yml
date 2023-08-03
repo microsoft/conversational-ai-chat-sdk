@@ -43,7 +43,6 @@ jobs:
           node-version: ${{ env.node-version }}
           # CyberEO: When building production bits, we have to use an internal NPM instead of NPMJS.
           registry-url: ${{ vars.NPM_REGISTRY_URL_AZURE_DEV_OPS }}
-          token: ${{ secrets.NPM_TOKEN_AZURE_DEV_OPS_READ }}
       - name: Redirect package-lock.json
         run: |
           cat package-lock.json | jq -r '.packages = (.packages | with_entries(.value = (.value | (if ((.link | not) and .resolved) then (.resolved = "${{ vars.NPM_REGISTRY_URL_AZURE_DEV_OPS }}" + (.resolved | ltrimstr("https://registry.npmjs.org/"))) else . end))))' > package-lock.json.tmp
@@ -70,6 +69,10 @@ jobs:
           done
       - name: Show versions file
         run: cat package-versions.json
+      - env:
+          # CyberEO: When building production bits, we have to use an internal NPM instead of NPMJS.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_AZURE_DEV_OPS_READ }}
+        run: npm install
       - name: Build
         run: npm run build --if-present --workspaces=true
       - name: Pack tarballs

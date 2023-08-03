@@ -68,6 +68,10 @@ jobs:
           npm version --no-git-tag-version --workspace=${{ inputs.package-name }} patch
           echo version=`npm version --json --workspace=${{ inputs.package-name }} | jq --arg packageName ${{ inputs.package-name }} -r '.[$packageName]'` >> $GITHUB_OUTPUT
           cat ${{ steps.get-package-json.outputs.package-path }}/package.json
+      - env:
+          # CyberEO: When building production bits, we have to use an internal NPM instead of NPMJS.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_AZURE_DEV_OPS_READ }}
+        run: npm install
       - name: Build
         run: npm run build --if-present --workspaces=true
       - id: pack-tarball
