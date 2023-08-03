@@ -30,10 +30,10 @@
       "types": "./lib/types/PowerPlatformAPIStrategy.d.ts"
     },
     "./TurnBasedChatAdapterAPI": {
-      "types": "./lib/types/TurnBasedChatAdapterAPI.d.ts"
+      "types": "./lib/types/types/TurnBasedChatAdapterAPI.d.ts"
     },
     "./TurnBasedChatAdapterAPIStrategy": {
-      "types": "./lib/types/TurnBasedChatAdapterAPIStrategy.d.ts"
+      "types": "./lib/types/types/TurnBasedChatAdapterAPIStrategy.d.ts"
     }
   },
   "scripts": {

@@ -32,8 +32,6 @@ jobs:
   build:
     environment: build-production
     name: Build
-    outputs:
-      should-publish: ${{ steps.list-packages.outputs.should-publish }}
     runs-on: ubuntu-latest
     steps:
       - name: 'Sanity check: NPM registry URL is valid'
@@ -78,7 +76,7 @@ jobs:
             SHORT_COMMITISH=`git log --pretty=format:'%h' -1 ./$i/`
             VERSION=`cat ./$i/package.json | jq -r .version | xargs -L1 npm exec --offline -- semver --increment prerelease -n false --preid $BRANCH.$COMMITTER_DATE.$SHORT_COMMITISH`
 
-            cat ./package-versions.json | jq --arg branch $BRANCH --arg committerDateInISO8601 $COMMITTER_DATE_IN_ISO8601 --arg longCommitish $LONG_COMMITISH --arg shortCommitish $SHORT_COMMITISH --arg path ./$i/ --arg version $VERSION --argfile packageJSON ./$i/package.json -r '. + { ($packageJSON.name): { branch: $branch, committerDate: $committerDateInISO8601, longCommitish: $longCommitish, name: $packageJSON.name, path: $path, shortCommitish: $shortCommitish, shouldPublish: (${{ inputs.republish-all || false }} // ($longCommitish == "${{ github.sha }}")), tarball: ("./" + $packageJSON.name + "-" + $version + ".tgz"), version: $version } }' > ./package-versions.json.tmp && true || exit 1
+            cat ./package-versions.json | jq --arg branch $BRANCH --arg committerDateInISO8601 $COMMITTER_DATE_IN_ISO8601 --arg longCommitish $LONG_COMMITISH --arg shortCommitish $SHORT_COMMITISH --arg path ./$i/ --arg version $VERSION --argfile packageJSON ./$i/package.json -r '. + { ($packageJSON.name): { branch: $branch, committerDate: $committerDateInISO8601, longCommitish: $longCommitish, name: $packageJSON.name, path: $path, shortCommitish: $shortCommitish, tarball: ("./" + $packageJSON.name + "-" + $version + ".tgz"), version: $version } }' > ./package-versions.json.tmp && true || exit 1
 
             mv ./package-versions.json.tmp ./package-versions.json && true || exit 1
           done
@@ -109,33 +107,15 @@ jobs:
           name: package-versions
           path: ./package-versions.json
       - id: list-packages
-        name: List publishing packages
-        run: |
-          cat package-versions.json | jq -r 'map(select(.shouldPublish))'
-
-          echo should-publish=`cat package-versions.json | jq -r 'map(select(.shouldPublish)) | if length > 0 then true else false end'` >> $GITHUB_OUTPUT
-      - id: move-packages
-        if: ${{ steps.list-packages.outputs.should-publish == 'true' }}
-        name: Move publishing packages to /publishing/
-        run: |
-          mkdir -p ./publishing/
-
-          for i in `cat package-versions.json | jq -r '.[] | select(.shouldPublish) | .tarball'`
-          do
-            mv $i ./publishing/
-          done
-      - if: ${{ steps.list-packages.outputs.should-publish == 'true' }}
-        name: Upload publishing packages artifact
+        name: Display versions file
+        run: cat package-versions.json
+      - name: Upload publishing packages artifact
         uses: actions/upload-artifact@v3
         with:
-          name: publishing-packages
-          path: ./publishing/
+          name: packages
+          path: ./*.tgz
       - name: Summary
         run: |
-          echo The following packages will be published: >> $GITHUB_STEP_SUMMARY
-
-          cat package-versions.json | jq -r 'map(select(.shouldPublish)) | .[] | ("- `" + (.tarball | ltrimstr("./")) + "` ([Link to source](${{ github.server_url }}/${{ github.repository }}/tree/" + .longCommitish + "/" + (.path | ltrimstr("./")) + "))")' >> $GITHUB_STEP_SUMMARY
-
           echo \<details\>\<summary\>Content of \<code\>package-versions.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
           echo \`\`\`json >> $GITHUB_STEP_SUMMARY
@@ -144,7 +124,6 @@ jobs:
           echo \</details\> >> $GITHUB_STEP_SUMMARY
 
   upload-release-asset:
-    if: ${{ needs.build.outputs.should-publish == 'true' }}
     name: Upload release asset
     needs:
       - build
@@ -155,22 +134,28 @@ jobs:
       - name: Download publishing packages artifact
         uses: actions/download-artifact@v3
         with:
-          name: publishing-packages
+          name: packages
       - name: List all publishing packages
         run: ls -l ./*.tgz
       - env:
           GH_TOKEN: ${{ github.token }}
         name: Upload packages to GitHub "${{ env.publish-tag }}" release
         run: |
+          gh release view ${{ env.publish-tag }} --json assets --repo ${{ github.repository }} > assets.json
+
           for i in `ls -1 *.tgz`
           do
-            gh release delete-asset ${{ env.publish-tag }} $i --repo ${{ github.repository }} || true
-            gh release upload ${{ env.publish-tag }} $i --repo ${{ github.repository }}
+            if [[ "${{ inputs.republish-all }}" == "true" || "`cat assets.json | jq --arg name $i '.assets | any(select(.name == $name))'`" == "false" ]]
+            then
+              gh release upload ${{ env.publish-tag }} $i --repo ${{ github.repository }}
+              echo - Uploaded \`$i\`
+            else
+              echo - Skipped \`$i\`
+            fi
           done
 
   # Update release after re-pushing a new tag.
   update-release:
-    if: ${{ needs.build.outputs.should-publish == 'true' }}
     name: Update release
     needs:
       - upload-release-asset
