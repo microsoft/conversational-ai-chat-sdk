@@ -231,7 +231,7 @@ jobs:
       - id: bump-to-prepatch
         name: Bump to prepatch
         run: |
-          VERSION=`npx semver@latest -i prepatch ${{ needs.build.outputs.version }}`
+          VERSION=`npx semver -i prepatch ${{ needs.build.outputs.version }}`
           echo version=$VERSION >> $GITHUB_OUTPUT
 
           npm version --no-git-tag-version --workspace=${{ inputs.package-name }} $VERSION
