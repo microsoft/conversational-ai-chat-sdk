@@ -30,6 +30,7 @@ env:
 
 jobs:
   build:
+    environment: build-production
     name: Build
     outputs:
       should-publish: ${{ steps.list-packages.outputs.should-publish }}
@@ -87,7 +88,7 @@ jobs:
         name: Bump versions
         run: cat package-versions.json | jq -cr 'to_entries | map("--workspace=" + .key + " " + .value.version) | join("\n")' | xargs -L1 npm version
       - env:
-          NODE_AUTH_PASSWORD: ${{ secrets.NPM_PASSWORD_AZURE_DEV_OPS_READ }}
+          NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
         run: npm clean-install --ignore-scripts # Skip scripts to prevent malicious scripts from stealing the token.
       - name: Build
         run: npm run build --if-present --workspaces=true
