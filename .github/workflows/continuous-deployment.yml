@@ -148,9 +148,9 @@ jobs:
             if [[ "${{ inputs.republish-all }}" == "true" || "`cat assets.json | jq --arg name $i '.assets | any(select(.name == $name))'`" == "false" ]]
             then
               gh release upload ${{ env.publish-tag }} $i --repo ${{ github.repository }}
-              echo - Uploaded \`$i\`
+              echo - Uploaded \`$i\` >> $GITHUB_STEP_SUMMARY
             else
-              echo - Skipped \`$i\`
+              echo - Skipped \`$i\` >> $GITHUB_STEP_SUMMARY
             fi
           done
 
