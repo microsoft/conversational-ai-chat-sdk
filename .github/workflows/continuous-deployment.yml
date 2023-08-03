@@ -22,8 +22,6 @@ concurrency: continuous-deployment
 env:
   node-version: lts/Hydrogen
   publish-tag: release/vnext
-  # TODO: Change this to AzDO
-  redirect-registry-url: https://registry.npmjs.org/
 
 jobs:
   build:
@@ -32,6 +30,8 @@ jobs:
       should-publish: ${{ steps.list-packages.outputs.should-publish }}
     runs-on: ubuntu-latest
     steps:
+      - uses: 'Sanity check: Valid action variables'
+        run: '[[ "${{ vars.NPM_REGISTRY_URL_AZURE_DEV_OPS }}" != */ ]] && exit 1'
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
@@ -40,14 +40,13 @@ jobs:
         with:
           cache: npm
           node-version: ${{ env.node-version }}
-          # TODO: Use AzDO Artifacts
-          # registry-url: https://registry.npmjs.org/
-          # token: ...
+          # CyberEO: When building production bits, we have to use an internal NPM instead of NPMJS.
+          registry-url: ${{ vars.NPM_REGISTRY_URL_AZURE_DEV_OPS }}
+          token: ${{ secrets.NPM_TOKEN_AZURE_DEV_OPS_READ }}
       - name: Redirect package-lock.json
         run: |
-          cat package-lock.json | jq -r '.packages = (.packages | with_entries(.value = (.value | (if ((.link | not) and .resolved) then (.resolved = "${{ env.redirect-registry-url }}" + (.resolved | ltrimstr("https://registry.npmjs.org/"))) else . end))))' > package-lock.json.tmp
+          cat package-lock.json | jq -r '.packages = (.packages | with_entries(.value = (.value | (if ((.link | not) and .resolved) then (.resolved = "${{ vars.NPM_REGISTRY_URL_AZURE_DEV_OPS }}" + (.resolved | ltrimstr("https://registry.npmjs.org/"))) else . end))))' > package-lock.json.tmp
           mv package-lock.json.tmp package-lock.json
-      - run: npm install --global semver@latest
       - # `package-versions.json` is the source of truth.
         name: Append commitish to package version
         run: |
@@ -62,7 +61,7 @@ jobs:
             LONG_COMMITISH=`git log --pretty=format:'%H' -1 ./$i/`
             SHORT_COMMITISH=`git log --pretty=format:'%h' -1 ./$i/`
 
-            cat ./$i/package.json | jq -r .version | xargs -L1 semver $1 --increment prerelease -n false --preid $BRANCH.$COMMITTER_DATE.$SHORT_COMMITISH | xargs -L1 npm version --no-git-tag-version --workspace $i $1
+            cat ./$i/package.json | jq -r .version | xargs -L1 npx semver@latest $1 --increment prerelease -n false --preid $BRANCH.$COMMITTER_DATE.$SHORT_COMMITISH | xargs -L1 npm version --no-git-tag-version --workspace $i $1
 
             cat ./package-versions.json | jq --arg branch $BRANCH --arg committerDateInISO8601 $COMMITTER_DATE_IN_ISO8601 --arg longCommitish $LONG_COMMITISH --arg shortCommitish $SHORT_COMMITISH --arg path ./$i/ --argfile packageJSON ./$i/package.json -rS '. + { ($packageJSON.name): { branch: $branch, committerDate: $committerDateInISO8601, longCommitish: $longCommitish, path: $path, shortCommitish: $shortCommitish, shouldPublish: (${{ inputs.republish-all || false }} // ($longCommitish == "${{ github.sha }}")), tarball: ("./" + $packageJSON.name + "-" + $packageJSON.version + ".tgz"), version: $packageJSON.version } }' > ./package-versions.json.tmp
 
@@ -144,8 +143,7 @@ jobs:
             gh release upload ${{ env.publish-tag }} $i --repo ${{ github.repository }}
           done
       - name: Summary
-        run: |
-          echo Release at https://github.com/${{ github.repository }}/releases/tag/${{ env.publish-tag }} >> $GITHUB_STEP_SUMMARY
+        run: echo Release at https://github.com/${{ github.repository }}/releases/tag/${{ env.publish-tag }} >> $GITHUB_STEP_SUMMARY
 
   update-release:
     if: ${{ needs.build.outputs.should-publish == 'true' }}
@@ -171,5 +169,4 @@ jobs:
         name: Update release
         run: gh release edit ${{ env.publish-tag }} --draft=false --prerelease --repo ${{ github.repository }}
       - name: Summary
-        run: |
-          echo Tag at https://github.com/${{ github.repository }}/tree/${{ env.publish-tag }} >> $GITHUB_STEP_SUMMARY
+        run: echo Tag at https://github.com/${{ github.repository }}/tree/${{ env.publish-tag }} >> $GITHUB_STEP_SUMMARY

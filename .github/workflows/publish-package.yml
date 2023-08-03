@@ -17,8 +17,6 @@ concurrency: publish-package/${{ inputs.package-name }}
 
 env:
   node-version: lts/Hydrogen
-  # TODO: Change this to AzDO
-  redirect-registry-url: https://registry.npmjs.org/
 
 jobs:
   build:
@@ -29,6 +27,8 @@ jobs:
       version: ${{ steps.bump-version.outputs.version }}
     runs-on: ubuntu-latest
     steps:
+      - uses: 'Sanity check: Valid action variables'
+        run: '[[ "${{ vars.NPM_REGISTRY_URL_AZURE_DEV_OPS }}" != */ ]] && exit 1'
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
@@ -37,12 +37,12 @@ jobs:
         with:
           cache: npm
           node-version: ${{ env.node-version }}
-          # TODO: Use AzDO Artifacts
-          # registry-url: https://registry.npmjs.org/
-          # token: ...
+          # CyberEO: When building production bits, we have to use an internal NPM instead of NPMJS.
+          registry-url: ${{ vars.NPM_REGISTRY_URL_AZURE_DEV_OPS }}
+          token: ${{ secrets.NPM_TOKEN_AZURE_DEV_OPS_READ }}
       - name: Redirect package-lock.json
         run: |
-          cat package-lock.json | jq -r '.packages = (.packages | with_entries(.value = (.value | (if ((.link | not) and .resolved) then (.resolved = "${{ env.redirect-registry-url }}" + (.resolved | ltrimstr("https://registry.npmjs.org/"))) else . end))))' > package-lock.json.tmp
+          cat package-lock.json | jq -r '.packages = (.packages | with_entries(.value = (.value | (if ((.link | not) and .resolved) then (.resolved = "${{ vars.NPM_REGISTRY_URL_AZURE_DEV_OPS }}" + (.resolved | ltrimstr("https://registry.npmjs.org/"))) else . end))))' > package-lock.json.tmp
           mv package-lock.json.tmp package-lock.json
       - run: npm clean-install
       - # Gets the path of the package which match inputs.package-name.
@@ -129,9 +129,6 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.node-version }}
-          # TODO: Use AzDO Artifacts
-          # registry-url: https://registry.npmjs.org/
-          # token: ...
       - # TODO: Add publish to NPM
         id: publish
         name: Publish
@@ -208,9 +205,6 @@ jobs:
         with:
           cache: npm
           node-version: ${{ env.node-version }}
-          # TODO: Use AzDO Artifacts
-          # registry-url: https://registry.npmjs.org/
-          # token: ...
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         id: create-branch
