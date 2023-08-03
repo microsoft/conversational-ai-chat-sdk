@@ -189,12 +189,12 @@ jobs:
         run: gh release edit ${{ env.publish-tag }} --draft=false --prerelease --repo ${{ github.repository }}
 
   summary:
+    name: Summary
     needs:
       - update-release
     runs-on: ubuntu-latest
     steps:
       - name: Summary
         run: |
-          echo Links >> $GITHUB_STEP_SUMMARY
           echo - [Release]\(${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.publish-tag }}\) >> $GITHUB_STEP_SUMMARY
           echo - [Source code \(tagged\)]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ env.publish-tag }}\) >> $GITHUB_STEP_SUMMARY
