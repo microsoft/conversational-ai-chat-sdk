@@ -48,7 +48,7 @@ jobs:
         run: |
           cat package-lock.json | jq -r '.packages = (.packages | with_entries(.value = (.value | (if ((.link | not) and .resolved) then (.resolved = "${{ vars.NPM_REGISTRY_URL_AZURE_DEV_OPS }}" + (.resolved | ltrimstr("https://registry.npmjs.org/"))) else . end))))' > package-lock.json.tmp
           mv package-lock.json.tmp package-lock.json
-      - run: cat ~/.npmrc
+      - run: npm get
       - # `package-versions.json` is the source of truth.
         env:
           # CyberEO: When building production bits, we have to use an internal NPM instead of NPMJS.
