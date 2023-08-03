@@ -151,7 +151,7 @@ jobs:
               for j in `cat assets.json | jq -r --arg name $i '.assets | map(select(.name | test($name + "-[0-9]"))) | map(.name) | join("\n")'`
               do
                 gh release delete-asset ${{ env.publish-tag }} $j --repo ${{ github.repository }} || true
-                echo - Deleted \`$j` >> $GITHUB_STEP_SUMMARY
+                echo - Deleted \`$j\` >> $GITHUB_STEP_SUMMARY
               done
 
               gh release upload ${{ env.publish-tag }} $i --repo ${{ github.repository }}
