@@ -85,6 +85,9 @@ jobs:
       - name: Show versions file
         run: cat package-versions.json
       - # We cannot run "npm version" right after "npx semver". Otherwise, next run of "npx semver" will ignore "-n false".
+        # "npm version" will update workspaces. During update, it will need to talk to NPM registry.
+        env:
+          NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
         name: Bump versions
         run: cat package-versions.json | jq -cr 'to_entries | map("--workspace=" + .key + " " + .value.version) | join("\n")' | xargs -L1 npm version
       - env:
