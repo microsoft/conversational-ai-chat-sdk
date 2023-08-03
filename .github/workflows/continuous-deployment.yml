@@ -53,7 +53,9 @@ jobs:
 
           npm config delete $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_authToken
           npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_password=\${NODE_AUTH_PASSWORD}
-          npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:username=msazure
+          npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:username=${{ vars.AZDO_NPM_REGISTRY_USERNAME }}
+
+          npm config get
       - env:
           NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
         run: npm install --global --ignore-scripts semver@latest # Skip scripts to prevent malicious scripts from stealing the token.
