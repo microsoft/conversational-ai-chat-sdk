@@ -131,7 +131,11 @@ jobs:
       contents: write # "contents" is required for modifying releases.
     runs-on: ubuntu-latest
     steps:
-      - name: Download publishing packages artifact
+      - name: Download versions file
+        uses: actions/upload-artifact@v3
+        with:
+          name: package-versions
+      - name: Download packages artifact
         uses: actions/download-artifact@v3
         with:
           name: packages
@@ -143,14 +147,23 @@ jobs:
         run: |
           gh release view ${{ env.publish-tag }} --json assets --repo ${{ github.repository }} > assets.json
 
-          for i in `ls -1 *.tgz`
+          for i in `cat package-versions.json | jq -r 'to_entries | map(.key) | join("\n")'`
           do
-            if [[ "${{ inputs.republish-all }}" == "true" || "`cat assets.json | jq --arg name $i '.assets | any(select(.name == $name))'`" == "false" ]]
+            TARBALL=`cat package-versions.json | jq --arg name $i -r '.[$name] | .tarball | ltrimstr("./")'`
+            cat package-versions.json | jq --arg name powerva-chat-adapter -r '.[$name] | .tarball | ltrimstr("./")'
+
+            if [[ "`cat assets.json | jq --arg name $TARBALL '.assets | any(select(.name == $name))'`" == "false" ]]
             then
+              for j in `cat assets.json | jq -r --arg name $i '.assets | map(select(.name | test($name + "-[0-9]"))) | map(.name) | join("\n")'`
+              do
+                gh release delete-asset ${{ env.publish-tag }} $j --repo ${{ github.repository }} || true
+                echo - Deleted \`$j` >> $GITHUB_STEP_SUMMARY
+              done
+
               gh release upload ${{ env.publish-tag }} $i --repo ${{ github.repository }}
-              echo - Uploaded \`$i\` >> $GITHUB_STEP_SUMMARY
+              echo - Uploaded \`$TARBALL\` >> $GITHUB_STEP_SUMMARY
             else
-              echo - Skipped \`$i\` >> $GITHUB_STEP_SUMMARY
+              echo - Skipped \`$TARBALL\` >> $GITHUB_STEP_SUMMARY
             fi
           done
 
