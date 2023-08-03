@@ -85,7 +85,7 @@ jobs:
               --arg version $VERSION \
               --argfile packageJSON ./$i/package.json \
               -rS \
-              '. + {
+              '. + { \
                 ($packageJSON.name): { \
                   branch: $branch, \
                   committerDate: $committerDateInISO8601, \
