@@ -6,5 +6,6 @@
         "extends": "../../configs/babel/babel.jest.config.json"
       }
     ]
-  }
+  },
+  "transformIgnorePatterns": ["/node_modules/(?!(p-retry)/)", "\\.pnp\\.[^\\/]+$"]
 }

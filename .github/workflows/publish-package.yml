@@ -9,6 +9,7 @@ on:
         description: Package name
         options:
           - powerva-chat-adapter
+          - powerva-chat-adapter-test-util
           - powerva-turn-based-chat-adapter-framework
         required: true
         type: choice

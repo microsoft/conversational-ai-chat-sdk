@@ -10,7 +10,7 @@
   ],
   "overrides": [
     {
-      "test": ["**/*.ts", "**/*.tsx"],
+      "test": ["../../**/*.ts", "../../**/*.tsx"],
       "presets": ["@babel/preset-typescript"]
     }
   ],

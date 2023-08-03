@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
-    "declarationDir": "../lib/types/"
+    "declarationDir": "../lib/types/",
+    "lib": ["DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler"
   },
   "extends": "../../../configs/typescript/tsconfig.declaration.json"
 }
