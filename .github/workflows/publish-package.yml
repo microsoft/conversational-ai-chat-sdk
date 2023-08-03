@@ -71,7 +71,7 @@ jobs:
       - env:
           # CyberEO: When building production bits, we have to use an internal NPM instead of NPMJS.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_AZURE_DEV_OPS_READ }}
-        run: npm install
+        run: npm clean-install --ignore-scripts # Prevents malicious scripts from stealing our token.
       - name: Build
         run: npm run build --if-present --workspaces=true
       - id: pack-tarball
