@@ -7,11 +7,11 @@
 
 import fromTurnBasedChatAdapterAPI from './fromTurnBasedChatAdapterAPI';
 import PowerPlatformAPIChatAdapter from './PowerPlatformAPIChatAdapter';
-import PowerPlatformAPIStrategy from './PowerPlatformAPIStrategy';
+import PrebuiltBotAPIStrategy from './PrebuiltBotAPIStrategy';
 
 import type { TurnBasedChatAdapterAPI } from './types/TurnBasedChatAdapterAPI';
 import type { TurnBasedChatAdapterAPIStrategy } from './types/TurnBasedChatAdapterAPIStrategy';
 
 // The exported members should match those in package.json.
-export { PowerPlatformAPIChatAdapter, fromTurnBasedChatAdapterAPI, PowerPlatformAPIStrategy };
+export { PowerPlatformAPIChatAdapter, fromTurnBasedChatAdapterAPI, PrebuiltBotAPIStrategy };
 export type { TurnBasedChatAdapterAPI, TurnBasedChatAdapterAPIStrategy };

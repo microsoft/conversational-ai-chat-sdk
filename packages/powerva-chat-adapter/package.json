@@ -24,10 +24,10 @@
       "require": "./lib/commonjs/PowerPlatformAPIChatAdapter.js",
       "types": "./lib/types/PowerPlatformAPIChatAdapter.d.ts"
     },
-    "./PowerPlatformAPIStrategy": {
-      "import": "./lib/esmodules/PowerPlatformAPIStrategy.js",
-      "require": "./lib/commonjs/PowerPlatformAPIStrategy.js",
-      "types": "./lib/types/PowerPlatformAPIStrategy.d.ts"
+    "./PrebuiltBotAPIStrategy": {
+      "import": "./lib/esmodules/PrebuiltBotAPIStrategy.js",
+      "require": "./lib/commonjs/PrebuiltBotAPIStrategy.js",
+      "types": "./lib/types/PrebuiltBotAPIStrategy.d.ts"
     },
     "./TurnBasedChatAdapterAPI": {
       "types": "./lib/types/types/TurnBasedChatAdapterAPI.d.ts"
