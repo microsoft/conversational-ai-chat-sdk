@@ -81,17 +81,6 @@ jobs:
         with:
           name: package
           path: ${{ steps.pack-tarball.outputs.tarball-path }}
-
-  prepare-to-publish:
-    name: Prepare to publish
-    needs:
-      - build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download tarball artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: package
       - name: Summary
         run: |
           echo \| Package name \| Version \| >> $GITHUB_STEP_SUMMARY
@@ -101,14 +90,14 @@ jobs:
           echo \<details\>\<summary\>Content of \<code\>packages/${{ inputs.package-name }}/package.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
           echo \`\`\`json >> $GITHUB_STEP_SUMMARY
-          tar --extract --file=${{ needs.build.outputs.tarball-path }} --to-stdout package/package.json
+          tar --extract --file=${{ needs.build.outputs.tarball-path }} --to-stdout package/package.json >> $GITHUB_STEP_SUMMARY
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
           echo \</details\> >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
           echo \<details\>\<summary\>Content of \<code\>${{ needs.build.outputs.tarball-path }}\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
-          tar --list --file=${{ needs.build.outputs.tarball-path }} --to-stdout --verbose
+          tar --list --file=${{ needs.build.outputs.tarball-path }} --to-stdout --verbose >> $GITHUB_STEP_SUMMARY
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
           echo \</details\> >> $GITHUB_STEP_SUMMARY
 
