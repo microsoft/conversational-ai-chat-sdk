@@ -228,7 +228,7 @@ jobs:
         run: |
           npm install --global keep-a-changelog
           npx keep-a-changelog --file="./packages/${{ inputs.package-name }}/CHANGELOG.md" --format=markdownlint --url="${{ github.server_url }}/${{ github.repository }}" --release="${{ needs.build.outputs.version }}"
-          git add ./CHANGELOG.md
+          git add ./packages/${{ inputs.package-name }}/CHANGELOG.md
       - id: bump-to-prepatch
         name: Bump to prepatch
         run: |
