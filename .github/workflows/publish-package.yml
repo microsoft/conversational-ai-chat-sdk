@@ -107,7 +107,7 @@ jobs:
           echo \<details\>\<summary\>Content of \<code\>${{ needs.build.outputs.tarball-path }}\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
-          tar --list --file=${{ needs.build.outputs.tarball-path }} --to-stdout --verbose >> $GITHUB_STEP_SUMMARY
+          tar --list --file=${{ needs.build.outputs.tarball-path }} --verbose >> $GITHUB_STEP_SUMMARY
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
           echo \</details\> >> $GITHUB_STEP_SUMMARY
 
