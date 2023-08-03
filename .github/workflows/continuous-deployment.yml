@@ -49,7 +49,7 @@ jobs:
           registry-url: ${{ vars.AZDO_NPM_REGISTRY_URL }}
       - name: Configure NPM
         run: |
-          NPM_REGISTRY_URL_WITHOUT_PROTOCOL=echo ${{ vars.AZDO_NPM_REGISTRY_URL }} | sed -e 's/^https://'
+          NPM_REGISTRY_URL_WITHOUT_PROTOCOL=`echo ${{ vars.AZDO_NPM_REGISTRY_URL }} | sed -e 's/^https://'`
 
           npm config delete $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_authToken
           npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_password=\${NODE_AUTH_PASSWORD}
