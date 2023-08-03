@@ -48,12 +48,10 @@ jobs:
           npm config delete //msazure.pkgs.visualstudio.com/_packaging/power-platform-ux/npm/registry/:_authToken
           npm config set //msazure.pkgs.visualstudio.com/_packaging/power-platform-ux/npm/registry/:_password=\${NODE_AUTH_PASSWORD}
           npm config set //msazure.pkgs.visualstudio.com/_packaging/power-platform-ux/npm/registry/:username=msazure
-
-          npm config get
       - env:
           # CyberEO: When building production bits, we have to use an internal NPM instead of NPMJS.
           NODE_AUTH_PASSWORD: ${{ secrets.NPM_PASSWORD_AZURE_DEV_OPS_READ }}
-        run: npm install --global --ignore-scripts semver
+        run: npm install --global --ignore-scripts semver@latest
       - # CyberEO: Make sure we are installing packages from reputable source.
         name: Redirect package-lock.json
         run: |
