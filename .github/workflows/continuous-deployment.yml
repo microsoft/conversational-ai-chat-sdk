@@ -154,7 +154,7 @@ jobs:
                 echo - Deleted \`$j\` >> $GITHUB_STEP_SUMMARY
               done
 
-              gh release upload ${{ env.publish-tag }} $i --repo ${{ github.repository }}
+              gh release upload ${{ env.publish-tag }} $TARBALL --repo ${{ github.repository }}
               echo - Uploaded \`$TARBALL\` >> $GITHUB_STEP_SUMMARY
             else
               echo - Skipped \`$TARBALL\` >> $GITHUB_STEP_SUMMARY
