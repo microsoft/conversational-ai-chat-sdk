@@ -25,6 +25,7 @@ jobs:
     name: Build
     outputs:
       package-path: ${{ steps.get-package-json.outputs.package-path }}
+      tarball-path: ${{ steps.pack-tarball.outputs.tarball-path }}
       version: ${{ steps.bump-version.outputs.version }}
     runs-on: ubuntu-latest
     steps:
@@ -72,7 +73,7 @@ jobs:
         name: Pack tarball
         run: |
           npm pack --pack-destination=$PWD --workspace=${{ inputs.package-name }}
-          echo tarball-path=./${{ inputs.package-name }}-${{ steps.bump-version.outputs.version }}.tgz >> $GITHUB_OUTPUT
+          echo tarball-path=${{ inputs.package-name }}-${{ steps.bump-version.outputs.version }}.tgz >> $GITHUB_OUTPUT
       - name: 'Sanity check: got tarball'
         run: compgen -G ${{ steps.pack-tarball.outputs.tarball-path }}
       - name: Upload tarball artifact
@@ -81,6 +82,36 @@ jobs:
           name: package
           path: ${{ steps.pack-tarball.outputs.tarball-path }}
 
+  prepare-to-publish:
+    name: Prepare to publish
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download tarball artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: package
+      - name: Summary
+        run: |
+          echo \| Package name \| Version \| >> $GITHUB_STEP_SUMMARY
+          echo \| - \| - \| >> $GITHUB_STEP_SUMMARY
+          echo \| ${{ inputs.package-name }} \| ${{ needs.build.outputs.version }} \| >> $GITHUB_STEP_SUMMARY
+          echo >> $GITHUB_STEP_SUMMARY
+          echo \<details\>\<summary\>Content of \<code\>packages/${{ inputs.package-name }}/package.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
+          echo >> $GITHUB_STEP_SUMMARY
+          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
+          tar --extract --file=${{ needs.build.outputs.tarball-path }} --to-stdout package/package.json
+          echo \`\`\` >> $GITHUB_STEP_SUMMARY
+          echo \</details\> >> $GITHUB_STEP_SUMMARY
+          echo >> $GITHUB_STEP_SUMMARY
+          echo \<details\>\<summary\>Content of \<code\>${{ needs.build.outputs.tarball-path }}\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
+          echo >> $GITHUB_STEP_SUMMARY
+          echo \`\`\` >> $GITHUB_STEP_SUMMARY
+          tar --list --file=${{ needs.build.outputs.tarball-path }} --to-stdout --verbose
+          echo \`\`\` >> $GITHUB_STEP_SUMMARY
+          echo \</details\> >> $GITHUB_STEP_SUMMARY
+
   publish-to-npm:
     environment:
       name: npm-publish
@@ -88,6 +119,7 @@ jobs:
     name: Publish to NPM
     needs:
       - build
+      - prepare-to-publish
     runs-on: ubuntu-latest
     steps:
       - name: Download tarball artifact
@@ -105,8 +137,9 @@ jobs:
         id: publish
         name: Publish
         run: |
-          URL=https://npmjs.com/package/${{ inputs.package-name }}/
+          echo TODO: npm publish --access public ${{ needs.build.outputs.tarball-path }}
 
+          URL=https://npmjs.com/package/${{ inputs.package-name }}/v/${{ needs.build.outputs.version }}
           echo url=$URL >> $GITHUB_OUTPUT
           echo Published to $URL. >> $GITHUB_STEP_SUMMARY
 
@@ -179,18 +212,6 @@ jobs:
           # TODO: Use AzDO Artifacts
           # registry-url: https://registry.npmjs.org/
           # token: ...
-      - run: npm install --global semver@latest
-      - id: bump-to-prepatch
-        name: Bump to prepatch
-        run: |
-          VERSION=`npx semver -i prepatch ${{ needs.build.outputs.version }}`
-          npm version --no-git-tag-version --workspace=${{ inputs.package-name }} $VERSION
-
-          echo version=$VERSION >> $GITHUB_OUTPUT
-
-          cat ${{ needs.build.outputs.package-path }}/package.json
-
-          echo Bump [\`${{ inputs.package-name }}\`]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref_name }}/packages/${{ inputs.package-name }}/\) to \`$VERSION\`. >> $GITHUB_STEP_SUMMARY
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         id: create-branch
@@ -202,12 +223,42 @@ jobs:
           git config user.name "${{ format('@{0}', github.actor) }}"
 
           git checkout -b $BRANCH_NAME
+
+          echo branch-name=$BRANCH_NAME >> $GITHUB_OUTPUT
+      - name: Bump CHANGELOG.md
+        run: |
+          npx keep-a-changelog --url="${{ github.server_url }}/${{ github.repository }}" --format=markdownlint --release ${{ needs.build.outputs.version }}
+          git add ./CHANGELOG.md
+      - id: bump-to-prepatch
+        name: Bump to prepatch
+        run: |
+          VERSION=`npx semver@latest -i prepatch ${{ needs.build.outputs.version }}`
+          echo version=$VERSION >> $GITHUB_OUTPUT
+
+          npm version --no-git-tag-version --workspace=${{ inputs.package-name }} $VERSION
+
           git add ./package-lock.json
           git add ./packages/${{ inputs.package-name }}/package.json
+
+          cat ${{ needs.build.outputs.package-path }}/package.json
+
+          echo Bump [\`${{ inputs.package-name }}\`]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref_name }}/packages/${{ inputs.package-name }}/\) to \`$VERSION\`. >> $GITHUB_STEP_SUMMARY
+          echo >> $GITHUB_STEP_SUMMARY
+          echo \<details\>\<summary\>Content of \<code\>packages/${{ inputs.package-name }}/package.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
+          echo >> $GITHUB_STEP_SUMMARY
+          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
+          cat ./packages/${{ inputs.package-name }}/package.json >> $GITHUB_STEP_SUMMARY
+          echo \`\`\` >> $GITHUB_STEP_SUMMARY
+          echo \</details\> >> $GITHUB_STEP_SUMMARY
+      - env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        name: Commit branch
+        run: |
+          BRANCH_NAME=${{ steps.create-branch.outputs.branch-name }}
+
           git commit -m "Bump ${{ inputs.package-name }}@${{ steps.bump-to-prepatch.outputs.version }}"
           git push --set-upstream origin $BRANCH_NAME
 
-          echo branch-name=$BRANCH_NAME >> $GITHUB_OUTPUT
           echo Branch created at [\`$BRANCH_NAME\`]\(${{ github.server_url }}/${{ github.repository }}/tree/$BRANCH_NAME\). >> $GITHUB_STEP_SUMMARY
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
