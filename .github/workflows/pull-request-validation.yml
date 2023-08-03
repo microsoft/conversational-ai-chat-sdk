@@ -115,6 +115,7 @@ jobs:
       matrix:
         package-name:
           - powerva-chat-adapter
+          - powerva-chat-adapter-test-util
           - powerva-turn-based-chat-adapter-framework
 
     steps:
@@ -123,7 +124,7 @@ jobs:
         with:
           name: tarball
       - name: Extract tarball to root
-        run: tar --extract --file=`ls -1 ./${{ matrix.package-name }}-*.tgz` --strip-components=1 --verbose
+        run: tar --extract --file=`ls -1 ./${{ matrix.package-name }}-[0-9]*.tgz` --strip-components=1 --verbose
       - name: 'Sanity check: has LICENSE'
         run: compgen -G LICENSE
       - name: 'Sanity check: has README.md'

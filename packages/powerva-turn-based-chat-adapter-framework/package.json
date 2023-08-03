@@ -35,13 +35,13 @@
       "types": "./lib/types/TurnBasedChatAdapter.d.ts"
     },
     "./ChatAdapter": {
-      "types": "./lib/types/ChatAdapter.d.ts"
+      "types": "./lib/types/types/ChatAdapter.d.ts"
     },
     "./TelemetryClient": {
-      "types": "./lib/types/TelemetryClient.d.ts"
+      "types": "./lib/types/types/TelemetryClient.d.ts"
     },
     "./TurnBasedChatIteratorClient": {
-      "types": "./lib/types/TurnBasedChatIteratorClient.d.ts"
+      "types": "./lib/types/types/TurnBasedChatIteratorClient.d.ts"
     }
   },
   "scripts": {
