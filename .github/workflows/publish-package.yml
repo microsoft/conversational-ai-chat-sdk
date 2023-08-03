@@ -226,7 +226,8 @@ jobs:
           echo branch-name=$BRANCH_NAME >> $GITHUB_OUTPUT
       - name: Bump CHANGELOG.md
         run: |
-          npx keep-a-changelog --url="${{ github.server_url }}/${{ github.repository }}" --format=markdownlint --release ${{ needs.build.outputs.version }}
+          npm install --global keep-a-changelog
+          npx keep-a-changelog --file="./packages/${{ inputs.package-name }}/CHANGELOG.md" --format=markdownlint --url="${{ github.server_url }}/${{ github.repository }}" --release="${{ needs.build.outputs.version }}"
           git add ./CHANGELOG.md
       - id: bump-to-prepatch
         name: Bump to prepatch
@@ -239,7 +240,7 @@ jobs:
           git add ./package-lock.json
           git add ./packages/${{ inputs.package-name }}/package.json
 
-          cat ${{ needs.build.outputs.package-path }}/package.json
+          cat ./packages/${{ inputs.package-name }}/package.json
 
           echo Bump [\`${{ inputs.package-name }}\`]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref_name }}/packages/${{ inputs.package-name }}/\) to \`$VERSION\`. >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
