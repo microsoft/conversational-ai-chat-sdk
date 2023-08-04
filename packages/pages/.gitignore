@@ -1,0 +1,6 @@
+/.env
+/*.tgz
+/lib/
+/LICENSE
+/node_modules/
+/public/static/js

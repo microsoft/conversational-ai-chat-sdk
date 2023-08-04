@@ -1,0 +1,34 @@
+{
+  "name": "pages",
+  "version": "0.0.0-0",
+  "private": true,
+  "description": "",
+  "author": "Microsoft Corporation",
+  "license": "MIT",
+  "scripts": {
+    "build": "concurrently \"npm run build:*\"",
+    "build:esbuild": "esbuild --bundle --entry-names=[ext]/[name] --jsx=automatic --minify --outdir=./public/static/ --sourcemap app=./src/app/index.tsx",
+    "build:typescript": "tsc --project ./src/tsconfig.json",
+    "bump": "npm run bump:prod && npm run bump:dev",
+    "bump:dev": "if [ `cat package.json | jq -r '.devDependencies | length'` -ne 0 ]; then npm install $(cat package.json | jq -r '(.pinDependencies // {}) as $p | ((.devDependencies // {}) | keys) | map(. + \"@\" + ($p[.] // [\"latest\"])[0]) | .[]'); fi",
+    "bump:prod": "if [ `cat package.json | jq -r '.dependencies | length'` -ne 0 ]; then npm install --save-exact $(cat package.json | jq -r '(.pinDependencies // {}) as $p | ((.dependencies // {}) | keys) | map(. + \"@\" + ($p[.] // [\"latest\"])[0]) | .[]'); fi",
+    "eslint": "npm run precommit",
+    "precommit": "eslint .",
+    "start": "concurrently --kill-others \"npm run start:*\"",
+    "start:esbuild": "npm run build:esbuild -- --servedir=./public",
+    "start:typescript": "npm run build:typescript -- --watch"
+  },
+  "dependencies": {
+    "botframework-webchat": "^4.15.8",
+    "powerva-chat-adapter": "^0.0.0-0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.18",
+    "@types/react-dom": "^18.2.7",
+    "concurrently": "^8.2.0",
+    "esbuild": "^0.18.17",
+    "typescript": "^5.1.6"
+  }
+}

@@ -104,7 +104,7 @@ jobs:
       - id: list-packages
         name: Display versions file
         run: cat package-versions.json
-      - name: Upload publishing packages artifact
+      - name: Upload packages artifact
         uses: actions/upload-artifact@v3
         with:
           name: packages
@@ -195,3 +195,31 @@ jobs:
         run: |
           echo - [Release]\(${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.publish-tag }}\) >> $GITHUB_STEP_SUMMARY
           echo - [Source code \(tagged\)]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ env.publish-tag }}\) >> $GITHUB_STEP_SUMMARY
+
+  build-pages:
+    environment: build-production
+    name: Build pages
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download packages artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: packages
+      - name: Upload versions file
+        uses: actions/download-artifact@v3
+        with:
+          name: package-versions
+      - env:
+          NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
+        run: npm clean-install --ignore-scripts # Skip scripts to prevent malicious scripts from stealing the token.
+      - name: Extract tarballs
+        run: cat package-versions.json | jq -r 'map("--extract --file=" + .tarball + " --directory=" + .path + " --strip-component=1 --verbose") | join("\n")' | xargs -L1 tar
+      - name: Build
+        run: npm run build --workspace=pages
+      - name: Upload pages artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: gh-pages
+          path: ./packages/pages/public/

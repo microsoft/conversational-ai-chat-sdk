@@ -16,6 +16,7 @@
   "workspaces": [
     "packages/powerva-chat-adapter-test-util",
     "packages/powerva-turn-based-chat-adapter-framework",
-    "packages/powerva-chat-adapter"
+    "packages/powerva-chat-adapter",
+    "packages/pages"
   ]
 }
