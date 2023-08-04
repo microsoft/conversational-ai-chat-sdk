@@ -71,7 +71,7 @@ jobs:
             SHORT_COMMITISH=`git log --pretty=format:'%h' -1 ./$i/`
             VERSION=`cat ./$i/package.json | jq -r .version | xargs -L1 npm exec --offline -- semver --increment prerelease -n false --preid $BRANCH.$COMMITTER_DATE.$SHORT_COMMITISH`
 
-            cat ./package-versions.json | jq --arg branch $BRANCH --arg committerDateInISO8601 $COMMITTER_DATE_IN_ISO8601 --arg longCommitish $LONG_COMMITISH --arg shortCommitish $SHORT_COMMITISH --arg path ./$i/ --arg version $VERSION --argfile packageJSON ./$i/package.json -r '. + { ($packageJSON.name): { branch: $branch, committerDate: $committerDateInISO8601, longCommitish: $longCommitish, name: $packageJSON.name, path: $path, private: $packageJSON.private // false, shortCommitish: $shortCommitish, tarball: ("./" + $packageJSON.name + "-" + $version + ".tgz"), version: $version } }' > ./package-versions.json.tmp && true || exit 1
+            cat ./package-versions.json | jq --arg branch $BRANCH --arg committerDateInISO8601 $COMMITTER_DATE_IN_ISO8601 --arg longCommitish $LONG_COMMITISH --arg shortCommitish $SHORT_COMMITISH --arg path ./$i/ --arg version $VERSION --argfile packageJSON ./$i/package.json -r '. + { ($packageJSON.name): { branch: $branch, committerDate: $committerDateInISO8601, longCommitish: $longCommitish, name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), shortCommitish: $shortCommitish, tarball: ("./" + $packageJSON.name + "-" + $version + ".tgz"), version: $version } }' > ./package-versions.json.tmp && true || exit 1
 
             mv ./package-versions.json.tmp ./package-versions.json && true || exit 1
           done
@@ -196,8 +196,8 @@ jobs:
           echo - [Release]\(${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.publish-tag }}\) >> $GITHUB_STEP_SUMMARY
           echo - [Source code \(tagged\)]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ env.publish-tag }}\) >> $GITHUB_STEP_SUMMARY
 
-  build-pages-artifact:
-    name: Build pages artifact
+  pack-pages-artifact:
+    name: Pack pages artifact
     needs:
       - build
     runs-on: ubuntu-latest
