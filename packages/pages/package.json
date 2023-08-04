@@ -5,6 +5,9 @@
   "description": "",
   "author": "Microsoft Corporation",
   "license": "MIT",
+  "files": [
+    "/public/"
+  ],
   "scripts": {
     "build": "concurrently \"npm run build:*\"",
     "build:esbuild": "esbuild --bundle --entry-names=[ext]/[name] --jsx=automatic --minify --outdir=./public/static/ --sourcemap app=./src/app/index.tsx",

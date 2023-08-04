@@ -71,7 +71,7 @@ jobs:
             SHORT_COMMITISH=`git log --pretty=format:'%h' -1 ./$i/`
             VERSION=`cat ./$i/package.json | jq -r .version | xargs -L1 npm exec --offline -- semver --increment prerelease -n false --preid $BRANCH.$COMMITTER_DATE.$SHORT_COMMITISH`
 
-            cat ./package-versions.json | jq --arg branch $BRANCH --arg committerDateInISO8601 $COMMITTER_DATE_IN_ISO8601 --arg longCommitish $LONG_COMMITISH --arg shortCommitish $SHORT_COMMITISH --arg path ./$i/ --arg version $VERSION --argfile packageJSON ./$i/package.json -r '. + { ($packageJSON.name): { branch: $branch, committerDate: $committerDateInISO8601, longCommitish: $longCommitish, name: $packageJSON.name, path: $path, shortCommitish: $shortCommitish, tarball: ("./" + $packageJSON.name + "-" + $version + ".tgz"), version: $version } }' > ./package-versions.json.tmp && true || exit 1
+            cat ./package-versions.json | jq --arg branch $BRANCH --arg committerDateInISO8601 $COMMITTER_DATE_IN_ISO8601 --arg longCommitish $LONG_COMMITISH --arg shortCommitish $SHORT_COMMITISH --arg path ./$i/ --arg version $VERSION --argfile packageJSON ./$i/package.json -r '. + { ($packageJSON.name): { branch: $branch, committerDate: $committerDateInISO8601, longCommitish: $longCommitish, name: $packageJSON.name, path: $path, private: $packageJSON.private // false, shortCommitish: $shortCommitish, tarball: ("./" + $packageJSON.name + "-" + $version + ".tgz"), version: $version } }' > ./package-versions.json.tmp && true || exit 1
 
             mv ./package-versions.json.tmp ./package-versions.json && true || exit 1
           done
@@ -82,7 +82,7 @@ jobs:
         env:
           NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
         name: Bump versions
-        run: cat package-versions.json | jq -cr 'to_entries | map("--workspace=" + .key + " " + .value.version) | join("\n")' | xargs -L1 npm version
+        run: cat package-versions.json | jq -cr 'to_entries | select(.value.private | not) | map("--workspace=" + .key + " " + .value.version) | join("\n")' | xargs -L1 npm version
       - env:
           NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
         run: npm clean-install --ignore-scripts # Skip scripts to prevent malicious scripts from stealing the token.
@@ -196,51 +196,20 @@ jobs:
           echo - [Release]\(${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.publish-tag }}\) >> $GITHUB_STEP_SUMMARY
           echo - [Source code \(tagged\)]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ env.publish-tag }}\) >> $GITHUB_STEP_SUMMARY
 
-  build-pages:
-    environment: build-production
-    name: Build pages
+  build-pages-artifact:
+    name: Build pages artifact
     needs:
       - build
     runs-on: ubuntu-latest
     steps:
-      - name: 'Sanity check: NPM registry URL is valid'
-        run: if [[ "${{ vars.AZDO_NPM_REGISTRY_URL }}" != */ ]]; then exit 1; fi
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: Use Node.js ${{ env.node-version }}
-        uses: actions/setup-node@v3
-        with:
-          always-auth: true
-          cache: npm
-          node-version: ${{ env.node-version }}
-          registry-url: ${{ vars.AZDO_NPM_REGISTRY_URL }}
-      - name: Configure NPM
-        run: |
-          NPM_REGISTRY_URL_WITHOUT_PROTOCOL=`echo ${{ vars.AZDO_NPM_REGISTRY_URL }} | sed -e 's/^https://'`
-
-          npm config delete $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_authToken
-          npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_password=\${NODE_AUTH_PASSWORD}
-          npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:username=${{ vars.AZDO_NPM_REGISTRY_USERNAME }}
-
-          npm config get
       - name: Download packages artifact
         uses: actions/download-artifact@v3
         with:
           name: packages
-      - name: Upload versions file
-        uses: actions/download-artifact@v3
-        with:
-          name: package-versions
-      - env:
-          NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
-        run: npm clean-install --ignore-scripts # Skip scripts to prevent malicious scripts from stealing the token.
-      - name: Extract tarballs
-        run: cat package-versions.json | jq -r 'map("--extract --file=" + .tarball + " --directory=" + .path + " --strip-component=1 --verbose") | join("\n")' | xargs -L1 tar
-      - name: Build
-        run: npm run build --workspace=pages
+      - name: Extract pages package
+        run: tar --extract --file=pages-*.tgz
       - name: Upload pages artifact
         uses: actions/upload-artifact@v3
         with:
           name: gh-pages
-          path: ./packages/pages/public/
+          path: ./package/public/
