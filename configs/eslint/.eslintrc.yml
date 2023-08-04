@@ -4,6 +4,7 @@ extends:
   - eslint:recommended
 ignorePatterns:
   - '**/lib/'
+  - '**/node_modules/'
 overrides:
   - extends: ./.eslintrc.jest.yml
     files:
