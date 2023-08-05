@@ -82,7 +82,7 @@ jobs:
         env:
           NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
         name: Bump versions
-        run: cat package-versions.json | jq -cr 'to_entries | select(.value.private | not) | map("--workspace=" + .key + " " + .value.version) | join("\n")' | xargs -L1 npm version
+        run: cat package-versions.json | jq -cr 'to_entries | map("--workspace=" + .key + " " + .value.version) | join("\n")' | xargs -L1 npm version
       - env:
           NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
         run: npm clean-install --ignore-scripts # Skip scripts to prevent malicious scripts from stealing the token.
