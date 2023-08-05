@@ -1,5 +1,5 @@
 name: Continuous deployment
-run-name: "${{ github.event_name == 'push' && null || format('Continuous deployment: {0} on {1}', github.ref_name, github.event_name) }}"
+run-name: "${{ github.event_name != 'push' format('Continuous deployment: {0} on {1}', github.ref_name, github.event_name) && null }}"
 
 on:
   push:
@@ -209,7 +209,7 @@ jobs:
         with:
           name: packages
       - name: Extract pages package
-        run: tar --extract --file=pages-*.tgz
+        run: tar --extract --verbose --file=`ls -1 pages-[0-9]*.tgz`
       - name: Upload pages artifact
         uses: actions/upload-artifact@v3
         with:
