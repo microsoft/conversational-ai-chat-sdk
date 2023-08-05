@@ -147,7 +147,7 @@ jobs:
             TARBALL=`cat package-versions.json | jq --arg name $i -r '.[$name] | .tarball | ltrimstr("./")'`
             cat package-versions.json | jq --arg name powerva-chat-adapter -r '.[$name] | .tarball | ltrimstr("./")'
 
-            echo - \`$i\`
+            echo - \`$i\` >> $GITHUB_STEP_SUMMARY
 
             if [[ "`cat assets.json | jq --arg name $TARBALL '.assets | any(select(.name == $name))'`" == "false" ]]
             then
