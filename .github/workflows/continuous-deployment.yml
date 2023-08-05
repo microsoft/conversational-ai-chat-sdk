@@ -1,5 +1,5 @@
 name: Continuous deployment
-run-name: 'Continuous deployment: ${{ github.ref_name }} on ${{ github.event_name }}'
+run-name: ${{ github.event_name == 'push' && null || format('Continuous deployment: {0} on {1}', github.ref_name, github.event_name) }}
 
 on:
   push:
