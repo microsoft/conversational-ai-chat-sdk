@@ -162,7 +162,8 @@ jobs:
       - if: ${{ !steps.prepare.outputs.is-private }}
         name: 'Sanity check: package.json/files must contains at least one item'
         run: cat package.json | jq '.files // [] | if length == 0 then halt_error(1) else empty end'
-      # TODO: Must contains changes in CHANGELOG.md
+      # TODO: No package name should ends with "-[0-9]" because it would interfere with CI/CD scripts
+      # TODO: Must contains changes in CHANGELOG.md if it modified *.ts
       # TODO: In CHANGELOG.md, if breaking changes is modified, must bump major
       # TODO: In CHANGELOG.md, if features are removed, must bump major
       # TODO: In CHANGELOG.md, if features are added, must bump minor
