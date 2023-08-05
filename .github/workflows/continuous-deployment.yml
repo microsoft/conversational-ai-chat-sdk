@@ -25,6 +25,10 @@ env:
 
 jobs:
   build:
+    # TODO: Turn some build steps into a reusable action under the current repo.
+    #       - Set up NPM for production build
+    #       - Set up package-lock.json for production build
+    #       We should try not to make build into reusable... because it should be just run `npm run ci && npm run build`
     environment: build-production
     name: Build
     runs-on: ubuntu-latest
