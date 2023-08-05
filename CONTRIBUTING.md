@@ -1,5 +1,21 @@
 # Contributing
 
+## Fork setup
+
+- Pages
+   - Pages > Source, change to "GitHub Actions"
+- Environments
+   - `build-production`
+      - Secrets
+         - `AZDO_NPM_REGISTRY_PASSWORD` set to the password to log into your reputable NPM registry
+      - Environment variables
+         - `AZDO_NPM_REGISTRY_URL` set to a reputable NPM registry
+         - `AZDO_NPM_REGISTRY_USERNAME` set to the username to log into your reputable NPM registry
+   - `npm-publish`
+   - `pull-request`
+      - Secrets
+         - `GH_TOKEN` set to a PAT token which enabled "Read and Write access to code and pull requests" in your fork
+
 ## First time setup
 
 Run `npm install`.
