@@ -209,7 +209,9 @@ jobs:
         with:
           name: packages
       - name: Extract pages package
-        run: tar --extract --verbose --file=`ls -1 pages-[0-9]*.tgz` ./_site/
+        run: |
+          mkdir ./_site/
+          tar --extract --verbose --file=`ls -1 pages-[0-9]*.tgz` --directory=./_site/
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v2
 
