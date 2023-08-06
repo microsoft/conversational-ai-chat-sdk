@@ -40,7 +40,9 @@ export default memo(function WebChat({ botIdentifier, environmentID, hostnameSuf
   return (
     <Fragment>
       <pre>{JSON.stringify({ botIdentifier, environmentID, hostnameSuffix, tenantID }, null, 2)}</pre>
-      <ReactWebChat directLine={chatAdapter} />
+      <div className="webchat">
+        <ReactWebChat directLine={chatAdapter} />
+      </div>
     </Fragment>
   );
 });

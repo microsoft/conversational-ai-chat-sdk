@@ -1,13 +1,23 @@
 /* Uncomment this block for a web app with full screen height and width. */
 
-/* body, html {
+body,
+html {
   height: 100%;
-}
-
-body {
-  margin: 0;
 }
 
 #root {
   height: 100%;
-} */
+}
+
+.webchat {
+  border: solid 1px #EEE;
+  border-radius: 4px;
+  box-sizing: border-box;
+  box-shadow: 0 0 10px rgba(0, 0, 0, .05);
+  height: calc(100vh - 20px);
+  overflow: hidden;
+  position: fixed;
+  right: 10px;
+  top: 10px;
+  width: 360px;
+}
