@@ -25,7 +25,8 @@
     "botframework-webchat": "^4.15.8",
     "powerva-chat-adapter": "^0.0.0-0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "use-ref-from": "^0.0.2"
   },
   "devDependencies": {
     "@types/react": "^18.2.18",
