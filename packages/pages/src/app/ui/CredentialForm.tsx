@@ -159,9 +159,9 @@ export default memo(function CredentialForm({
         </label>
       </dl>
       <button autoFocus={autoFocus} type="submit">
-        Create
+        Create Web Chat
       </button>{' '}
-      <DoubleTapButton onClick={handleResetButtonClick}>Double tap to reset</DoubleTapButton>
+      <DoubleTapButton onClick={handleResetButtonClick}>Double tap to clear</DoubleTapButton>
     </form>
   );
 });
