@@ -91,7 +91,7 @@ const CredentialForm = ({ autoFocus, botIdentifier, environmentID, onChange, onS
         <label>
           <dt>Token</dt>
           <dd>
-            <input onChange={handleTokenChange} required type="password" value={token || ''} />
+            <input autoComplete="off" onChange={handleTokenChange} required type="password" value={token || ''} />
           </dd>
         </label>
       </dl>
