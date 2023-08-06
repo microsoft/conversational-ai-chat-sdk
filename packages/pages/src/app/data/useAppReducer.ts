@@ -4,6 +4,7 @@ type State = {
   botIdentifier: string;
   environmentID: string;
   tenantID: string;
+  token: string;
 };
 
 type SetBotIdentifierAction = {
@@ -21,12 +22,18 @@ type SetTenantIDAction = {
   type: 'SET_TENANT_ID';
 };
 
-type Action = SetBotIdentifierAction | SetEnvironmentIDAction | SetTenantIDAction;
+type SetTokenAction = {
+  payload: string;
+  type: 'SET_TOKEN';
+};
+
+type Action = SetBotIdentifierAction | SetEnvironmentIDAction | SetTenantIDAction | SetTokenAction;
 
 type DispatchAction = {
   setBotIdentifier: (botIdentifier: string) => void;
   setEnvironmentID: (environmentID: string) => void;
   setTenantID: (tenantID: string) => void;
+  setToken: (token: string) => void;
 };
 
 export default function useAppReducer(): readonly [State, Readonly<DispatchAction>] {
@@ -37,6 +44,8 @@ export default function useAppReducer(): readonly [State, Readonly<DispatchActio
       state = { ...state, environmentID: action.payload };
     } else if (action.type === 'SET_TENANT_ID') {
       state = { ...state, tenantID: action.payload };
+    } else if (action.type === 'SET_TOKEN') {
+      state = { ...state, token: action.payload };
     }
 
     return state;
@@ -45,7 +54,8 @@ export default function useAppReducer(): readonly [State, Readonly<DispatchActio
   const [state, dispatch] = useReducer(reducer, {
     botIdentifier: '',
     environmentID: '',
-    tenantID: ''
+    tenantID: '',
+    token: ''
   });
 
   const setBotIdentifier = useCallback(
@@ -63,14 +73,17 @@ export default function useAppReducer(): readonly [State, Readonly<DispatchActio
     [dispatch]
   );
 
+  const setToken = useCallback((token: string) => dispatch({ payload: token, type: 'SET_TOKEN' }), [dispatch]);
+
   const dispatchActions = useMemo(
     () =>
       Object.freeze({
         setBotIdentifier,
         setEnvironmentID,
-        setTenantID
+        setTenantID,
+        setToken
       }),
-    [setBotIdentifier, setEnvironmentID, setTenantID]
+    [setBotIdentifier, setEnvironmentID, setTenantID, setToken]
   );
 
   return Object.freeze([state, dispatchActions]);

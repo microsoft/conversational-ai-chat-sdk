@@ -4,48 +4,54 @@ import { useRefFrom } from 'use-ref-from';
 type Props = {
   botIdentifier?: string;
   environmentID?: string;
-  onChange?: (nextCredential: { botIdentifier: string; environmentID: string; tenantID: string }) => void;
+  onChange?: (nextCredential: {
+    botIdentifier: string;
+    environmentID: string;
+    tenantID: string;
+    token: string;
+  }) => void;
   onSubmit?: () => void;
   tenantID?: string;
+  token?: string;
 };
 
-const CredentialForm = ({ botIdentifier, environmentID, onChange, onSubmit, tenantID }: Props) => {
+const CredentialForm = ({ botIdentifier, environmentID, onChange, onSubmit, tenantID, token }: Props) => {
   const botIdentifierRef = useRefFrom(botIdentifier);
   const environmentIDRef = useRefFrom(environmentID);
   const onChangeRef = useRefFrom(onChange);
   const onSubmitRef = useRefFrom(onSubmit);
   const tenantIDRef = useRefFrom(tenantID);
+  const tokenRef = useRefFrom(token);
+
+  const dispatchChange = useCallback(
+    (overrides: { botIdentifier?: string; environmentID?: string; tenantID?: string; token?: string }) =>
+      onChangeRef.current?.({
+        botIdentifier: botIdentifierRef.current || '',
+        environmentID: environmentIDRef.current || '',
+        tenantID: tenantIDRef.current || '',
+        token: tokenRef.current || '',
+        ...overrides
+      }),
+    [botIdentifierRef, environmentIDRef, tenantIDRef, tokenRef]
+  );
 
   const handleBotIdentifierChange = useCallback<ChangeEventHandler<HTMLInputElement>>(
-    ({ currentTarget }) => {
-      onChangeRef.current?.({
-        botIdentifier: currentTarget.value,
-        environmentID: environmentIDRef.current || '',
-        tenantID: tenantIDRef.current || ''
-      });
-    },
-    [environmentIDRef, onChangeRef, tenantIDRef]
+    ({ currentTarget }) => dispatchChange({ botIdentifier: currentTarget.value }),
+    [environmentIDRef, onChangeRef, tenantIDRef, tokenRef]
   );
 
   const handleEnvironmentIDChange = useCallback<ChangeEventHandler<HTMLInputElement>>(
-    ({ currentTarget }) => {
-      onChangeRef.current?.({
-        botIdentifier: botIdentifierRef.current || '',
-        environmentID: currentTarget.value,
-        tenantID: tenantIDRef.current || ''
-      });
-    },
-    [botIdentifierRef, onChangeRef, tenantIDRef]
+    ({ currentTarget }) => dispatchChange({ environmentID: currentTarget.value }),
+    [dispatchChange]
   );
 
   const handleTenantIDChange = useCallback<ChangeEventHandler<HTMLInputElement>>(
-    ({ currentTarget }) => {
-      onChangeRef.current?.({
-        botIdentifier: botIdentifierRef.current || '',
-        environmentID: environmentIDRef.current || '',
-        tenantID: currentTarget.value
-      });
-    },
+    ({ currentTarget }) => dispatchChange({ tenantID: currentTarget.value }),
+    [botIdentifierRef, onChangeRef, environmentIDRef]
+  );
+
+  const handleTokenChange = useCallback<ChangeEventHandler<HTMLInputElement>>(
+    ({ currentTarget }) => dispatchChange({ token: currentTarget.value }),
     [botIdentifierRef, onChangeRef, environmentIDRef]
   );
 
@@ -77,6 +83,12 @@ const CredentialForm = ({ botIdentifier, environmentID, onChange, onSubmit, tena
           <dt>Bot identifier</dt>
           <dd>
             <input onChange={handleBotIdentifierChange} required type="text" value={botIdentifier || ''} />
+          </dd>
+        </label>
+        <label>
+          <dt>Token</dt>
+          <dd>
+            <input onChange={handleTokenChange} required type="password" value={token || ''} />
           </dd>
         </label>
       </dl>

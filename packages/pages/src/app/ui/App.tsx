@@ -1,22 +1,25 @@
 import { Fragment, useCallback } from 'react';
 
+import { type PropsOf } from '../types/PropsOf';
 import CredentialForm from './CredentialForm';
 import useAppReducer from '../data/useAppReducer';
-import { PropsOf } from '../types/PropsOf';
 
 type CredentialFormChangeCallback = Exclude<PropsOf<typeof CredentialForm>['onChange'], undefined>;
 
 const App = () => {
-  const [{ botIdentifier, environmentID, tenantID }, { setBotIdentifier, setEnvironmentID, setTenantID }] =
-    useAppReducer();
+  const [
+    { botIdentifier, environmentID, tenantID, token },
+    { setBotIdentifier, setEnvironmentID, setTenantID, setToken }
+  ] = useAppReducer();
 
   const handleCredentialFormChange = useCallback<CredentialFormChangeCallback>(
-    ({ botIdentifier, environmentID, tenantID }) => {
+    ({ botIdentifier, environmentID, tenantID, token }) => {
       setBotIdentifier(botIdentifier);
       setEnvironmentID(environmentID);
       setTenantID(tenantID);
+      setToken(token);
     },
-    [setBotIdentifier, setEnvironmentID, setTenantID]
+    [setBotIdentifier, setEnvironmentID, setTenantID, setToken]
   );
 
   return (
@@ -25,6 +28,7 @@ const App = () => {
         botIdentifier={botIdentifier}
         environmentID={environmentID}
         tenantID={tenantID}
+        token={token}
         onChange={handleCredentialFormChange}
       />
     </Fragment>
