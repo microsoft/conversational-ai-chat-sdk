@@ -6,35 +6,57 @@ type Props = {
   autoFocus?: boolean;
   botIdentifier?: string;
   environmentID?: string;
+  hostnameSuffix?: string;
   onChange?: (nextCredential: {
     botIdentifier: string;
     environmentID: string;
-    tenantID: string;
+    hostnameSuffix: string;
+    tenantID?: string;
     token: string;
   }) => void;
+  onReset?: () => void;
   onSubmit?: () => void;
   tenantID?: string;
   token?: string;
 };
 
-const CredentialForm = ({ autoFocus, botIdentifier, environmentID, onChange, onSubmit, tenantID, token }: Props) => {
+const CredentialForm = ({
+  autoFocus,
+  botIdentifier,
+  environmentID,
+  hostnameSuffix,
+  onChange,
+  onReset,
+  onSubmit,
+  tenantID,
+  token
+}: Props) => {
   const botIdentifierRef = useRefFrom(botIdentifier);
   const environmentIDRef = useRefFrom(environmentID);
+  const hostnameSuffixRef = useRefFrom(hostnameSuffix);
   const onChangeRef = useRefFrom(onChange);
+  const onResetRef = useRefFrom(onReset);
   const onSubmitRef = useRefFrom(onSubmit);
   const tenantIDRef = useRefFrom(tenantID);
   const tokenRef = useRefFrom(token);
 
   const dispatchChange = useCallback(
-    (overrides: { botIdentifier?: string; environmentID?: string; tenantID?: string; token?: string }) =>
+    (overrides: {
+      botIdentifier?: string;
+      environmentID?: string;
+      hostnameSuffix?: string;
+      tenantID?: string;
+      token?: string;
+    }) =>
       onChangeRef.current?.({
         botIdentifier: botIdentifierRef.current || '',
         environmentID: environmentIDRef.current || '',
+        hostnameSuffix: hostnameSuffixRef.current || '',
         tenantID: tenantIDRef.current || '',
         token: tokenRef.current || '',
         ...overrides
       }),
-    [botIdentifierRef, environmentIDRef, tenantIDRef, tokenRef]
+    [botIdentifierRef, environmentIDRef, hostnameSuffix, tenantIDRef, tokenRef]
   );
 
   const handleBotIdentifierChange = useCallback<ChangeEventHandler<HTMLInputElement>>(
@@ -47,14 +69,19 @@ const CredentialForm = ({ autoFocus, botIdentifier, environmentID, onChange, onS
     [dispatchChange]
   );
 
+  const handleHostnameSuffixChange = useCallback<ChangeEventHandler<HTMLInputElement>>(
+    ({ currentTarget }) => dispatchChange({ hostnameSuffix: currentTarget.value }),
+    [dispatchChange]
+  );
+
   const handleTenantIDChange = useCallback<ChangeEventHandler<HTMLInputElement>>(
     ({ currentTarget }) => dispatchChange({ tenantID: currentTarget.value }),
-    [botIdentifierRef, onChangeRef, environmentIDRef]
+    [dispatchChange]
   );
 
   const handleTokenChange = useCallback<ChangeEventHandler<HTMLInputElement>>(
     ({ currentTarget }) => dispatchChange({ token: currentTarget.value }),
-    [botIdentifierRef, onChangeRef, environmentIDRef]
+    [dispatchChange]
   );
 
   const handleSubmit = useCallback<ChangeEventHandler<HTMLFormElement>>(
@@ -66,10 +93,7 @@ const CredentialForm = ({ autoFocus, botIdentifier, environmentID, onChange, onS
     [onSubmitRef]
   );
 
-  const handleResetButtonClick = useCallback(
-    () => dispatchChange({ botIdentifier: '', environmentID: '', tenantID: '', token: '' }),
-    [dispatchChange]
-  );
+  const handleResetButtonClick = useCallback(() => onResetRef.current?.(), [onResetRef]);
 
   // TODO: If autofocus is enabled, consider focus on the first invalid field.
 
@@ -77,9 +101,15 @@ const CredentialForm = ({ autoFocus, botIdentifier, environmentID, onChange, onS
     <form onSubmit={handleSubmit}>
       <dl>
         <label>
+          <dt>Hostname suffix</dt>
+          <dd>
+            <input onChange={handleHostnameSuffixChange} type="text" value={hostnameSuffix || ''} />
+          </dd>
+        </label>
+        <label>
           <dt>Tenant ID</dt>
           <dd>
-            <input onChange={handleTenantIDChange} required type="text" value={tenantID || ''} />
+            <input onChange={handleTenantIDChange} type="text" value={tenantID || ''} />
           </dd>
         </label>
         <label>

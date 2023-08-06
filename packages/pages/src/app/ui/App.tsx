@@ -4,47 +4,57 @@ import { useRefFrom } from 'use-ref-from';
 import { type PropsOf } from '../types/PropsOf';
 import CredentialForm from './CredentialForm';
 import useAppReducer from '../data/useAppReducer';
+import WebChat from './WebChat';
 
-type CredentialFormChangeCallback = Exclude<PropsOf<typeof CredentialForm>['onChange'], undefined>;
-
-type Credential = {
+type SubmittedCredential = {
   botIdentifier: string;
   environmentID: string;
-  tenantID: string;
+  hostnameSuffix: string;
+  key: number;
+  tenantID?: string;
   token: string;
 };
 
+type CredentialFormChangeCallback = Exclude<PropsOf<typeof CredentialForm>['onChange'], undefined>;
+
 const App = () => {
   const [
-    { botIdentifier, environmentID, tenantID, token },
-    { saveToSessionStorage, setBotIdentifier, setEnvironmentID, setTenantID, setToken }
+    { botIdentifier, environmentID, hostnameSuffix, tenantID, token },
+    { reset, saveToSessionStorage, setBotIdentifier, setEnvironmentID, setHostnameSuffix, setTenantID, setToken }
   ] = useAppReducer();
+  const [submittedCredential, setSubmittedCredential] = useState<SubmittedCredential | undefined>();
   const botIdentifierRef = useRefFrom(botIdentifier);
   const environmentIDRef = useRefFrom(environmentID);
+  const hostnameSuffixRef = useRefFrom(hostnameSuffix);
   const tenantIDRef = useRefFrom(tenantID);
   const tokenRef = useRefFrom(token);
-  const [submitted, setSubmitted] = useState<Credential | undefined>();
 
   const handleCredentialFormChange = useCallback<CredentialFormChangeCallback>(
-    ({ botIdentifier, environmentID, tenantID, token }) => {
+    ({ botIdentifier, environmentID, hostnameSuffix, tenantID, token }) => {
       setBotIdentifier(botIdentifier);
       setEnvironmentID(environmentID);
+      setHostnameSuffix(hostnameSuffix);
       setTenantID(tenantID);
       setToken(token);
+
       saveToSessionStorage();
     },
-    [saveToSessionStorage, setBotIdentifier, setEnvironmentID, setTenantID, setToken]
+    [saveToSessionStorage, setBotIdentifier, setEnvironmentID, setHostnameSuffix, setTenantID, setToken]
   );
+
+  const handleReset = useCallback(() => reset(), [reset]);
 
   const handleSubmit = useCallback(
     () =>
-      setSubmitted({
+      setSubmittedCredential({
         botIdentifier: botIdentifierRef.current,
         environmentID: environmentIDRef.current,
+        hostnameSuffix: hostnameSuffixRef.current,
+        key: Date.now(),
         tenantID: tenantIDRef.current,
         token: tokenRef.current
       }),
-    [botIdentifierRef, environmentIDRef, setSubmitted, tenantIDRef, tokenRef]
+    [botIdentifierRef, environmentIDRef, hostnameSuffixRef, setSubmittedCredential, tenantIDRef, tokenRef]
   );
 
   return (
@@ -53,15 +63,22 @@ const App = () => {
         autoFocus={!!(botIdentifier && environmentID && tenantID && token)}
         botIdentifier={botIdentifier}
         environmentID={environmentID}
+        hostnameSuffix={hostnameSuffix}
         tenantID={tenantID}
         token={token}
         onChange={handleCredentialFormChange}
+        onReset={handleReset}
         onSubmit={handleSubmit}
       />
-      {!!submitted && (
-        <div>
-          <pre>{JSON.stringify({ ...submitted, token: undefined }, null, 2)}</pre>
-        </div>
+      {!!submittedCredential && (
+        <WebChat
+          botIdentifier={submittedCredential.botIdentifier}
+          environmentID={submittedCredential.environmentID}
+          hostnameSuffix={submittedCredential.hostnameSuffix}
+          key={submittedCredential.key}
+          tenantID={submittedCredential.tenantID}
+          token={submittedCredential.token}
+        />
       )}
     </Fragment>
   );

@@ -11,7 +11,7 @@ const passthruRequestBodyEnhancer: RequestBodyEnhancer = (_, body) => body;
 export default class PrebuiltBotAPIStrategy implements TurnBasedChatAdapterAPIStrategy {
   constructor(
     environmentEndpointURL: URL,
-    tenantID: string,
+    tenantID: string | undefined,
     environmentID: string,
     botIdentifier: string,
     getTokenCallback: () => Promise<string>,
@@ -31,7 +31,7 @@ export default class PrebuiltBotAPIStrategy implements TurnBasedChatAdapterAPISt
   #environmentID: string;
   #getTokenCallback: () => Promise<string>;
   #onRequestBody: RequestBodyEnhancer;
-  #tenantID: string;
+  #tenantID: string | undefined;
 
   public async getHeaders() {
     return { Authorization: `Bearer ${await this.#getTokenCallback()}` };
@@ -43,14 +43,21 @@ export default class PrebuiltBotAPIStrategy implements TurnBasedChatAdapterAPISt
       throw new Error('"pathSuffix" cannot starts with a dot or slash.');
     }
 
-    const baseUrl = new URL(this.#environmentEndpointURL);
+    let url = new URL('/powervirtualagents/', this.#environmentEndpointURL);
 
     // /powervirtualagents/tenants/{tenantId}/environments/{environmentId}/prebuilt/authenticated/bots/{botIdentifier}/conversations
-    baseUrl.pathname = `/powervirtualagents/tenants/${this.#tenantID}/environments/${
-      this.#environmentID
-    }/prebuilt/authenticated/bots/${this.#botIdentifier}/${pathSuffix}`;
 
-    return baseUrl;
+    // TODO: It seems tenant ID is not required or not needed. Is that true?
+    if (this.#tenantID) {
+      url = new URL(`tenants/${this.#tenantID}/`, url);
+    }
+
+    // TODO: We already passed environment ID as part of the host name, is environment ID still required here?
+    // url = new URL(`environments/${this.#environmentID}/`, url);
+
+    url = new URL(`prebuilt/authenticated/bots/${this.#botIdentifier}/${pathSuffix}`, url);
+
+    return url;
   }
 
   public onRequestBody(requestType: 'continueTurn' | 'executeTurn' | 'startNewConversation', body: Readonly<unknown>) {

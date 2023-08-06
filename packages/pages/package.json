@@ -17,6 +17,10 @@
     "bump:prod": "if [ `cat package.json | jq -r '.dependencies | length'` -ne 0 ]; then npm install --save-exact $(cat package.json | jq -r '(.pinDependencies // {}) as $p | ((.dependencies // {}) | keys) | map(. + \"@\" + ($p[.] // [\"latest\"])[0]) | .[]'); fi",
     "eslint": "npm run precommit",
     "precommit": "eslint .",
+    "prepare": "npm run prepare:abort-controller-es5 && npm run prepare:markdown-it-attrs-es5 && npm run prepare:p-defer-es5",
+    "prepare:abort-controller-es5": "cd .. && cd .. && cd node_modules && cd abort-controller-es5 && npm run postinstall",
+    "prepare:markdown-it-attrs-es5": "cd .. && cd .. && cd node_modules && cd markdown-it-attrs-es5 && npm run postinstall",
+    "prepare:p-defer-es5": "cd .. && cd .. && cd node_modules && cd p-defer-es5 && npm run postinstall",
     "start": "concurrently --kill-others \"npm run start:*\"",
     "start:esbuild": "npm run build:esbuild -- --servedir=./public",
     "start:typescript": "npm run build:typescript -- --watch"
