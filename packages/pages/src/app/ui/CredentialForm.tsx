@@ -2,6 +2,7 @@ import { type ChangeEventHandler, useCallback } from 'react';
 import { useRefFrom } from 'use-ref-from';
 
 type Props = {
+  autoFocus?: boolean;
   botIdentifier?: string;
   environmentID?: string;
   onChange?: (nextCredential: {
@@ -15,7 +16,7 @@ type Props = {
   token?: string;
 };
 
-const CredentialForm = ({ botIdentifier, environmentID, onChange, onSubmit, tenantID, token }: Props) => {
+const CredentialForm = ({ autoFocus, botIdentifier, environmentID, onChange, onSubmit, tenantID, token }: Props) => {
   const botIdentifierRef = useRefFrom(botIdentifier);
   const environmentIDRef = useRefFrom(environmentID);
   const onChangeRef = useRefFrom(onChange);
@@ -64,6 +65,8 @@ const CredentialForm = ({ botIdentifier, environmentID, onChange, onSubmit, tena
     [onSubmitRef]
   );
 
+  // TODO: Consider focus on the first invalid field.
+
   return (
     <form onSubmit={handleSubmit}>
       <dl>
@@ -92,7 +95,9 @@ const CredentialForm = ({ botIdentifier, environmentID, onChange, onSubmit, tena
           </dd>
         </label>
       </dl>
-      <button type="submit">Create</button>
+      <button autoFocus={autoFocus} type="submit">
+        Create
+      </button>
     </form>
   );
 };

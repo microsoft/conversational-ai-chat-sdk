@@ -18,8 +18,9 @@ const App = () => {
       setEnvironmentID(environmentID);
       setTenantID(tenantID);
       setToken(token);
+      saveToSessionStorage();
     },
-    [setBotIdentifier, setEnvironmentID, setTenantID, setToken]
+    [saveToSessionStorage, setBotIdentifier, setEnvironmentID, setTenantID, setToken]
   );
 
   const handleSubmit = useCallback(() => saveToSessionStorage(), [saveToSessionStorage]);
@@ -27,6 +28,7 @@ const App = () => {
   return (
     <Fragment>
       <CredentialForm
+        autoFocus={!!(botIdentifier && environmentID && tenantID && token)}
         botIdentifier={botIdentifier}
         environmentID={environmentID}
         tenantID={tenantID}
