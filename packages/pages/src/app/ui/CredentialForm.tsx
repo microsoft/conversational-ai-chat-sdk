@@ -1,5 +1,6 @@
 import { type ChangeEventHandler, useCallback } from 'react';
 import { useRefFrom } from 'use-ref-from';
+import DoubleTapButton from './DoubleTapButton';
 
 type Props = {
   autoFocus?: boolean;
@@ -65,7 +66,12 @@ const CredentialForm = ({ autoFocus, botIdentifier, environmentID, onChange, onS
     [onSubmitRef]
   );
 
-  // TODO: Consider focus on the first invalid field.
+  const handleResetButtonClick = useCallback(
+    () => dispatchChange({ botIdentifier: '', environmentID: '', tenantID: '', token: '' }),
+    [dispatchChange]
+  );
+
+  // TODO: If autofocus is enabled, consider focus on the first invalid field.
 
   return (
     <form onSubmit={handleSubmit}>
@@ -97,7 +103,8 @@ const CredentialForm = ({ autoFocus, botIdentifier, environmentID, onChange, onS
       </dl>
       <button autoFocus={autoFocus} type="submit">
         Create
-      </button>
+      </button>{' '}
+      <DoubleTapButton onClick={handleResetButtonClick}>Double tap to reset</DoubleTapButton>
     </form>
   );
 };
