@@ -9,7 +9,7 @@ type CredentialFormChangeCallback = Exclude<PropsOf<typeof CredentialForm>['onCh
 const App = () => {
   const [
     { botIdentifier, environmentID, tenantID, token },
-    { setBotIdentifier, setEnvironmentID, setTenantID, setToken }
+    { saveToSessionStorage, setBotIdentifier, setEnvironmentID, setTenantID, setToken }
   ] = useAppReducer();
 
   const handleCredentialFormChange = useCallback<CredentialFormChangeCallback>(
@@ -22,6 +22,8 @@ const App = () => {
     [setBotIdentifier, setEnvironmentID, setTenantID, setToken]
   );
 
+  const handleSubmit = useCallback(() => saveToSessionStorage(), [saveToSessionStorage]);
+
   return (
     <Fragment>
       <CredentialForm
@@ -30,6 +32,7 @@ const App = () => {
         tenantID={tenantID}
         token={token}
         onChange={handleCredentialFormChange}
+        onSubmit={handleSubmit}
       />
     </Fragment>
   );
