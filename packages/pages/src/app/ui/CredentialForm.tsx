@@ -1,5 +1,6 @@
-import { type ChangeEventHandler, useCallback } from 'react';
+import { type ChangeEventHandler, memo, useCallback } from 'react';
 import { useRefFrom } from 'use-ref-from';
+
 import DoubleTapButton from './DoubleTapButton';
 
 type Props = {
@@ -20,7 +21,7 @@ type Props = {
   token?: string;
 };
 
-const CredentialForm = ({
+export default memo(function CredentialForm({
   autoFocus,
   botIdentifier,
   environmentID,
@@ -30,7 +31,7 @@ const CredentialForm = ({
   onSubmit,
   tenantID,
   token
-}: Props) => {
+}: Props) {
   const botIdentifierRef = useRefFrom(botIdentifier);
   const environmentIDRef = useRefFrom(environmentID);
   const hostnameSuffixRef = useRefFrom(hostnameSuffix);
@@ -137,6 +138,4 @@ const CredentialForm = ({
       <DoubleTapButton onClick={handleResetButtonClick}>Double tap to reset</DoubleTapButton>
     </form>
   );
-};
-
-export default CredentialForm;
+});

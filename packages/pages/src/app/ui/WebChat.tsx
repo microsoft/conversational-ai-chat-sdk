@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo } from 'react';
+import { Fragment, memo, useCallback, useEffect, useMemo } from 'react';
 import { fromTurnBasedChatAdapterAPI, PowerPlatformAPIChatAdapter, PrebuiltBotAPIStrategy } from 'powerva-chat-adapter';
 
 import ReactWebChat from 'botframework-webchat';
@@ -11,7 +11,7 @@ type Props = {
   token: string;
 };
 
-const WebChat = ({ botIdentifier, environmentID, hostnameSuffix, tenantID, token }: Props) => {
+export default memo(function WebChat({ botIdentifier, environmentID, hostnameSuffix, tenantID, token }: Props) {
   // Should use PowerPlatformApiDiscovery to find out the base URL.
   const environmentIDWithoutHyphens = useMemo(() => environmentID.replaceAll('-', ''), [environmentID]);
   const getToken = useCallback<() => Promise<string>>(() => Promise.resolve(token), [token]);
@@ -43,6 +43,4 @@ const WebChat = ({ botIdentifier, environmentID, hostnameSuffix, tenantID, token
       <ReactWebChat directLine={chatAdapter} />
     </Fragment>
   );
-};
-
-export default WebChat;
+});

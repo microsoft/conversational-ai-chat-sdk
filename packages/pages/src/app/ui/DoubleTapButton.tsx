@@ -1,11 +1,11 @@
-import { type PropsWithChildren, useCallback, useState } from 'react';
+import { memo, type PropsWithChildren, useCallback, useState } from 'react';
 import { useRefFrom } from 'use-ref-from';
 
 type Props = PropsWithChildren<{
   onClick: () => void;
 }>;
 
-const DoubleTapButton = ({ children, onClick }: Props) => {
+export default memo(function DoubleTapButton({ children, onClick }: Props) {
   const [once, setOnce] = useState(false);
   const onceRef = useRefFrom(once);
   const onClickRef = useRefFrom(onClick);
@@ -24,6 +24,4 @@ const DoubleTapButton = ({ children, onClick }: Props) => {
       {children}
     </button>
   );
-};
-
-export default DoubleTapButton;
+});

@@ -51,15 +51,25 @@ export default function useAppReducer(): readonly [State, Readonly<DispatchActio
     } else if (action.type === 'SAVE_TO_SESSION_STORAGE') {
       sessionStorage?.setItem('app:state', JSON.stringify(state));
     } else if (action.type === 'SET_BOT_IDENTIFIER') {
-      state = { ...state, botIdentifier: action.payload };
+      if (state.botIdentifier !== action.payload) {
+        state = { ...state, botIdentifier: action.payload };
+      }
     } else if (action.type === 'SET_ENVIRONMENT_ID') {
-      state = { ...state, environmentID: action.payload };
+      if (state.environmentID !== action.payload) {
+        state = { ...state, environmentID: action.payload };
+      }
     } else if (action.type === 'SET_HOSTNAME_SUFFIX') {
-      state = { ...state, hostnameSuffix: action.payload };
+      if (state.hostnameSuffix !== action.payload) {
+        state = { ...state, hostnameSuffix: action.payload };
+      }
     } else if (action.type === 'SET_TENANT_ID') {
-      state = { ...state, tenantID: action.payload };
+      if (state.tenantID !== action.payload) {
+        state = { ...state, tenantID: action.payload };
+      }
     } else if (action.type === 'SET_TOKEN') {
-      state = { ...state, token: action.payload };
+      if (state.token !== action.payload) {
+        state = { ...state, token: action.payload };
+      }
     }
 
     return state;

@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useState } from 'react';
+import { Fragment, memo, useCallback, useState } from 'react';
 import { useRefFrom } from 'use-ref-from';
 
 import { type PropsOf } from '../types/PropsOf';
@@ -17,7 +17,7 @@ type SubmittedCredential = {
 
 type CredentialFormChangeCallback = Exclude<PropsOf<typeof CredentialForm>['onChange'], undefined>;
 
-const App = () => {
+export default memo(function App() {
   const [
     { botIdentifier, environmentID, hostnameSuffix, tenantID, token },
     { reset, saveToSessionStorage, setBotIdentifier, setEnvironmentID, setHostnameSuffix, setTenantID, setToken }
@@ -82,6 +82,4 @@ const App = () => {
       )}
     </Fragment>
   );
-};
-
-export default App;
+});
