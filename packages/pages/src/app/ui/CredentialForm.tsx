@@ -1,7 +1,9 @@
-import { type ChangeEventHandler, memo, useCallback } from 'react';
+import { type ChangeEventHandler, memo, useCallback, useMemo } from 'react';
 import { useRefFrom } from 'use-ref-from';
+import decodeJSONWebToken from 'jwt-decode';
 
 import DoubleTapButton from './DoubleTapButton';
+import onErrorResumeNext from '../util/onErrorResumeNext';
 
 type Props = {
   autoFocus?: boolean;
@@ -96,6 +98,23 @@ export default memo(function CredentialForm({
 
   const handleResetButtonClick = useCallback(() => onResetRef.current?.(), [onResetRef]);
 
+  const tokenTooltip = useMemo(
+    () =>
+      token &&
+      onErrorResumeNext(() => {
+        const { aud, iss, scp, tid, upn } = decodeJSONWebToken(token) as {
+          aud: string;
+          iss: string;
+          scp: string;
+          tid: string;
+          upn: string;
+        };
+
+        return JSON.stringify({ aud, iss, scp: scp && scp.split(' ').sort(), tid, upn }, null, 2);
+      }),
+    [token]
+  );
+
   // TODO: If autofocus is enabled, consider focus on the first invalid field.
 
   return (
@@ -128,7 +147,14 @@ export default memo(function CredentialForm({
         <label>
           <dt>Token</dt>
           <dd>
-            <input autoComplete="off" onChange={handleTokenChange} required type="password" value={token || ''} />
+            <input
+              autoComplete="off"
+              onChange={handleTokenChange}
+              required
+              title={tokenTooltip}
+              type="password"
+              value={token || ''}
+            />
           </dd>
         </label>
       </dl>
