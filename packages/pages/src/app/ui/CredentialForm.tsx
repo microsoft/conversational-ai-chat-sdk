@@ -14,12 +14,10 @@ type Props = {
     botIdentifier: string;
     environmentID: string;
     hostnameSuffix: string;
-    tenantID?: string;
     token: string;
   }) => void;
   onReset?: () => void;
   onSubmit?: () => void;
-  tenantID?: string;
   token?: string;
 };
 
@@ -31,7 +29,6 @@ export default memo(function CredentialForm({
   onChange,
   onReset,
   onSubmit,
-  tenantID,
   token
 }: Props) {
   const botIdentifierRef = useRefFrom(botIdentifier);
@@ -40,7 +37,6 @@ export default memo(function CredentialForm({
   const onChangeRef = useRefFrom(onChange);
   const onResetRef = useRefFrom(onReset);
   const onSubmitRef = useRefFrom(onSubmit);
-  const tenantIDRef = useRefFrom(tenantID);
   const tokenRef = useRefFrom(token);
 
   const dispatchChange = useCallback(
@@ -48,23 +44,22 @@ export default memo(function CredentialForm({
       botIdentifier?: string;
       environmentID?: string;
       hostnameSuffix?: string;
-      tenantID?: string;
+      // tenantID?: string;
       token?: string;
     }) =>
       onChangeRef.current?.({
         botIdentifier: botIdentifierRef.current || '',
         environmentID: environmentIDRef.current || '',
         hostnameSuffix: hostnameSuffixRef.current || '',
-        tenantID: tenantIDRef.current || '',
         token: tokenRef.current || '',
         ...overrides
       }),
-    [botIdentifierRef, environmentIDRef, hostnameSuffix, tenantIDRef, tokenRef]
+    [botIdentifierRef, environmentIDRef, hostnameSuffix, tokenRef]
   );
 
   const handleBotIdentifierChange = useCallback<ChangeEventHandler<HTMLInputElement>>(
     ({ currentTarget }) => dispatchChange({ botIdentifier: currentTarget.value }),
-    [environmentIDRef, onChangeRef, tenantIDRef, tokenRef]
+    [environmentIDRef, onChangeRef, tokenRef]
   );
 
   const handleEnvironmentIDChange = useCallback<ChangeEventHandler<HTMLInputElement>>(
@@ -74,11 +69,6 @@ export default memo(function CredentialForm({
 
   const handleHostnameSuffixChange = useCallback<ChangeEventHandler<HTMLInputElement>>(
     ({ currentTarget }) => dispatchChange({ hostnameSuffix: currentTarget.value }),
-    [dispatchChange]
-  );
-
-  const handleTenantIDChange = useCallback<ChangeEventHandler<HTMLInputElement>>(
-    ({ currentTarget }) => dispatchChange({ tenantID: currentTarget.value }),
     [dispatchChange]
   );
 
@@ -124,12 +114,6 @@ export default memo(function CredentialForm({
           <dt>Hostname suffix</dt>
           <dd>
             <input onChange={handleHostnameSuffixChange} type="text" value={hostnameSuffix || ''} />
-          </dd>
-        </label>
-        <label>
-          <dt>Tenant ID</dt>
-          <dd>
-            <input onChange={handleTenantIDChange} type="text" value={tenantID || ''} />
           </dd>
         </label>
         <label>

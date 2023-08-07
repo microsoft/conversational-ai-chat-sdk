@@ -19,27 +19,25 @@ type CredentialFormChangeCallback = Exclude<PropsOf<typeof CredentialForm>['onCh
 
 export default memo(function App() {
   const [
-    { botIdentifier, environmentID, hostnameSuffix, tenantID, token },
-    { reset, saveToSessionStorage, setBotIdentifier, setEnvironmentID, setHostnameSuffix, setTenantID, setToken }
+    { botIdentifier, environmentID, hostnameSuffix, token },
+    { reset, saveToSessionStorage, setBotIdentifier, setEnvironmentID, setHostnameSuffix, setToken }
   ] = useAppReducer();
   const [submittedCredential, setSubmittedCredential] = useState<SubmittedCredential | undefined>();
   const botIdentifierRef = useRefFrom(botIdentifier);
   const environmentIDRef = useRefFrom(environmentID);
   const hostnameSuffixRef = useRefFrom(hostnameSuffix);
-  const tenantIDRef = useRefFrom(tenantID);
   const tokenRef = useRefFrom(token);
 
   const handleCredentialFormChange = useCallback<CredentialFormChangeCallback>(
-    ({ botIdentifier, environmentID, hostnameSuffix, tenantID, token }) => {
+    ({ botIdentifier, environmentID, hostnameSuffix, token }) => {
       setBotIdentifier(botIdentifier);
       setEnvironmentID(environmentID);
       setHostnameSuffix(hostnameSuffix);
-      setTenantID(tenantID);
       setToken(token);
 
       saveToSessionStorage();
     },
-    [saveToSessionStorage, setBotIdentifier, setEnvironmentID, setHostnameSuffix, setTenantID, setToken]
+    [saveToSessionStorage, setBotIdentifier, setEnvironmentID, setHostnameSuffix, setToken]
   );
 
   const handleReset = useCallback(() => reset(), [reset]);
@@ -51,10 +49,9 @@ export default memo(function App() {
         environmentID: environmentIDRef.current,
         hostnameSuffix: hostnameSuffixRef.current,
         key: Date.now(),
-        tenantID: tenantIDRef.current,
         token: tokenRef.current
       }),
-    [botIdentifierRef, environmentIDRef, hostnameSuffixRef, setSubmittedCredential, tenantIDRef, tokenRef]
+    [botIdentifierRef, environmentIDRef, hostnameSuffixRef, setSubmittedCredential, tokenRef]
   );
 
   return (
@@ -62,11 +59,10 @@ export default memo(function App() {
       <h1>Power Virtual Agents chat adapter demo</h1>
       <h2>Credential</h2>
       <CredentialForm
-        autoFocus={!!(botIdentifier && environmentID && tenantID && token)}
+        autoFocus={!!(botIdentifier && environmentID && token)}
         botIdentifier={botIdentifier}
         environmentID={environmentID}
         hostnameSuffix={hostnameSuffix}
-        tenantID={tenantID}
         token={token}
         onChange={handleCredentialFormChange}
         onReset={handleReset}
@@ -78,7 +74,6 @@ export default memo(function App() {
           environmentID={submittedCredential.environmentID}
           hostnameSuffix={submittedCredential.hostnameSuffix}
           key={submittedCredential.key}
-          tenantID={submittedCredential.tenantID}
           token={submittedCredential.token}
         />
       )}

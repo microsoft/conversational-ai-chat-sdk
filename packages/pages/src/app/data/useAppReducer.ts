@@ -14,7 +14,6 @@ type SaveToSessionStorageAction = { type: 'SAVE_TO_SESSION_STORAGE' };
 type SetBotIdentifierAction = { payload: string; type: 'SET_BOT_IDENTIFIER' };
 type SetEnvironmentIDAction = { payload: string; type: 'SET_ENVIRONMENT_ID' };
 type SetHostnameSuffixAction = { payload: string; type: 'SET_HOSTNAME_SUFFIX' };
-type SetTenantIDAction = { payload?: string; type: 'SET_TENANT_ID' };
 type SetTokenAction = { payload: string; type: 'SET_TOKEN' };
 
 type Action =
@@ -23,7 +22,6 @@ type Action =
   | SetBotIdentifierAction
   | SetEnvironmentIDAction
   | SetHostnameSuffixAction
-  | SetTenantIDAction
   | SetTokenAction;
 
 type DispatchAction = {
@@ -32,7 +30,6 @@ type DispatchAction = {
   setBotIdentifier: (botIdentifier: string) => void;
   setEnvironmentID: (environmentID: string) => void;
   setHostnameSuffix: (hostnameSuffix: string) => void;
-  setTenantID: (tenantID?: string) => void;
   setToken: (token: string) => void;
 };
 
@@ -40,7 +37,6 @@ const DEFAULT_STATE: State = {
   botIdentifier: '',
   environmentID: '',
   hostnameSuffix: 'api.powerplatform.com',
-  tenantID: '',
   token: ''
 };
 
@@ -49,7 +45,7 @@ export default function useAppReducer(): readonly [State, Readonly<DispatchActio
     if (action.type === 'RESET') {
       state = DEFAULT_STATE;
     } else if (action.type === 'SAVE_TO_SESSION_STORAGE') {
-      sessionStorage?.setItem('app:state', JSON.stringify(state));
+      onErrorResumeNext(() => sessionStorage?.setItem('app:state', JSON.stringify(state)));
     } else if (action.type === 'SET_BOT_IDENTIFIER') {
       if (state.botIdentifier !== action.payload) {
         state = { ...state, botIdentifier: action.payload };
@@ -61,10 +57,6 @@ export default function useAppReducer(): readonly [State, Readonly<DispatchActio
     } else if (action.type === 'SET_HOSTNAME_SUFFIX') {
       if (state.hostnameSuffix !== action.payload) {
         state = { ...state, hostnameSuffix: action.payload };
-      }
-    } else if (action.type === 'SET_TENANT_ID') {
-      if (state.tenantID !== action.payload) {
-        state = { ...state, tenantID: action.payload };
       }
     } else if (action.type === 'SET_TOKEN') {
       if (state.token !== action.payload) {
@@ -99,11 +91,6 @@ export default function useAppReducer(): readonly [State, Readonly<DispatchActio
     [dispatch]
   );
 
-  const setTenantID = useCallback(
-    (tenantID?: string) => dispatch({ payload: tenantID, type: 'SET_TENANT_ID' }),
-    [dispatch]
-  );
-
   const setToken = useCallback((token: string) => dispatch({ payload: token, type: 'SET_TOKEN' }), [dispatch]);
 
   const dispatchActions = useMemo(
@@ -114,10 +101,9 @@ export default function useAppReducer(): readonly [State, Readonly<DispatchActio
         setBotIdentifier,
         setEnvironmentID,
         setHostnameSuffix,
-        setTenantID,
         setToken
       }),
-    [setBotIdentifier, setEnvironmentID, setHostnameSuffix, setTenantID, setToken]
+    [setBotIdentifier, setEnvironmentID, setHostnameSuffix, setToken]
   );
 
   return Object.freeze([state, dispatchActions]);
