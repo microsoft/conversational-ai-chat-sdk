@@ -13,7 +13,6 @@ import type { Activity } from 'botframework-directlinejs';
 
 type Init = { telemetry?: LimitedTelemetryClient };
 type LimitedTelemetryClient = Pick<TelemetryClient, 'trackException'>;
-type RequestBody = unknown;
 
 const RETRY_COUNT = 4; // Will call 5 times.
 
@@ -50,11 +49,11 @@ export default class PowerPlatformAPIChatAdapter implements TurnBasedChatAdapter
     emitStartConversationEvent: boolean,
     { signal }: { signal?: AbortSignal }
   ): Promise<StartResponse> {
-    const response = await this.post<StartResponse>(
-      'conversations',
-      this.#strategy.onRequestBody('startNewConversation', Object.freeze({ emitStartConversationEvent })),
-      { signal }
+    const { body, headers, url } = await this.#strategy.prepareStartNewConversation(
+      Object.freeze({ emitStartConversationEvent })
     );
+
+    const response = await this.post<StartResponse>(url, { body, headers, signal });
 
     response.action = patchContinuationActionEnum(response.action);
 
@@ -66,14 +65,9 @@ export default class PowerPlatformAPIChatAdapter implements TurnBasedChatAdapter
     activity: Activity,
     { signal }: { signal?: AbortSignal }
   ): Promise<ExecuteTurnResponse> {
-    const response = await this.post<ExecuteTurnResponse>(
-      `conversations/${conversationId}`,
-      this.#strategy.onRequestBody('executeTurn', Object.freeze({ activity })),
-      {
-        headers: { 'x-ms-conversationid': conversationId },
-        signal
-      }
-    );
+    const { body, headers, url } = await this.#strategy.prepareExecuteTurn(conversationId, Object.freeze({ activity }));
+
+    const response = await this.post<ExecuteTurnResponse>(url, { body, headers, signal });
 
     response.action = patchContinuationActionEnum(response.action);
 
@@ -84,14 +78,9 @@ export default class PowerPlatformAPIChatAdapter implements TurnBasedChatAdapter
     conversationId: string,
     { signal }: { signal?: AbortSignal }
   ): Promise<ExecuteTurnResponse> {
-    const response = await this.post<ExecuteTurnResponse>(
-      `conversations/${conversationId}/continue`,
-      this.#strategy.onRequestBody('continueTurn', {}),
-      {
-        headers: { 'x-ms-conversationid': conversationId },
-        signal
-      }
-    );
+    const { body, headers, url } = await this.#strategy.prepareContinueTurn(conversationId);
+
+    const response = await this.post<ExecuteTurnResponse>(url, { body, headers, signal });
 
     response.action = patchContinuationActionEnum(response.action);
 
@@ -99,12 +88,9 @@ export default class PowerPlatformAPIChatAdapter implements TurnBasedChatAdapter
   }
 
   private async post<TResponse>(
-    urlSuffix: string,
-    body: Readonly<RequestBody> | undefined,
-    { headers, signal }: { headers?: Record<string, string>; signal?: AbortSignal }
-  ) {
-    const strategyHeaders = await this.#strategy.getHeaders();
-    const url = await this.#strategy.getUrl(urlSuffix);
+    url: URL,
+    { body, headers, signal }: { body?: Record<string, unknown>; headers?: HeadersInit; signal?: AbortSignal }
+  ): Promise<TResponse> {
     let currentResponse: Response;
 
     const responsePromise = pRetry(
@@ -112,11 +98,7 @@ export default class PowerPlatformAPIChatAdapter implements TurnBasedChatAdapter
         currentResponse = await fetch(url.toString(), {
           method: 'POST',
           body: JSON.stringify(body),
-          headers: {
-            ...headers,
-            ...strategyHeaders,
-            'Content-Type': 'application/json'
-          },
+          headers: { ...headers, 'Content-Type': 'application/json' },
           signal
         });
 

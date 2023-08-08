@@ -2,14 +2,19 @@
  * Copyright (C) Microsoft Corporation. All rights reserved.
  */
 
-type RequestBody = unknown;
+import { type Activity } from 'botframework-directlinejs';
+
+type PartialRequestInit = {
+  body?: Record<string, unknown>;
+  headers?: HeadersInit;
+  url: URL;
+};
 
 export interface TurnBasedChatAdapterAPIStrategy {
-  getHeaders(): Promise<HeadersInit>;
-  getUrl(pathSuffix: string): Promise<URL>;
-
-  onRequestBody(
-    requestType: 'continueTurn' | 'executeTurn' | 'startNewConversation',
-    body: Readonly<RequestBody>
-  ): Readonly<RequestBody>;
+  prepareContinueTurn(conversationId: string): Promise<PartialRequestInit>;
+  prepareExecuteTurn(
+    conversationId: string,
+    init: Readonly<{ activity: Readonly<Activity> }>
+  ): Promise<PartialRequestInit>;
+  prepareStartNewConversation(init: Readonly<{ emitStartConversationEvent: boolean }>): Promise<PartialRequestInit>;
 }

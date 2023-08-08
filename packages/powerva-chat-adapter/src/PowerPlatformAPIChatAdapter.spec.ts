@@ -31,13 +31,27 @@ describe('client with telemetry', () => {
     abortController = new AbortController();
 
     strategy = {
-      getHeaders() {
-        return Promise.resolve({ 'x-test': 'dummy' });
+      prepareContinueTurn(conversationId) {
+        return Promise.resolve({
+          body: { test: 'dummy' },
+          headers: { 'x-test': 'dummy' },
+          url: new URL(`https://dummy/conversations/${conversationId}/continue`)
+        });
       },
-      getUrl(pathSuffix: string) {
-        return Promise.resolve(new URL(pathSuffix, 'https://dummy/'));
+      prepareExecuteTurn(conversationId, { activity }) {
+        return Promise.resolve({
+          body: { activity, test: 'dummy' },
+          headers: { 'x-test': 'dummy' },
+          url: new URL(`https://dummy/conversations/${conversationId}`)
+        });
       },
-      onRequestBody: jest.fn().mockImplementation((_, body) => ({ ...body, test: 'dummy' }))
+      prepareStartNewConversation({ emitStartConversationEvent }) {
+        return Promise.resolve({
+          body: { emitStartConversationEvent, test: 'dummy' },
+          headers: { 'x-test': 'dummy' },
+          url: new URL(`https://dummy/conversations`)
+        });
+      }
     };
 
     telemetry = {
@@ -164,7 +178,7 @@ describe('client with telemetry', () => {
       expect((globalThis.fetch as MockedFetch).mock.calls[0][1]).toHaveProperty(
         'headers',
         expect.objectContaining({
-          'x-ms-conversationid': 'c-00001',
+          'Content-Type': 'application/json',
           'x-test': 'dummy'
         })
       ));
@@ -198,7 +212,6 @@ describe('client with telemetry', () => {
       expect((globalThis.fetch as MockedFetch).mock.calls[0][1]).toHaveProperty(
         'headers',
         expect.objectContaining({
-          'x-ms-conversationid': 'c-00001',
           'x-test': 'dummy'
         })
       ));

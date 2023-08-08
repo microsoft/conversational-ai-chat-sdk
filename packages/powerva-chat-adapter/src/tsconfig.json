@@ -3,7 +3,8 @@
     "declarationDir": "../lib/types/",
     "lib": ["DOM"],
     "module": "ESNext",
-    "moduleResolution": "Bundler"
+    "moduleResolution": "Bundler",
+    "strict": true
   },
   "extends": "../../../configs/typescript/tsconfig.declaration.json"
 }
