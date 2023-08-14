@@ -42,6 +42,9 @@ jobs:
             rm $TARBALL_NAME
           done
 
+      - name: List tarballs
+        run: ls -l *.tgz
+
       - uses: actions/upload-artifact@v3
         with:
           name: package-versions
@@ -79,7 +82,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ github.token }}
         name: Publish release
         run:
-          for TARBALL_NAME in `cat package-versions.json | jq -r 'to_entries | map(.value.tarball) | join("\n")'`
+          for TARBALL_NAME in `cat package-versions.json | jq -r 'to_entries | map(select(.value.private)) | map(.value.tarball) | join("\n")'`
           do
             npm publish $TARBALL_NAME
           done
