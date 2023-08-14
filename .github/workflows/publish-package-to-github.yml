@@ -21,15 +21,12 @@ jobs:
         run: |
           for TARBALL_NAME in `cat package-versions.json | jq -r 'to_entries | map(.value.tarball) | join("\n")'`
           do
-            rm -r package || true
-
-            tar --to-stdout -xvf $TARBALL_NAME package/package.json
-
-            cat package/package.json | jq --argfile workspaces workspaces.json -r '. | (.name = "@${{ github.repository_owner }}/" + .name) | (.dependencies |= (. | with_entries(if ([.key] | inside($workspaces)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end))) | (.devDependencies |= (. | with_entries(if ([.key] | inside($workspaces)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end)))' > package/package.tmp.json
-
-            mv package/package.tmp.json package/package.json
+            tar --to-stdout -xvf $TARBALL_NAME package/package.json | jq --argfile workspaces workspaces.json -r '. | (.name = "@${{ github.repository_owner }}/" + .name) | (.dependencies |= (. | with_entries(if ([.key] | inside($workspaces)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end))) | (.devDependencies |= (. | with_entries(if ([.key] | inside($workspaces)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end)))' > package/package.json
 
             tar -uvf $TARBALL_NAME package/package.json
+
+            cat package/package.json
+            rm package/package.json
           done
 
       - uses: actions/upload-artifact@v3
