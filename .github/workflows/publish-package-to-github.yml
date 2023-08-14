@@ -19,6 +19,8 @@ jobs:
 
       - name: Add alias to */package.json
         run: |
+          mkdir ./package/
+
           for TARBALL_NAME in `cat package-versions.json | jq -r 'to_entries | map(.value.tarball) | join("\n")'`
           do
             tar --to-stdout -xvf $TARBALL_NAME package/package.json | jq --argfile workspaces workspaces.json -r '. | (.name = "@${{ github.repository_owner }}/" + .name) | (.dependencies |= (. | with_entries(if ([.key] | inside($workspaces)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end))) | (.devDependencies |= (. | with_entries(if ([.key] | inside($workspaces)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end)))' > package/package.json
