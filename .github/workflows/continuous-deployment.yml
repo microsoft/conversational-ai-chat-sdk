@@ -145,6 +145,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         name: Upload packages to GitHub "${{ env.publish-tag }}" release
         run: |
+          gh release upload ${{ env.publish-tag }} package-versions.json --repo ${{ github.repository }}
           gh release view ${{ env.publish-tag }} --json assets --repo ${{ github.repository }} > assets.json
 
           for i in `cat package-versions.json | jq -r 'to_entries | map(.key) | join("\n")'`
