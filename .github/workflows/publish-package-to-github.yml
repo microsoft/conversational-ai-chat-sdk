@@ -7,7 +7,8 @@ env:
   node-version: lts/Hydrogen
 
 jobs:
-  download-release:
+  prepare:
+    name: Prepare tarballs
     runs-on: ubuntu-latest
     steps:
       - env:
@@ -51,9 +52,12 @@ jobs:
           name: tarball
           path: '*.tgz'
 
-  publish-release:
+  publish:
     environment:
       name: github-packages
+    name: Publish
+    needs:
+      - prepare
     permissions:
       packages: write
     runs-on: ubuntu-latest
