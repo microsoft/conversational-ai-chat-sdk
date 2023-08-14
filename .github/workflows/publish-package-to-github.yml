@@ -78,11 +78,14 @@ jobs:
           node-version: lts/Hydrogen
           registry-url: https://npm.pkg.github.com/
 
+      - name: List tarballs
+        run: ls -l *.tgz
+
       - env:
           NODE_AUTH_TOKEN: ${{ github.token }}
         name: Publish release
-        run:
-          for TARBALL_NAME in `cat package-versions.json | jq -r 'to_entries | map(select(.value.private)) | map(.value.tarball) | join("\n")'`
+        run: |
+          for TARBALL_NAME in `cat package-versions.json | jq -r 'to_entries | map(select(.value.private | not)) | map(.value.tarball) | join("\n")'`
           do
             npm publish $TARBALL_NAME
           done
