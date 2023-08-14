@@ -14,7 +14,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         name: Download release asset
         run: |
-          gh release download release/vnext --repo ${{ github.repository }} *.tgz
+          gh release download release/vnext --repo ${{ github.repository }}
           ls -la
 
       - name: Add alias to */package.json
