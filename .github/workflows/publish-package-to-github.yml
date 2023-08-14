@@ -32,7 +32,7 @@ jobs:
             tar -uvf $TARBALL_NAME package/package.json
           done
 
-      - uses: actions/upload-artifact
+      - uses: actions/upload-artifact@v3
         with:
           name: tarball
           path: '*.tgz'
