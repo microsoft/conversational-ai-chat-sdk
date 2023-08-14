@@ -31,25 +31,25 @@ describe('client with telemetry', () => {
     abortController = new AbortController();
 
     strategy = {
-      prepareContinueTurn(conversationId) {
+      prepareContinueTurn() {
         return Promise.resolve({
+          baseURL: new URL(`https://dummy/abc/?api-version=1`),
           body: { test: 'dummy' },
-          headers: { 'x-test': 'dummy' },
-          url: new URL(`https://dummy/conversations/${conversationId}/continue`)
+          headers: { 'x-test': 'dummy' }
         });
       },
-      prepareExecuteTurn(conversationId, { activity }) {
+      prepareExecuteTurn() {
         return Promise.resolve({
-          body: { activity, test: 'dummy' },
-          headers: { 'x-test': 'dummy' },
-          url: new URL(`https://dummy/conversations/${conversationId}`)
+          baseURL: new URL(`https://dummy/abc/?api-version=1`),
+          body: { test: 'dummy' },
+          headers: { 'x-test': 'dummy' }
         });
       },
-      prepareStartNewConversation({ emitStartConversationEvent }) {
+      prepareStartNewConversation() {
         return Promise.resolve({
-          body: { emitStartConversationEvent, test: 'dummy' },
-          headers: { 'x-test': 'dummy' },
-          url: new URL(`https://dummy/conversations`)
+          baseURL: new URL(`https://dummy/abc/?api-version=1`),
+          body: { test: 'dummy' },
+          headers: { 'x-test': 'dummy' }
         });
       }
     };
@@ -72,7 +72,7 @@ describe('client with telemetry', () => {
     test('fetch should be called with AbortSignal', () =>
       expect((globalThis.fetch as MockedFetch).mock.calls[0][1]).toHaveProperty('signal', abortController.signal));
     test('fetch should be called with URL', () =>
-      expect((globalThis.fetch as MockedFetch).mock.calls[0][0]).toBe('https://dummy/conversations'));
+      expect((globalThis.fetch as MockedFetch).mock.calls[0][0]).toBe('https://dummy/abc/conversations?api-version=1'));
     test('fetch should be called with headers', () =>
       expect((globalThis.fetch as MockedFetch).mock.calls[0][1]).toHaveProperty(
         'headers',
@@ -81,13 +81,10 @@ describe('client with telemetry', () => {
         })
       ));
     test('fetch should be called with body', () =>
-      expect((globalThis.fetch as MockedFetch).mock.calls[0][1]).toHaveProperty(
-        'body',
-        JSON.stringify({
-          emitStartConversationEvent: true,
-          test: 'dummy'
-        })
-      ));
+      expect(JSON.parse((globalThis.fetch as MockedFetch).mock.calls[0][1]?.body as string)).toEqual({
+        emitStartConversationEvent: true,
+        test: 'dummy'
+      }));
   });
 
   describe('when fetch always reject', () => {
@@ -173,7 +170,7 @@ describe('client with telemetry', () => {
     test('fetch should be called with AbortSignal', () =>
       expect((globalThis.fetch as MockedFetch).mock.calls[0][1]).toHaveProperty('signal', abortController.signal));
     test('fetch should be called with URL', () =>
-      expect((globalThis.fetch as MockedFetch).mock.calls[0][0]).toBe('https://dummy/conversations/c-00001'));
+      expect((globalThis.fetch as MockedFetch).mock.calls[0][0]).toBe('https://dummy/abc/conversations/c-00001?api-version=1'));
     test('fetch should be called with headers', () =>
       expect((globalThis.fetch as MockedFetch).mock.calls[0][1]).toHaveProperty(
         'headers',
@@ -182,18 +179,16 @@ describe('client with telemetry', () => {
           'x-test': 'dummy'
         })
       ));
-    test('fetch should be called with body', () =>
-      expect((globalThis.fetch as MockedFetch).mock.calls[0][1]).toHaveProperty(
-        'body',
-        JSON.stringify({
-          activity: {
-            from: { id: 'u-00001' },
-            text: 'Hello, World!',
-            type: 'message'
-          },
-          test: 'dummy'
-        })
-      ));
+    test('fetch should be called with body', () => {
+      expect(JSON.parse((globalThis.fetch as MockedFetch).mock.calls[0][1]?.body as string)).toEqual({
+        activity: {
+          from: { id: 'u-00001' },
+          text: 'Hello, World!',
+          type: 'message'
+        },
+        test: 'dummy'
+      });
+    });
   });
 
   describe('when continueTurn() is called', () => {
@@ -207,7 +202,9 @@ describe('client with telemetry', () => {
     test('fetch should be called with AbortSignal', () =>
       expect((globalThis.fetch as MockedFetch).mock.calls[0][1]).toHaveProperty('signal', abortController.signal));
     test('fetch should be called with URL', () =>
-      expect((globalThis.fetch as MockedFetch).mock.calls[0][0]).toBe('https://dummy/conversations/c-00001/continue'));
+      expect((globalThis.fetch as MockedFetch).mock.calls[0][0]).toBe(
+        'https://dummy/abc/conversations/c-00001/continue?api-version=1'
+      ));
     test('fetch should be called with headers', () =>
       expect((globalThis.fetch as MockedFetch).mock.calls[0][1]).toHaveProperty(
         'headers',

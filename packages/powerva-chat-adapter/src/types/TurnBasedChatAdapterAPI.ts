@@ -3,6 +3,7 @@
  */
 
 import type { ConversationId } from './private/ConversationId';
+import type { ContinueTurnResponse } from './private/ContinueTurnResponse';
 import type { ExecuteTurnResponse } from './private/ExecuteTurnResponse';
 import type { StartResponse } from './private/StartResponse';
 import type { Activity } from 'botframework-directlinejs';
@@ -12,9 +13,7 @@ type Options = {
 };
 
 export interface TurnBasedChatAdapterAPI {
-  startNewConversation(emitStartConversationEvent: boolean, options?: Options): Promise<StartResponse>;
-
+  continueTurn(conversationId: ConversationId, options?: Options): Promise<ContinueTurnResponse>;
   executeTurn(conversationId: ConversationId, activity: Activity, options?: Options): Promise<ExecuteTurnResponse>;
-
-  continueTurn(conversationId: ConversationId, options?: Options): Promise<ExecuteTurnResponse>;
+  startNewConversation(emitStartConversationEvent: boolean, options?: Options): Promise<StartResponse>;
 }

@@ -31,6 +31,15 @@ function patchContinuationActionEnum(action: ExecuteTurnContinuationAction): Exe
     : ExecuteTurnContinuationAction.Waiting;
 }
 
+function resolveURLWithQueryAndHash(relativeURL: string, baseURL: URL): URL {
+  const url = new URL(relativeURL, baseURL);
+
+  url.hash = baseURL.hash;
+  url.search = baseURL.search;
+
+  return url;
+}
+
 export default class PowerPlatformAPIChatAdapter implements TurnBasedChatAdapterAPI {
   // NOTES: This class must work over RPC and cross-domain:
   //        - If need to extends this class, only add async methods (which return Promise)
@@ -49,11 +58,13 @@ export default class PowerPlatformAPIChatAdapter implements TurnBasedChatAdapter
     emitStartConversationEvent: boolean,
     { signal }: { signal?: AbortSignal }
   ): Promise<StartResponse> {
-    const { body, headers, url } = await this.#strategy.prepareStartNewConversation(
-      Object.freeze({ emitStartConversationEvent })
-    );
+    const { baseURL, body, headers } = await this.#strategy.prepareStartNewConversation();
 
-    const response = await this.post<StartResponse>(url, { body, headers, signal });
+    const response = await this.post<StartResponse>(resolveURLWithQueryAndHash('conversations', baseURL), {
+      body: { ...body, emitStartConversationEvent },
+      headers,
+      signal
+    });
 
     response.action = patchContinuationActionEnum(response.action);
 
@@ -65,9 +76,16 @@ export default class PowerPlatformAPIChatAdapter implements TurnBasedChatAdapter
     activity: Activity,
     { signal }: { signal?: AbortSignal }
   ): Promise<ExecuteTurnResponse> {
-    const { body, headers, url } = await this.#strategy.prepareExecuteTurn(conversationId, Object.freeze({ activity }));
+    const { baseURL, body, headers } = await this.#strategy.prepareExecuteTurn();
 
-    const response = await this.post<ExecuteTurnResponse>(url, { body, headers, signal });
+    const response = await this.post<ExecuteTurnResponse>(
+      resolveURLWithQueryAndHash(`conversations/${conversationId}`, baseURL),
+      {
+        body: { ...body, activity },
+        headers: { ...headers, 'x-ms-conversationid': conversationId },
+        signal
+      }
+    );
 
     response.action = patchContinuationActionEnum(response.action);
 
@@ -78,9 +96,16 @@ export default class PowerPlatformAPIChatAdapter implements TurnBasedChatAdapter
     conversationId: string,
     { signal }: { signal?: AbortSignal }
   ): Promise<ExecuteTurnResponse> {
-    const { body, headers, url } = await this.#strategy.prepareContinueTurn(conversationId);
+    const { baseURL, body, headers } = await this.#strategy.prepareContinueTurn();
 
-    const response = await this.post<ExecuteTurnResponse>(url, { body, headers, signal });
+    const response = await this.post<ExecuteTurnResponse>(
+      resolveURLWithQueryAndHash(`conversations/${conversationId}/continue`, baseURL),
+      {
+        body,
+        headers: { ...headers, 'x-ms-conversationid': conversationId },
+        signal
+      }
+    );
 
     response.action = patchContinuationActionEnum(response.action);
 
