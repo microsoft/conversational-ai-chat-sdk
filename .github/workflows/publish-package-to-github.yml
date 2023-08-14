@@ -22,7 +22,7 @@ jobs:
         run: |
           mkdir ./package/
 
-          for TARBALL_NAME in `cat package-versions.json | jq -r 'to_entries | select(.value.private | not) | map(.value.tarball) | join("\n")'`
+          for TARBALL_NAME in `cat package-versions.json | jq -r 'to_entries | map(select(.value.private | not)) | map(.value.tarball) | join("\n")'`
           do
             tar --to-stdout -xvf $TARBALL_NAME package/package.json | jq --argfile versions package-versions.json -r '. | (.name = "@compulim/" + .name) | (.dependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@compulim/" + .key + "@" + .value) else . end))) | (.devDependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@compulim/" + .key + "@" + .value) else . end)))' > package/package.json
 
@@ -37,7 +37,7 @@ jobs:
 
       - name: Remove private packages
         run: |
-          for TARBALL_NAME in `cat package-versions.json | jq -r 'to_entries | select(.value.private) | map(.value.tarball) | join("\n")'`
+          for TARBALL_NAME in `cat package-versions.json | jq -r 'to_entries | map(select(.value.private)) | map(.value.tarball) | join("\n")'`
           do
             rm $TARBALL_NAME
           done
