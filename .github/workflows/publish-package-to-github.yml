@@ -84,14 +84,19 @@ jobs:
           do
             # Make sure we don't publish tarball if it is already published.
 
+            echo --- $TARBALL_NAME
+
             # PACKAGE_NAME_AND_VERSION=@someone/package-a@1.2.3
             PACKAGE_NAME_AND_VERSION=`tar -xf $TARBALL_NAME --to-stdout package/package.json | jq -r '.name + "@" + .version'`
+
+            echo Checking if $PACKAGE_NAME_AND_VERSION exists.
 
             # EXIST_VERSION=1.2.3 or empty
             EXIST_VERSION=`npm view $PACKAGE_NAME_AND_VERSION version --json 2>/dev/null || true`
 
             if [ -z "$EXIST_VERSION" ]
             then
+              echo Publishing $PACKAGE_NAME_AND_VERSION.
               npm publish $TARBALL_NAME
             fi
           done
