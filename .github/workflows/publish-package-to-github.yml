@@ -92,11 +92,13 @@ jobs:
             echo Checking if $PACKAGE_NAME_AND_VERSION exists.
 
             # EXIST_VERSION=1.2.3 or empty
-            EXIST_VERSION=`npm view $PACKAGE_NAME_AND_VERSION version --json 2>/dev/null || true`
+            EXIST=`npm view $PACKAGE_NAME_AND_VERSION version --json 2>/dev/null | jq -r 'if .error then false else true end'`
 
-            if [ -z "$EXIST_VERSION" ]
+            if [ "$EXIST" == "false" ]
             then
               echo Publishing $PACKAGE_NAME_AND_VERSION.
               npm publish $TARBALL_NAME
+            else
+              echo Skip publishing $PACKAGE_NAME_AND_VERSION.
             fi
           done
