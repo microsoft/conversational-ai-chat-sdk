@@ -27,6 +27,7 @@ jobs:
             tar --to-stdout -xvf $TARBALL_NAME package/package.json | jq --argfile versions package-versions.json -r '. | (.name = "@compulim/" + .name) | (.dependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@compulim/" + .key + "@" + .value) else . end))) | (.devDependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@compulim/" + .key + "@" + .value) else . end)))' > package/package.json
 
             gunzip -c $TARBALL_NAME > temp.tar
+            tar --delete temp.tar package/package.json
             tar -uvf temp.tar package/package.json
             gzip -c temp.tar > $TARBALL_NAME
 
@@ -87,5 +88,6 @@ jobs:
         run: |
           for TARBALL_NAME in `cat package-versions.json | jq -r 'to_entries | map(select(.value.private | not)) | map(.value.tarball) | join("\n")'`
           do
+            # TODO: We cannot overwrite existing package.
             npm publish $TARBALL_NAME
           done
