@@ -4,10 +4,7 @@
     [
       "@babel/preset-env",
       {
-        "modules": "commonjs",
-        "targets": {
-          "safari": "16"
-        }
+        "modules": "commonjs"
       }
     ]
   ]

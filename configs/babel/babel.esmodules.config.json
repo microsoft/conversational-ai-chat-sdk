@@ -4,10 +4,7 @@
     [
       "@babel/preset-env",
       {
-        "modules": false,
-        "targets": {
-          "safari": "15"
-        }
+        "modules": false
       }
     ]
   ]
