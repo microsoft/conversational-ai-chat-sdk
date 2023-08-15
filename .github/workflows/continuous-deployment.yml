@@ -197,8 +197,8 @@ jobs:
         name: Publish release
         run: gh release edit ${{ env.publish-tag }} --draft=false --prerelease --repo ${{ github.repository }}
 
-  pages-prepare:
-    name: 'Pages: Prepare'
+  github-pages-prepare:
+    name: 'GitHub Pages: Prepare'
     needs:
       - build
     runs-on: ubuntu-latest
@@ -215,15 +215,15 @@ jobs:
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v2
 
-  pages-deploy:
+  github-pages-deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     outputs:
       url: ${{ steps.deployment.outputs.page_url }}
-    name: 'Pages: Deploy'
+    name: 'GitHub Pages: Deploy'
     needs:
-      - pages-prepare
+      - github-pages-prepare
     permissions:
       id-token: write
       pages: write
@@ -328,11 +328,13 @@ jobs:
     name: Summary
     needs:
       - github-packages-publish
+      - github-pages-deploy
       - release-publish
     runs-on: ubuntu-latest
     steps:
       - name: Summary
         run: |
-          echo - [Packages]\(${{ needs.github-packages-publish.outputs.url }}\) >> $GITHUB_STEP_SUMMARY
+          echo - [GitHub Packages]\(${{ needs.github-packages-publish.outputs.url }}\) >> $GITHUB_STEP_SUMMARY
+          echo - [Pages]\(${{ needs.github-pages-deploy.outputs.url }}\) >> $GITHUB_STEP_SUMMARY
           echo - [Release]\(${{ needs.release-publish.outputs.url }}\) >> $GITHUB_STEP_SUMMARY
           echo - [Source code \(tagged\)]\(${{ needs.release-publish.outputs.tag-url }}\) >> $GITHUB_STEP_SUMMARY
