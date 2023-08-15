@@ -37,7 +37,7 @@ jobs:
             cd ..
             rm -r package
 
-            echo - \`$TARBALL_NAME\`
+            echo - \`$TARBALL_NAME\` >> $GITHUB_STEP_SUMMARY
             echo "  - Changed its name to \`$PATCHED_PACKAGE_NAME_AND_VERSION\`" >> $GITHUB_STEP_SUMMARY
           done
 
