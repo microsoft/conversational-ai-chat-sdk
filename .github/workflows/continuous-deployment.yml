@@ -274,14 +274,14 @@ jobs:
         run: ls -l ./patched/*.tgz
       - uses: actions/upload-artifact@v3
         with:
-          name: scoped-tarball
+          name: scoped-packages
           path: ./patched/
 
   github-packages-publish:
     environment:
       name: github-packages
       url: ${{ github.server_url }}/${{ github.repository_owner }}?tab=packages
-    name: 'GitHub Packges: Publish'
+    name: 'GitHub Packages: Publish'
     needs:
       - github-packages-prepare
     outputs:
@@ -292,7 +292,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v3
         with:
-          name: tarball
+          name: scoped-packages
       - uses: actions/setup-node@v3
         with:
           node-version: ${{ env.node-version }}
@@ -325,6 +325,7 @@ jobs:
           done
 
   summary:
+    if: ${{ always() }}
     name: Summary
     needs:
       - github-packages-publish
