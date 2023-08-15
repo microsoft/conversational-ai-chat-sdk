@@ -27,14 +27,17 @@ jobs:
             tar -xvf $TARBALL_NAME
             cd package
 
-            cat package.json | jq --argfile versions ../package-versions.json -r '. | (.name = "@compulim/" + .name) | (.dependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@compulim/" + .key + "@" + .value) else . end))) | (.devDependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@compulim/" + .key + "@" + .value) else . end)))' > package.tmp.json
+            cat package.json | jq --argfile versions ../package-versions.json -r '. | (.name = "@${{ github.repository_owner }}/" + .name) | (.dependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end))) | (.devDependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end)))' > package.tmp.json
             mv package.tmp.json package.json
 
+            PATCHED_PACKAGE_NAME_AND_VERSION=`cat package.json | jq -r '.name + "@" + .version'`
             PATCHED_TARBALL_NAME=`npm pack --ignore-scripts --json | jq -r '.[0].filename'`
             mv $PATCHED_TARBALL_NAME ../patched/
 
             cd ..
             rm -r package
+
+            echo - \`$TARBALL_NAME\` changed its name to \`$PATCHED_PACKAGE_NAME_AND_VERSION\` >> $GITHUB_STEP_SUMMARY
           done
 
       - name: List tarballs
@@ -84,21 +87,17 @@ jobs:
           do
             # Make sure we don't publish tarball if it is already published.
 
-            echo --- $TARBALL_NAME
-
             # PACKAGE_NAME_AND_VERSION=@someone/package-a@1.2.3
             PACKAGE_NAME_AND_VERSION=`tar -xf $TARBALL_NAME --to-stdout package/package.json | jq -r '.name + "@" + .version'`
-
-            echo Checking if $PACKAGE_NAME_AND_VERSION exists.
 
             # EXIST_VERSION=1.2.3 or empty
             EXIST=`npm view $PACKAGE_NAME_AND_VERSION version --json 2>/dev/null | jq -r 'if .error then false else true end'`
 
             if [ "$EXIST" == "false" ]
             then
-              echo Publishing $PACKAGE_NAME_AND_VERSION.
+              echo - Publishing \`$PACKAGE_NAME_AND_VERSION\` >> $GITHUB_STEP_SUMMARY
               npm publish $TARBALL_NAME
             else
-              echo Skip publishing $PACKAGE_NAME_AND_VERSION.
+              echo - Skip publishing \`$PACKAGE_NAME_AND_VERSION\` >> $GITHUB_STEP_SUMMARY
             fi
           done
