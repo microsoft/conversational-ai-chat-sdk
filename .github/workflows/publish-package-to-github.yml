@@ -80,7 +80,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ github.token }}
         name: Publish release
         run: |
-          for TARBALL_NAME in `cat package-versions.json | jq -r 'to_entries | map(select(.value.private | not)) | map(.value.tarball) | join("\n")'`
+          for TARBALL_NAME in `ls -1 *.tgz`
           do
             # TODO: We cannot overwrite existing package.
             #       Use npm view to check existing package.
