@@ -50,6 +50,7 @@ Every package in this monorepo is bound to this contract. We tried to make the c
    - Recommended to use unified configuration under `/configs/`, okay to eject
    - Do not interfere with other packages
    - Must not depends on non-public packages
+   - All scripts/tools must work on GitHub Codespaces
 - Scripts
    - `npm run build` to build
    - `npm run precommit` to run static code analysis
