@@ -176,6 +176,9 @@ jobs:
     name: 'Release: Publish'
     needs:
       - release-upload-asset
+    outputs:
+      tag-url: ${{ github.server_url }}/${{ github.repository }}/tree/${{ env.publish-tag }}
+      url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.publish-tag }}
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -216,6 +219,8 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      url: ${{ steps.deployment.outputs.page_url }}
     name: 'Pages: Deploy'
     needs:
       - pages-prepare
@@ -230,6 +235,8 @@ jobs:
 
   github-packages-prepare:
     name: 'GitHub Packages: Prepare'
+    needs:
+      - build
     runs-on: ubuntu-latest
     steps:
       - name: Download versions file
@@ -277,6 +284,8 @@ jobs:
     name: 'GitHub Packges: Publish'
     needs:
       - github-packages-prepare
+    outputs:
+      url: ${{ github.server_url }}/${{ github.repository_owner }}?tab=packages
     permissions:
       packages: write
     runs-on: ubuntu-latest
@@ -324,6 +333,6 @@ jobs:
     steps:
       - name: Summary
         run: |
-          echo - [Packages]\(${{ github.server_url }}/${{ github.repository_owner }}?tab=packages\) >> $GITHUB_STEP_SUMMARY
-          echo - [Release]\(${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.publish-tag }}\) >> $GITHUB_STEP_SUMMARY
-          echo - [Source code \(tagged\)]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ env.publish-tag }}\) >> $GITHUB_STEP_SUMMARY
+          echo - [Packages]\(${{ needs.github-packages-publish.outputs.url }}\) >> $GITHUB_STEP_SUMMARY
+          echo - [Release]\(${{ needs.release-publish.outputs.url }}\) >> $GITHUB_STEP_SUMMARY
+          echo - [Source code \(tagged\)]\(${{ needs.release-publish.outputs.tag-url }}\) >> $GITHUB_STEP_SUMMARY
