@@ -2,8 +2,8 @@
 
 ## Fork setup
 
-- Pages
-   - Pages > Source, change to "GitHub Actions"
+- GitHub Pages
+   - Settings > Pages > Source, change to "GitHub Actions"
 - Environments
    - `build-production`
       - Secrets
@@ -15,6 +15,8 @@
    - `pull-request`
       - Secrets
          - `GH_TOKEN` set to a PAT token which enabled "Read and Write access to code and pull requests" in your fork
+
+Note: reputable NPM registry is an NPM registry that you can timely disable vulnerable packages.
 
 ## First time setup
 
@@ -55,16 +57,18 @@ Every package in this monorepo is bound to this contract. We tried to make the c
    - (Optional) `npm start` to run watched build
    - (Optional, Linux-only) `npm run bump` to bump dependencies automatically
 - Targeting
-   - Packages that works on browser must target Safari version as-of yesteryear or lower
+   - Packages that works on browser must target ES5
    - Packages that works on browser must not depends any Node.js, Browserify, Webpack, and other bridging packages
    - Packages that works on Node.js must target LTS or lower
 - Exports
-   - Must export both CommonJS and ES Modules entrypoint
+   - Must export default entrypoints (`main`/`module`/`types` field)
+   - Must export both CommonJS and ES Modules entrypoint in ES5 flavor
    - Must export type declarations
-   - Must exclude non-production code, such as tests
+   - Must exclude non-production code in tarball, such as tests and TypeScript
    - Recommended to export source maps of production code
+   - Recommended to export ES Modules in ESNext flavor with `esnext` condition
 - Tests
-   - Tests must be runnable under Node LTS
+   - Tests must be runnable under Node LTS on Linux
 - Pull request validation
    - Must run all types of tests available in the repo
    - When pull requests are merged, the package must work as intended

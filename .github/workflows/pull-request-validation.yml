@@ -77,6 +77,7 @@ jobs:
         node-version:
           - lts/Hydrogen
         package-name:
+          # TODO: We should consider generating this matrix, instead of hardcoding it.
           - powerva-chat-adapter
           - powerva-turn-based-chat-adapter-framework
         os:
