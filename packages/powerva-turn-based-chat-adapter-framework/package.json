@@ -12,26 +12,31 @@
   "types": "./lib/types/index.d.ts",
   "exports": {
     ".": {
+      "esnext": "./lib/esnext/index.js",
       "import": "./lib/esmodules/index.js",
       "require": "./lib/commonjs/index.js",
       "types": "./lib/types/index.d.ts"
     },
     "./DeferredPromise": {
+      "esnext": "./lib/esnext/DeferredPromise.js",
       "import": "./lib/esmodules/DeferredPromise.js",
       "require": "./lib/commonjs/DeferredPromise.js",
       "types": "./lib/types/DeferredPromise.d.ts"
     },
     "./Observable": {
+      "esnext": "./lib/esnext/Observable.js",
       "import": "./lib/esmodules/Observable.js",
       "require": "./lib/commonjs/Observable.js",
       "types": "./lib/types/Observable.d.ts"
     },
     "./sleep": {
+      "esnext": "./lib/esnext/sleep.js",
       "import": "./lib/esmodules/sleep.js",
       "require": "./lib/commonjs/sleep.js",
       "types": "./lib/types/sleep.d.ts"
     },
     "./TurnBasedChatAdapter": {
+      "esnext": "./lib/esnext/TurnBasedChatAdapter.js",
       "import": "./lib/esmodules/TurnBasedChatAdapter.js",
       "require": "./lib/commonjs/TurnBasedChatAdapter.js",
       "types": "./lib/types/TurnBasedChatAdapter.d.ts"
@@ -48,9 +53,10 @@
   },
   "scripts": {
     "build": "npm run build:babel && npm run build:typescript",
-    "build:babel": "npm run build:babel:commonjs && npm run build:babel:esmodules",
+    "build:babel": "npm run build:babel:commonjs && npm run build:babel:esmodules && npm run build:babel:esnext",
     "build:babel:commonjs": "babel src --config-file ./babel.commonjs.config.json --extensions .ts,.tsx --out-dir ./lib/commonjs/",
     "build:babel:esmodules": "babel src --config-file ./babel.esmodules.config.json --extensions .ts,.tsx --out-dir ./lib/esmodules/",
+    "build:babel:esnext": "babel src --config-file ./babel.esnext.config.json --extensions .ts,.tsx --out-dir ./lib/esnext/",
     "build:typescript": "tsc --project ./src/tsconfig.json",
     "bump": "npm run bump:prod && npm run bump:dev",
     "bump:dev": "if [ `cat package.json | jq -r '(.devDependencies // {}) | length'` -ne 0 ]; then npm install $(cat package.json | jq -r '(.pinDependencies // {}) as $p | ((.devDependencies // {}) | keys) | map(. + \"@\" + ($p[.] // [\"latest\"])[0]) | .[]'); fi",

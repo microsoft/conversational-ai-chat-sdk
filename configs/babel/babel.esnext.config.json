@@ -1,0 +1,12 @@
+{
+  "extends": "./babel.production.config.json",
+  "presets": [
+    [
+      "@babel/preset-env",
+      {
+        "modules": false,
+        "targets": "defaults"
+      }
+    ]
+  ]
+}

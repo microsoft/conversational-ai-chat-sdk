@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "build": "concurrently \"npm run build:*\"",
-    "build:esbuild": "esbuild --bundle --entry-names=[ext]/[name] --jsx=automatic --minify --outdir=./public/static/ --sourcemap app=./src/app/index.tsx",
+    "build:esbuild": "esbuild --bundle --conditions=esnext --entry-names=[ext]/[name] --jsx=automatic --minify --outdir=./public/static/ --sourcemap app=./src/app/index.tsx",
     "build:typescript": "tsc --project ./src/tsconfig.json",
     "bump": "npm run bump:prod && npm run bump:dev",
     "bump:dev": "if [ `cat package.json | jq -r '.devDependencies | length'` -ne 0 ]; then npm install $(cat package.json | jq -r '(.pinDependencies // {}) as $p | ((.devDependencies // {}) | keys) | map(. + \"@\" + ($p[.] // [\"latest\"])[0]) | .[]'); fi",
