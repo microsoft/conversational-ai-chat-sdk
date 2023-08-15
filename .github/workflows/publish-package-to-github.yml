@@ -82,7 +82,16 @@ jobs:
         run: |
           for TARBALL_NAME in `ls -1 *.tgz`
           do
-            # TODO: We cannot overwrite existing package.
-            #       Use npm view to check existing package.
-            npm publish $TARBALL_NAME
+            # Make sure we don't publish tarball if it is already published.
+
+            # PACKAGE_NAME_AND_VERSION=@someone/package-a@1.2.3
+            PACKAGE_NAME_AND_VERSION=`tar -xf $TARBALL_NAME --to-stdout package/package.json | jq -r '.name + "@" + .version'`
+
+            npm view $PACKAGE_NAME_AND_VERSION
+
+            # If "npm view" failed, that probably means the package does not exists.
+            if [ $? -ne 0 ]
+            then
+              npm publish $TARBALL_NAME
+            fi
           done
