@@ -167,12 +167,15 @@ jobs:
               gh release upload ${{ env.publish-tag }} $TARBALL --repo ${{ github.repository }}
               echo "   - Uploaded \`$TARBALL\`" >> $GITHUB_STEP_SUMMARY
             else
-              echo "   - Skipped \`$TARBALL\`" >> $GITHUB_STEP_SUMMARY
+              echo "   - Already uploaded, skipping \`$TARBALL\`" >> $GITHUB_STEP_SUMMARY
             fi
           done
 
   # Update release after re-pushing a new tag.
   release-publish:
+    environment:
+      name: github-release
+      url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.publish-tag }}
     name: 'Release: Publish'
     needs:
       - release-upload-asset
@@ -280,12 +283,12 @@ jobs:
   github-packages-publish:
     environment:
       name: github-packages
-      url: ${{ github.server_url }}/${{ github.repository_owner }}?tab=packages
+      url: ${{ github.server_url }}/${{ github.repository_owner }}?tab=packages&repo_name=${{ github.event.repository.name }}
     name: 'GitHub Packages: Publish'
     needs:
       - github-packages-prepare
     outputs:
-      url: ${{ github.server_url }}/${{ github.repository_owner }}?tab=packages
+      url: ${{ github.server_url }}/${{ github.repository_owner }}?tab=packages&repo_name=${{ github.event.repository.name }}
     permissions:
       packages: write
     runs-on: ubuntu-latest
@@ -320,7 +323,7 @@ jobs:
               echo - Publishing \`$PACKAGE_NAME_AND_VERSION\` >> $GITHUB_STEP_SUMMARY
               npm publish $TARBALL_NAME
             else
-              echo - Skip publishing \`$PACKAGE_NAME_AND_VERSION\` >> $GITHUB_STEP_SUMMARY
+              echo - Already published, skipping \`$PACKAGE_NAME_AND_VERSION\` >> $GITHUB_STEP_SUMMARY
             fi
           done
 
