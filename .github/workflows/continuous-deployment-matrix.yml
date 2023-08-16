@@ -66,13 +66,11 @@ jobs:
             # SHORT_COMMITISH=0bf2b81
             SHORT_COMMITISH=`git log --pretty=format:'%h' -1 ./$i/`
 
-            # TODO: Do we still need this after we have a better tarball name?
-            # SEMVER_SHORT_COMMITISH=bf2b81
-            # semver somehow remove the leading zeroes after dots.
-            SEMVER_SHORT_COMMITISH=`echo $SHORT_COMMITISH | sed 's/^0*//'`
-
-            # VERSION=main.20230815110805.bf2b81
-            VERSION=`cat ./$i/package.json | jq -r .version | xargs -L1 npm exec --offline -- semver --increment prerelease -n false --preid $BRANCH.$COMMITTER_DATE.$SEMVER_SHORT_COMMITISH`
+            # VERSION=main.20230815110805.0bf2b81
+            # This version is not very accurate, after running `npm version`, it will remove leading zeroes in prerelease tags.
+            # "main.20230815110805.0bf2b81" -> "main.20230815110805.bf2b81"
+            # We will update the workspaces file again in build job.
+            VERSION=`cat ./$i/package.json | jq -r .version | xargs -L1 npm exec --offline -- semver --increment prerelease -n false --preid $BRANCH.$COMMITTER_DATE.$SHORT_COMMITISH`
 
             cat ./workspaces.json | jq --arg branch $BRANCH --arg committerDateInISO8601 $COMMITTER_DATE_IN_ISO8601 --arg longCommitish $LONG_COMMITISH --arg shortCommitish $SHORT_COMMITISH --arg path ./$i/ --arg version $VERSION --argfile packageJSON ./$i/package.json -r '. + { ($packageJSON.name): { branch: $branch, committerDate: $committerDateInISO8601, longCommitish: $longCommitish, name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), shortCommitish: $shortCommitish, version: $version } }' > /tmp/workspaces.json && true || exit 1
             mv /tmp/workspaces.json ./workspaces.json && true || exit 1
@@ -133,6 +131,12 @@ jobs:
           NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
         name: Bump versions
         run: cat workspaces.json | jq -cr 'to_entries | map("--workspace=" + .key + " " + .value.version) | join("\n")' | xargs -L1 npm version
+      - name: Update workspaces file with version
+        run: |
+          cat workspaces.json | jq --argfile pack /tmp/pack-result.json -rS 'with_entries(.key as $name | . + (.value += { version: $pack | map(select(.name == $name))[0].version }))' > /tmp/workspaces.json
+          mv /tmp/workspaces.json workspaces.json
+
+          cat workspaces.json
       - env:
           NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
         run: npm clean-install --ignore-scripts # CyberEO: Ignore scripts to prevent malicious scripts from stealing the token.
