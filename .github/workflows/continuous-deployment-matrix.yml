@@ -182,14 +182,25 @@ jobs:
       - build
     runs-on: ubuntu-latest
     steps:
+      - name: Download workspaces file
+        uses: actions/download-artifact@v3
+        with:
+          name: workspaces
       - name: Download packages artifact
         uses: actions/download-artifact@v3
         with:
           name: packages
-      - name: Extract pages package
+      - id: get-tarball-name
+        name: Get tarball name
+        run: |
+          TARBALL=`cat workspaces.json | jq -r '.pages.tarball | if . then . else halt_error(1) end'` && true || exit 1
+
+          echo Tarball at $TARBALL.
+          echo tarball=$TARBALL >> $GITHUB_OUTPUT
+      - name: Extract ${{ steps.get-tarball-name.outputs.tarball }}
         run: |
           mkdir ./_site/
-          tar --extract --verbose --file=`ls -1 pages-[0-9]*.tgz` --strip-component=2 --directory=./_site/ package/public
+          tar --extract --verbose --file=`ls -1 ${{ steps.get-tarball-name.outputs.tarball }}` --strip-component=2 --directory=./_site/ package/public
           ls -la ./_site/
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v2
