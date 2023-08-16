@@ -24,6 +24,7 @@ runs:
 
         echo registry-url=$REGISTRY_URL >> $GITHUB_OUTPUT
         echo Will redirect to $REGISTRY_URL
+      shell: bash
     - if: ${{ steps.prepare.outputs.registry-url }} != ''
       name: 'Sanity check: registry URL must starts with https://'
       run: if [[ ! "${{ steps.prepare.outputs.registry-url }}" =~ ^https:// ]]; then exit 1; fi
