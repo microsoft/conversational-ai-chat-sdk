@@ -25,21 +25,16 @@ env:
 
 jobs:
   # TODO: Add "prepare" job to prepare workspaces file
-  build:
-    # TODO: Turn some build steps into a reusable action under the current repo.
-    #       - Set up NPM for production build
-    #       - Set up package-lock.json for production build
-    #       We should try not to make build into reusable... because it should be just run `npm run ci && npm run build`
-    # TODO: Allow devs to not using a reputable NPM registry.
+  prepare:
     environment: build-production
-    name: Build
+    name: Prepare
     outputs:
       matrix: ${{ steps.build-matrix.outputs.matrix }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # Infinite depth required for commitish
       - name: Set up Node.js ${{ env.node-version }}
         uses: ./.github/actions/setup-node-for-production
         with:
@@ -49,13 +44,11 @@ jobs:
       - env:
           NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
         run: npm install --global --ignore-scripts semver@latest # Skip scripts to prevent malicious scripts from stealing the token.
-      - name: Redirect package-lock.json
-        uses: ./.github/actions/redirect-package-lock
-      - name: Build versions file # This will become source of truth.
+      - name: Build workspaces file # This will become source of truth.
         run: |
           BRANCH=`git branch --show-current`
 
-          echo {} > package-versions.json
+          echo {} > workspaces.json
 
           for i in `cat package.json | jq -r '.workspaces | join("\n")'`
           do
@@ -67,34 +60,63 @@ jobs:
             SEMVER_SHORT_COMMITISH=`echo $SHORT_COMMITISH | sed 's/^0*//'`
             VERSION=`cat ./$i/package.json | jq -r .version | xargs -L1 npm exec --offline -- semver --increment prerelease -n false --preid $BRANCH.$COMMITTER_DATE.$SEMVER_SHORT_COMMITISH`
 
-            cat ./package-versions.json | jq --arg branch $BRANCH --arg committerDateInISO8601 $COMMITTER_DATE_IN_ISO8601 --arg longCommitish $LONG_COMMITISH --arg shortCommitish $SHORT_COMMITISH --arg path ./$i/ --arg version $VERSION --argfile packageJSON ./$i/package.json -r '. + { ($packageJSON.name): { branch: $branch, committerDate: $committerDateInISO8601, longCommitish: $longCommitish, name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), shortCommitish: $shortCommitish, tarball: ("./" + $packageJSON.name + "-" + $version + ".tgz"), version: $version } }' > ./package-versions.json.tmp && true || exit 1
+            cat ./workspaces.json | jq --arg branch $BRANCH --arg committerDateInISO8601 $COMMITTER_DATE_IN_ISO8601 --arg longCommitish $LONG_COMMITISH --arg shortCommitish $SHORT_COMMITISH --arg path ./$i/ --arg version $VERSION --argfile packageJSON ./$i/package.json -r '. + { ($packageJSON.name): { branch: $branch, committerDate: $committerDateInISO8601, longCommitish: $longCommitish, name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), shortCommitish: $shortCommitish, tarball: ("./" + $packageJSON.name + "-" + $version + ".tgz"), version: $version } }' > ./workspaces.json.tmp && true || exit 1
 
-            mv ./package-versions.json.tmp ./package-versions.json && true || exit 1
+            mv ./workspaces.json.tmp ./workspaces.json && true || exit 1
           done
 
-          cat package-versions.json
+          cat workspaces.json
 
-          echo \<details\>\<summary\>Content of \<code\>package-versions.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
+          echo \<details\>\<summary\>Content of \<code\>workspaces.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
           echo \`\`\`json >> $GITHUB_STEP_SUMMARY
-          cat package-versions.json >> $GITHUB_STEP_SUMMARY
+          cat workspaces.json >> $GITHUB_STEP_SUMMARY
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
           echo \</details\> >> $GITHUB_STEP_SUMMARY
+      - name: Upload workspaces file
+        uses: actions/upload-artifact@v3
+        with:
+          name: workspaces
+          path: ./workspaces.json
       - id: build-matrix
         name: Build matrix
         run: |
-          cat package-versions.json | jq -cr 'map(.name) | { "package-name": . }' > /tmp/matrix.json
+          cat workspaces.json | jq -cr 'map(.name) | { "package-name": . }' > /tmp/matrix.json
           echo matrix=`cat /tmp/matrix.json` >> $GITHUB_OUTPUT
 
+          echo '## Build matrix' >> $GITHUB_STEP_SUMMARY
           echo \`\`\`json >> $GITHUB_STEP_SUMMARY
           cat /tmp/matrix.json >> $GITHUB_STEP_SUMMARY
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
+
+  build:
+    environment: build-production
+    name: Build
+    needs:
+      - prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Set up Node.js ${{ env.node-version }}
+        uses: ./.github/actions/setup-node-for-production
+        with:
+          node-version: ${{ env.node-version }}
+          registry-url: ${{ vars.AZDO_NPM_REGISTRY_URL }}
+          registry-username: ${{ vars.AZDO_NPM_REGISTRY_USERNAME }}
+      - name: Download workspaces file
+        uses: actions/download-artifact@v3
+        with:
+          name: workspaces
+      - name: Redirect package-lock.json
+        uses: ./.github/actions/redirect-package-lock
       - # We cannot run "npm version" right after "npx semver". Otherwise, next run of "npx semver" will ignore "-n false".
         # "npm version" will update workspaces. During update, it will need to talk to NPM registry.
         env:
           NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
         name: Bump versions
-        run: cat package-versions.json | jq -cr 'to_entries | map("--workspace=" + .key + " " + .value.version) | join("\n")' | xargs -L1 npm version
+        run: cat workspaces.json | jq -cr 'to_entries | map("--workspace=" + .key + " " + .value.version) | join("\n")' | xargs -L1 npm version
       - env:
           NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
         run: npm clean-install --ignore-scripts # CyberEO: Ignore scripts to prevent malicious scripts from stealing the token.
@@ -104,15 +126,15 @@ jobs:
         run: npm pack --pack-destination=$PWD --workspaces=true
       - name: 'Sanity check: all tarballs exist'
         run: |
-          for TARBALL_NAME in `cat package-versions.json | jq -r '.[] | .tarball'`
+          for TARBALL_NAME in `cat workspaces.json | jq -r '.[] | .tarball'`
           do
             compgen -G $TARBALL_NAME
           done
-      - name: Upload versions file artifact
+      - name: Upload package-lock.json
         uses: actions/upload-artifact@v3
         with:
-          name: package-versions
-          path: ./package-versions.json
+          name: package-lock
+          path: ./package-lock.json
       - name: Upload packages artifact
         uses: actions/upload-artifact@v3
         with:
@@ -123,6 +145,7 @@ jobs:
     name: 'Release: Upload workspaces file'
     needs:
       - build
+      - prepare
     permissions:
       contents: write # "contents" is required for modifying releases.
     runs-on: ubuntu-latest
@@ -130,54 +153,54 @@ jobs:
       - name: Download workspaces file
         uses: actions/download-artifact@v3
         with:
-          name: package-versions
+          name: workspaces
       - env:
           GH_TOKEN: ${{ github.token }}
         name: Upload workspaces file to GitHub "${{ env.publish-tag }}" release
-        run: gh release upload ${{ env.publish-tag }} package-versions.json --clobber --repo ${{ github.repository }}
+        run: gh release upload ${{ env.publish-tag }} workspaces.json --clobber --repo ${{ github.repository }}
 
   release-upload-package:
     name: 'Release: Upload package'
     needs:
       - build
+      - prepare
     permissions:
       contents: write # "contents" is required for modifying releases.
     runs-on: ubuntu-latest
     strategy:
-      matrix: ${{ fromJSON(needs.build.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
-      - name: Download versions file
+      - name: Download workspaces file
         uses: actions/download-artifact@v3
         with:
-          name: package-versions
-      - name: Download packages artifact
+          name: workspaces
+      - name: Download packages
         uses: actions/download-artifact@v3
         with:
           name: packages
-      - name: List all publishing packages
-        run: ls -l ./*.tgz
+      - id: prepare
+        name: Prepare
+        run: echo tarball=`cat workspaces.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball | ltrimstr("./")'` >> $GITHUB_OUTPUT
       - env:
           GH_TOKEN: ${{ github.token }}
-        name: Upload packages to GitHub "${{ env.publish-tag }}" release
+        name: Get current assets
         run: |
           gh release view ${{ env.publish-tag }} --json assets --repo ${{ github.repository }} > assets.json
-
-          TARBALL=`cat package-versions.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball | ltrimstr("./")'`
-
-          # Only keep latest assets, remove obsoleted and upload new one.
-          if [[ "`cat assets.json | jq --arg name $TARBALL '.assets | any(select(.name == $name))'`" == "false" ]]
-          then
-            for ASSET_NAME in `cat assets.json | jq -r --arg name ${{ matrix.package-name }} '.assets | map(select(.name | test($name + "-[0-9]"))) | map(.name) | join("\n")'`
-            do
-              gh release delete-asset ${{ env.publish-tag }} $ASSET_NAME --repo ${{ github.repository }} || true
-              echo "- Deleted \`$ASSET_NAME\`" >> $GITHUB_STEP_SUMMARY
-            done
-
-            gh release upload ${{ env.publish-tag }} $TARBALL --repo ${{ github.repository }}
-            echo "- Uploaded \`$TARBALL\`" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- Already uploaded, skipping \`$TARBALL\`" >> $GITHUB_STEP_SUMMARY
-          fi
+          cat assets.json
+      - id: check-existence
+        name: Check if asset already present
+        run: echo exist=`cat assets.json | jq --arg name ${{ steps.prepare.outputs.tarball }} '.assets | any(select(.name == $name))'` >> $GITHUB_OUTPUT
+      - if: ${{ steps.check-existence.outputs.exist == 'false' }}
+        name: Upload new asset
+        run: gh release upload ${{ env.publish-tag }} ${{ steps.prepare.outputs.tarball }} --repo ${{ github.repository }}
+      - if: ${{ steps.check-existence.outputs.exist == 'false' }}
+        name: Delete obsoleted assets
+        run: |
+          for ASSET_NAME in `cat assets.json | jq -r --arg name ${{ matrix.package-name }} '.assets | map(select(.name | test($name + "-[0-9]"))) | map(.name) | join("\n")'`
+          do
+            gh release delete-asset ${{ env.publish-tag }} $ASSET_NAME --repo ${{ github.repository }} || true
+            echo "Deleted \`$ASSET_NAME\`"
+          done
 
   # Update release after re-pushing a new tag.
   release-publish:
@@ -203,12 +226,14 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0 # Fetch all tags.
-      - name: Update tag
-        run: |
-          git tag -d ${{ env.publish-tag }} || true
-          git tag ${{ env.publish-tag }}
-          git push origin :${{ env.publish-tag }} || true
-          git push origin ${{ env.publish-tag }}
+      - name: Delete existing tag
+        run: git tag -d ${{ env.publish-tag }} || true
+      - name: Create new tag
+        run: git tag ${{ env.publish-tag }}
+      - name: Delete server tag
+        run: git push origin :${{ env.publish-tag }} || true
+      - name: Push tag
+        run: git push origin ${{ env.publish-tag }}
       - env:
           GH_TOKEN: ${{ github.token }}
         name: Publish release
@@ -254,41 +279,44 @@ jobs:
     name: 'GitHub Packages: Prepare'
     needs:
       - build
+      - prepare
     runs-on: ubuntu-latest
     strategy:
-      matrix: ${{ fromJSON(needs.build.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
-      - name: Download versions file
+      - name: Download workspaces file
         uses: actions/download-artifact@v3
         with:
-          name: package-versions
-      - name: Download packages artifact
+          name: workspaces
+      - name: Download packages
         uses: actions/download-artifact@v3
         with:
           name: packages
-      - id: rescope
-        name: Rescope package
+      - id: prepare
+        name: Prepare
+        run: echo tarball=`cat workspaces.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball'` >> $GITHUB_OUTPUT
+      - name: Extract package
         run: |
-          mkdir patched
+          ls -l ${{ steps.prepare.outputs.tarball }}
 
-          TARBALL=`cat package-versions.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball'`
-
-          tar -xvf $TARBALL_NAME
+          tar -xvf ${{ steps.prepare.outputs.tarball }}
+          cat package.json
+      - id: rescope
+        name: Rescope
+        run: |
           cd package
 
-          cat package.json | jq --argfile versions ../package-versions.json -r '. | (.name = "@${{ github.repository_owner }}/" + .name) | (.dependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end))) | (.devDependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end)))' > package.tmp.json
+          cat package.json | jq --argfile versions ../workspaces.json -r '. | (.name = "@${{ github.repository_owner }}/" + .name) | (.dependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end))) | (.devDependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end)))' > package.tmp.json
           mv package.tmp.json package.json
 
-          PATCHED_PACKAGE_NAME_AND_VERSION=`cat package.json | jq -r '.name + "@" + .version'`
-          PATCHED_TARBALL_NAME=`npm pack --ignore-scripts --json | jq -r '.[0].filename'`
-
-          echo "Changed package name to \`$PATCHED_PACKAGE_NAME_AND_VERSION\`" >> $GITHUB_STEP_SUMMARY
-          echo package-full-name=$PATCHED_PACKAGE_NAME_AND_VERSION >> $GITHUB_OUTPUT
-          echo tarball-name=$PATCHED_TARBALL_NAME >> $GITHUB_OUTPUT
-      - uses: actions/upload-artifact@v3
+          cat package.json
+      - name: Repack
+        run: echo tarball=`npm pack --ignore-scripts --json | jq -r '.[0].filename'` >> $GITHUB_OUTPUT
+      - name: Upload scoped package
+        uses: actions/upload-artifact@v3
         with:
           name: scoped-packages
-          path: ${{ steps.rescope.outputs.tarball-name }}
+          path: ${{ steps.rescope.outputs.tarball }}
 
   github-packages-publish:
     environment:
@@ -297,6 +325,7 @@ jobs:
     name: 'GitHub Packages: Publish'
     needs:
       - github-packages-prepare
+      - prepare
     outputs:
       url: ${{ steps.prepare.outputs.url }}
     permissions:
@@ -309,35 +338,33 @@ jobs:
       - name: Download workspaces file
         uses: actions/download-artifact@v3
         with:
-          name: package-versions
-      - uses: actions/download-artifact@v3
+          name: workspaces
+      - name: Download scoped packages
+        uses: actions/download-artifact@v3
         with:
           name: scoped-packages
-      - uses: actions/setup-node@v3
+      - id: prepare
+        name: Prepare
+        run: |
+          TARBALL=`cat workspaces.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball'`
+
+          echo tarball=$TARBALL >> $GITHUB_OUTPUT
+          echo package-name-and-version=`tar -xf ${{ steps.prepare.outputs.tarball }} --to-stdout package/package.json | jq -r '.name + "@" + .version'` >> $GITHUB_OUTPUT
+      - name: Set up Node.js ${{ env.node-version }}
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ env.node-version }}
           registry-url: https://npm.pkg.github.com/
+      - id: package-existence
+        name: Check if package already present
+        run: echo exist=`npm view ${{ steps.prepare.outputs.package-name-and-version }} --json 2>/dev/null | jq -r 'if .error then false else true end'` >> $GITHUB_OUTPUT
       - env:
           NODE_AUTH_TOKEN: ${{ github.token }}
-        name: Publish package
+        if: ${{ steps.package-existence.outputs.exist == 'false' }}
+        name: Publish ${{ steps.prepare.outputs.package-name-and-version }}
         run: |
-          # Make sure we don't publish tarball that are already published.
-
-          TARBALL=`cat package-versions.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball'`
-
-          # PACKAGE_NAME_AND_VERSION=@someone/package-a@1.2.3
-          PACKAGE_NAME_AND_VERSION=`tar -xf $TARBALL_NAME --to-stdout package/package.json | jq -r '.name + "@" + .version'`
-
-          # EXIST_VERSION=1.2.3 or empty
-          EXIST=`npm view $PACKAGE_NAME_AND_VERSION --json 2>/dev/null | jq -r 'if .error then false else true end'`
-
-          if [ "$EXIST" == "false" ]
-          then
-            echo - Publishing \`$PACKAGE_NAME_AND_VERSION\` >> $GITHUB_STEP_SUMMARY
-            # npm publish $TARBALL_NAME
-          else
-            echo - Already published, skipping \`$PACKAGE_NAME_AND_VERSION\` >> $GITHUB_STEP_SUMMARY
-          fi
+          ls -l ${{ steps.prepare.outputs.tarball }}
+          # npm publish ${{ steps.prepare.outputs.tarball }}
 
   summary:
     if: ${{ always() }}
