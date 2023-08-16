@@ -365,11 +365,10 @@ jobs:
       - name: Repack
         run: |
           TARBALL=`npm pack --ignore-scripts --json | jq -r '.[0].filename'`
-          mv $TARBALL ${{ steps.prepare.outputs.tarball }}
+          mv $TARBALL ../${{ steps.prepare.outputs.tarball }}
         working-directory: ./package
       - name: Upload scoped package
         uses: actions/upload-artifact@v3
-        working-directory: ./package
         with:
           name: scoped-packages
           path: ${{ steps.prepare.outputs.tarball }}
@@ -403,7 +402,7 @@ jobs:
         run: |
           TARBALL=`cat workspaces.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball'`
 
-          echo package-name-and-version=`tar -xf $TARBALL --to-stdout package/package.json | jq -r '.name + "@" + .version'` >> $GITHUB_OUTPUT
+          echo package-id=`tar -xf $TARBALL --to-stdout package/package.json | jq -r '.name + "@" + .version'` >> $GITHUB_OUTPUT
           echo tarball=$TARBALL >> $GITHUB_OUTPUT
           echo url=${{ github.server_url }}/${{ github.repository_owner }}?tab=packages&repo_name=${{ github.event.repository.name }} >> $GITHUB_OUTPUT
       - name: Set up Node.js ${{ env.node-version }}
@@ -413,11 +412,11 @@ jobs:
           registry-url: https://npm.pkg.github.com/
       - id: package-existence
         name: Check if package already present
-        run: echo exist=`npm view ${{ steps.prepare.outputs.package-name-and-version }} --json 2>/dev/null | jq -r 'if .error then false else true end'` >> $GITHUB_OUTPUT
+        run: echo exist=`npm view ${{ steps.prepare.outputs.package-id }} --json 2>/dev/null | jq -r 'if .error then false else true end'` >> $GITHUB_OUTPUT
       - env:
           NODE_AUTH_TOKEN: ${{ github.token }}
         if: ${{ steps.package-existence.outputs.exist == 'false' }}
-        name: Publish ${{ steps.prepare.outputs.package-name-and-version }}
+        name: Publish ${{ steps.prepare.outputs.package-id }}
         run: |
           ls -l ${{ steps.prepare.outputs.tarball }}
           # npm publish ${{ steps.prepare.outputs.tarball }}
