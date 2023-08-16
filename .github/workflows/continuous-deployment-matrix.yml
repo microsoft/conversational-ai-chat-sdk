@@ -251,6 +251,7 @@ jobs:
   approval:
     needs: pre-release-approval
     # TODO: Add sanity check here
+    runs-on: ubuntu-latest
     steps:
       - name: Approved
         run: echo Approved.
