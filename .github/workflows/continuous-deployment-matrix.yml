@@ -29,7 +29,9 @@ jobs:
     environment: build-production
     name: Prepare
     outputs:
+      # TODO: Do we need all matrix? Looks like we are using public-only matrix.
       matrix: ${{ steps.build-matrix.outputs.matrix }}
+      matrix-public-only: ${{ steps.build-matrix.outputs.matrix-public-only }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -85,9 +87,19 @@ jobs:
           cat workspaces.json | jq -cr 'map(.name) | { "package-name": . }' > /tmp/matrix.json
           echo matrix=`cat /tmp/matrix.json` >> $GITHUB_OUTPUT
 
+          cat workspaces.json | jq -cr 'map(select(.private | not)) | map(.name) | { "package-name": . }' > /tmp/matrix-public-only.json
+          echo matrix-public-only=`cat /tmp/matrix-public-only.json` >> $GITHUB_OUTPUT
+
           echo '## Build matrix' >> $GITHUB_STEP_SUMMARY
+
+          echo '### All packages' >> $GITHUB_STEP_SUMMARY
           echo \`\`\`json >> $GITHUB_STEP_SUMMARY
           cat /tmp/matrix.json | jq -r >> $GITHUB_STEP_SUMMARY
+          echo \`\`\` >> $GITHUB_STEP_SUMMARY
+
+          echo '### Public only' >> $GITHUB_STEP_SUMMARY
+          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
+          cat /tmp/matrix-public-only.json | jq -r >> $GITHUB_STEP_SUMMARY
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
 
   build:
@@ -169,7 +181,7 @@ jobs:
       contents: write # "contents" is required for modifying releases.
     runs-on: ubuntu-latest
     strategy:
-      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix-public-only) }}
     steps:
       - name: Download workspaces file
         uses: actions/download-artifact@v3
@@ -203,6 +215,27 @@ jobs:
             echo "Deleted \`$ASSET_NAME\`"
           done
 
+  release-upload-pages:
+    name: 'Release: Upload pages'
+    needs:
+      - build
+      - prepare
+      - github-pages-prepare
+    permissions:
+      contents: write # "contents" is required for modifying releases.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download pages
+        uses: actions/download-artifact@v3
+        with:
+          name: github-pages
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        name: Upload pages to GitHub "${{ env.publish-tag }}" release
+        run: |
+          mv artifact.tar github-pages.tar
+          gh release upload ${{ env.publish-tag }} github-pages.tar --clobber --repo ${{ github.repository }}
+
   # Update release after re-pushing a new tag.
   release-publish:
     environment:
@@ -211,6 +244,7 @@ jobs:
     name: 'Release: Publish'
     needs:
       - release-upload-package
+      - release-upload-pages
       - release-upload-workspaces-json
     outputs:
       tag-url: ${{ steps.prepare.outputs.tag-url }}
@@ -285,7 +319,7 @@ jobs:
       - prepare
     runs-on: ubuntu-latest
     strategy:
-      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix-public-only) }}
     steps:
       - name: Download workspaces file
         uses: actions/download-artifact@v3
@@ -338,6 +372,8 @@ jobs:
     permissions:
       packages: write
     runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix-public-only) }}
     steps:
       - name: Download workspaces file
         uses: actions/download-artifact@v3
