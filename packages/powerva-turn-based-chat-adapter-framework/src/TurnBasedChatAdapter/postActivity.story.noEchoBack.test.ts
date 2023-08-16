@@ -1,11 +1,13 @@
+/** @jest-environment jsdom */
+
 /*!
  * Copyright (C) Microsoft Corporation. All rights reserved.
  */
 
 import { type Activity, ConnectionStatus } from 'botframework-directlinejs';
 import { MockObserver } from 'powerva-chat-adapter-test-util';
+import { waitFor } from '@testing-library/dom';
 
-import sleep from '../sleep';
 import TestCanvasChatAdapter from '../TurnBasedChatAdapter';
 
 import createActivity from './private/createActivity';
@@ -14,8 +16,6 @@ import type { TurnBasedChatIteratorClient } from '../types/TurnBasedChatIterator
 
 type Execute = TurnBasedChatIteratorClient['execute'];
 type StartConversation = ConstructorParameters<typeof TestCanvasChatAdapter>[0];
-
-const SLEEP_INTERVAL = 10;
 
 test('postActivity() without any echo back should work', async () => {
   const execute = jest.fn<ReturnType<Execute>, Parameters<Execute>>();
@@ -50,7 +50,6 @@ test('postActivity() without any echo back should work', async () => {
 
   adapter.connectionStatus$.subscribe(connectionStatusObserver);
   adapter.activity$.subscribe(activityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // ---
 
@@ -58,17 +57,18 @@ test('postActivity() without any echo back should work', async () => {
   const postActivityObserver = new MockObserver<string>();
 
   adapter.postActivity(createActivity('Aloha!')).subscribe(postActivityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Should be resolved.
-  expect(postActivityObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', 'a-00001'],
-    ['complete']
-  ]);
+  await waitFor(() =>
+    expect(postActivityObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', 'a-00001'],
+      ['complete']
+    ])
+  );
 
   // THEN: Should not observe any echo back.
-  expect(activityObserver).toHaveProperty('observations', [['start', expect.any(Object)]]);
+  await waitFor(() => expect(activityObserver).toHaveProperty('observations', [['start', expect.any(Object)]]));
 
   // ---
 
@@ -76,15 +76,16 @@ test('postActivity() without any echo back should work', async () => {
   const anotherPostActivityObserver = new MockObserver<string>();
 
   adapter.postActivity(createActivity('Hello!')).subscribe(anotherPostActivityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Should be resolved.
-  expect(anotherPostActivityObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', 'a-00002'],
-    ['complete']
-  ]);
+  await waitFor(() =>
+    expect(anotherPostActivityObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', 'a-00002'],
+      ['complete']
+    ])
+  );
 
   // THEN: Should not observe any echo back.
-  expect(activityObserver).toHaveProperty('observations', [['start', expect.any(Object)]]);
+  await waitFor(() => expect(activityObserver).toHaveProperty('observations', [['start', expect.any(Object)]]));
 });

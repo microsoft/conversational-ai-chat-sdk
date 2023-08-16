@@ -1,12 +1,14 @@
+/** @jest-environment jsdom */
+
 /*!
  * Copyright (C) Microsoft Corporation. All rights reserved.
  */
 
 import { type Activity } from 'botframework-directlinejs';
 import { MockObserver } from 'powerva-chat-adapter-test-util';
+import { waitFor } from '@testing-library/dom';
 
 import DeferredPromise from '../DeferredPromise';
-import sleep from '../sleep';
 import TestCanvasChatAdapter from '../TurnBasedChatAdapter';
 
 import createActivity from './private/createActivity';
@@ -15,8 +17,6 @@ import type { TurnBasedChatIteratorClient } from '../types/TurnBasedChatIterator
 
 type Execute = TurnBasedChatIteratorClient['execute'];
 type StartConversation = ConstructorParameters<typeof TestCanvasChatAdapter>[0];
-
-const SLEEP_INTERVAL = 10;
 
 test('call postActivity() in quick successsion should line up all calls', async () => {
   const pauses = [new DeferredPromise<void>(), new DeferredPromise<void>(), new DeferredPromise<void>()];
@@ -55,7 +55,6 @@ test('call postActivity() in quick successsion should line up all calls', async 
   const activityObserver = new MockObserver<Activity>();
 
   adapter.activity$.subscribe(activityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // ---
 
@@ -65,64 +64,68 @@ test('call postActivity() in quick successsion should line up all calls', async 
 
   adapter.postActivity(createActivity('Aloha!')).subscribe(postActivityObserver1);
   adapter.postActivity(createActivity('Hello!')).subscribe(postActivityObserver2);
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: It should have called the execute() once.
-  expect(execute).toBeCalledTimes(1);
+  await waitFor(() => expect(execute).toBeCalledTimes(1));
 
   // ---
 
   // WHEN: The first round is completed.
   pauses[0].resolve();
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: The first postActivity() should be resolved.
-  expect(postActivityObserver1).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', 'a-00001'],
-    ['complete']
-  ]);
+  await waitFor(() =>
+    expect(postActivityObserver1).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', 'a-00001'],
+      ['complete']
+    ])
+  );
 
   // THEN: It should observe the echo back activity and activities from first round.
-  expect(activityObserver.observations).toEqual([
-    ['start', expect.any(Object)],
-    ['next', expect.objectContaining({ text: '0' })],
-    ['next', expect.objectContaining({ id: 'a-00001', text: 'Aloha!' })],
-    ['next', expect.objectContaining({ text: '1' })]
-  ]);
+  await waitFor(() =>
+    expect(activityObserver.observations).toEqual([
+      ['start', expect.any(Object)],
+      ['next', expect.objectContaining({ text: '0' })],
+      ['next', expect.objectContaining({ id: 'a-00001', text: 'Aloha!' })],
+      ['next', expect.objectContaining({ text: '1' })]
+    ])
+  );
 
   // THEN: It should not called "execute" yet.
-  expect(execute).toBeCalledTimes(1);
+  await waitFor(() => expect(execute).toBeCalledTimes(1));
 
   // ---
 
   // WHEN: The second round is completed.
   pauses[1].resolve();
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: It should have called the execute() again.
-  expect(execute).toBeCalledTimes(2);
+  await waitFor(() => expect(execute).toBeCalledTimes(2));
 
   // ---
 
   // WHEN: The second round is completed.
   pauses[2].resolve();
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: The second postActivity() should be resolved.
-  expect(postActivityObserver2).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', 'a-00002'],
-    ['complete']
-  ]);
+  await waitFor(() =>
+    expect(postActivityObserver2).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', 'a-00002'],
+      ['complete']
+    ])
+  );
 
   // THEN: It should observe the echo back activity and activities from second round.
-  expect(activityObserver.observations).toEqual([
-    ['start', expect.any(Object)],
-    ['next', expect.objectContaining({ text: '0' })],
-    ['next', expect.objectContaining({ id: 'a-00001', text: 'Aloha!' })],
-    ['next', expect.objectContaining({ text: '1' })],
-    ['next', expect.objectContaining({ id: 'a-00002', text: 'Hello!' })],
-    ['next', expect.objectContaining({ text: '2' })]
-  ]);
+  await waitFor(() =>
+    expect(activityObserver.observations).toEqual([
+      ['start', expect.any(Object)],
+      ['next', expect.objectContaining({ text: '0' })],
+      ['next', expect.objectContaining({ id: 'a-00001', text: 'Aloha!' })],
+      ['next', expect.objectContaining({ text: '1' })],
+      ['next', expect.objectContaining({ id: 'a-00002', text: 'Hello!' })],
+      ['next', expect.objectContaining({ text: '2' })]
+    ])
+  );
 });

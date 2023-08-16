@@ -1,11 +1,13 @@
+/** @jest-environment jsdom */
+
 /*!
  * Copyright (C) Microsoft Corporation. All rights reserved.
  */
 
 import { type Activity, ConnectionStatus } from 'botframework-directlinejs';
 import { MockObserver } from 'powerva-chat-adapter-test-util';
+import { waitFor } from '@testing-library/dom';
 
-import sleep from '../sleep';
 import TestCanvasChatAdapter from '../TurnBasedChatAdapter';
 
 import createActivity from './private/createActivity';
@@ -14,8 +16,6 @@ import type { TurnBasedChatIteratorClient } from '../types/TurnBasedChatIterator
 
 type Execute = TurnBasedChatIteratorClient['execute'];
 type StartConversation = ConstructorParameters<typeof TestCanvasChatAdapter>[0];
-
-const SLEEP_INTERVAL = 10;
 
 test('postActivity() should reject when execute() throw', async () => {
   const execute = jest.fn<ReturnType<Execute>, Parameters<Execute>>(() => {
@@ -38,7 +38,6 @@ test('postActivity() should reject when execute() throw', async () => {
 
   adapter.connectionStatus$.subscribe(connectionStatusObserver);
   adapter.activity$.subscribe(activityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // ---
 
@@ -46,30 +45,37 @@ test('postActivity() should reject when execute() throw', async () => {
   const postActivityObserver = new MockObserver<string>();
 
   adapter.postActivity(createActivity('Aloha!')).subscribe(postActivityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Should be rejected.
-  expect(postActivityObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['error', expect.any(Error)]
-  ]);
+  await waitFor(() =>
+    expect(postActivityObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['error', expect.any(Error)]
+    ])
+  );
 
-  expect(() => {
-    throw postActivityObserver.observations[1][1];
-  }).toThrow('artificial');
+  await waitFor(() =>
+    expect(() => {
+      throw postActivityObserver.observations[1][1];
+    }).toThrow('artificial')
+  );
 
   // THEN: Connection status should complete.
-  expect(connectionStatusObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', ConnectionStatus.Uninitialized],
-    ['next', ConnectionStatus.Connecting],
-    ['next', ConnectionStatus.Online],
-    ['next', ConnectionStatus.FailedToConnect],
-    ['complete']
-  ]);
+  await waitFor(() =>
+    expect(connectionStatusObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', ConnectionStatus.Uninitialized],
+      ['next', ConnectionStatus.Connecting],
+      ['next', ConnectionStatus.Online],
+      ['next', ConnectionStatus.FailedToConnect],
+      ['complete']
+    ])
+  );
 
   // THEN: Activity should complete.
-  expect(activityObserver).toHaveProperty('observations', [['start', expect.any(Object)], ['complete']]);
+  await waitFor(() =>
+    expect(activityObserver).toHaveProperty('observations', [['start', expect.any(Object)], ['complete']])
+  );
 
   // ---
 
@@ -77,15 +83,18 @@ test('postActivity() should reject when execute() throw', async () => {
   const anotherPostActivityObserver = new MockObserver<string>();
 
   adapter.postActivity(createActivity('Aloha!')).subscribe(anotherPostActivityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Should be rejected with same error.
-  expect(anotherPostActivityObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['error', expect.any(Error)]
-  ]);
+  await waitFor(() =>
+    expect(anotherPostActivityObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['error', expect.any(Error)]
+    ])
+  );
 
-  expect(() => {
-    throw anotherPostActivityObserver.observations[1][1];
-  }).toThrow('artificial');
+  await waitFor(() =>
+    expect(() => {
+      throw anotherPostActivityObserver.observations[1][1];
+    }).toThrow('artificial')
+  );
 });

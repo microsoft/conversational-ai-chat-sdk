@@ -1,12 +1,14 @@
+/** @jest-environment jsdom */
+
 /*!
  * Copyright (C) Microsoft Corporation. All rights reserved.
  */
 
 import { type Activity, ConnectionStatus } from 'botframework-directlinejs';
 import { MockObserver } from 'powerva-chat-adapter-test-util';
+import { waitFor } from '@testing-library/dom';
 
 import DeferredPromise from '../DeferredPromise';
-import sleep from '../sleep';
 import TestCanvasChatAdapter from '../TurnBasedChatAdapter';
 
 import createActivity from './private/createActivity';
@@ -15,8 +17,6 @@ import type { TurnBasedChatIteratorClient } from '../types/TurnBasedChatIterator
 
 type Execute = TurnBasedChatIteratorClient['execute'];
 type StartConversation = ConstructorParameters<typeof TestCanvasChatAdapter>[0];
-
-const SLEEP_INTERVAL = 10;
 
 test('postActivity() should stop after 100 turns', async () => {
   const pause = new DeferredPromise<void>();
@@ -51,7 +51,6 @@ test('postActivity() should stop after 100 turns', async () => {
 
   adapter.connectionStatus$.subscribe(connectionStatusObserver);
   adapter.activity$.subscribe(activityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // ---
 
@@ -59,58 +58,64 @@ test('postActivity() should stop after 100 turns', async () => {
   const postActivityObserver = new MockObserver<string>();
 
   adapter.postActivity(createActivity('Aloha!')).subscribe(postActivityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Should call execute() and iterate 100 times.
-  expect(iterate).toBeCalledTimes(100);
+  await waitFor(() => expect(iterate).toBeCalledTimes(100));
 
   // THEN: Should resolve the postActivity() call.
-  expect(postActivityObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', 'a-00001'],
-    ['complete']
-  ]);
+  await waitFor(() =>
+    expect(postActivityObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', 'a-00001'],
+      ['complete']
+    ])
+  );
 
   // THEN: Should observe echo back.
-  expect(activityObserver.observations).toEqual([
-    ['start', expect.any(Object)],
-    [
-      'next',
-      expect.objectContaining({
-        id: 'a-00001',
-        text: 'Aloha!'
-      })
-    ]
-  ]);
+  await waitFor(() =>
+    expect(activityObserver.observations).toEqual([
+      ['start', expect.any(Object)],
+      [
+        'next',
+        expect.objectContaining({
+          id: 'a-00001',
+          text: 'Aloha!'
+        })
+      ]
+    ])
+  );
 
   // ---
 
   // WHEN: Iterate for 101st time.
   pause.resolve();
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: The adapter should end.
-  expect(connectionStatusObserver.observations).toEqual([
-    ['start', expect.any(Object)],
-    ['next', ConnectionStatus.Uninitialized],
-    ['next', ConnectionStatus.Connecting],
-    ['next', ConnectionStatus.Online],
-    ['next', ConnectionStatus.FailedToConnect],
-    ['complete']
-  ]);
+  await waitFor(() =>
+    expect(connectionStatusObserver.observations).toEqual([
+      ['start', expect.any(Object)],
+      ['next', ConnectionStatus.Uninitialized],
+      ['next', ConnectionStatus.Connecting],
+      ['next', ConnectionStatus.Online],
+      ['next', ConnectionStatus.FailedToConnect],
+      ['complete']
+    ])
+  );
 
   // THEN: Activity should observe complete.
-  expect(activityObserver.observations).toEqual([
-    ['start', expect.any(Object)],
-    [
-      'next',
-      expect.objectContaining({
-        id: 'a-00001',
-        text: 'Aloha!'
-      })
-    ],
-    ['complete']
-  ]);
+  await waitFor(() =>
+    expect(activityObserver.observations).toEqual([
+      ['start', expect.any(Object)],
+      [
+        'next',
+        expect.objectContaining({
+          id: 'a-00001',
+          text: 'Aloha!'
+        })
+      ],
+      ['complete']
+    ])
+  );
 
   // ---
 
@@ -118,15 +123,18 @@ test('postActivity() should stop after 100 turns', async () => {
   const anotherPostActivityObserver = new MockObserver<string>();
 
   adapter.postActivity(createActivity('Hello!')).subscribe(anotherPostActivityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Should reject with error "too many turns".
-  expect(anotherPostActivityObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['error', expect.any(Error)]
-  ]);
+  await waitFor(() =>
+    expect(anotherPostActivityObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['error', expect.any(Error)]
+    ])
+  );
 
-  expect(() => {
-    throw anotherPostActivityObserver.observations[1][1];
-  }).toThrow('Too many turns');
+  await waitFor(() =>
+    expect(() => {
+      throw anotherPostActivityObserver.observations[1][1];
+    }).toThrow('Too many turns')
+  );
 });

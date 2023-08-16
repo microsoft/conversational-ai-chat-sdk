@@ -1,12 +1,14 @@
+/** @jest-environment jsdom */
+
 /*!
  * Copyright (C) Microsoft Corporation. All rights reserved.
  */
 
 import { type Activity, ConnectionStatus } from 'botframework-directlinejs';
 import { MockObserver } from 'powerva-chat-adapter-test-util';
+import { waitFor } from '@testing-library/dom';
 
 import DeferredPromise from '../DeferredPromise';
-import sleep from '../sleep';
 import TestCanvasChatAdapter from '../TurnBasedChatAdapter';
 
 import createActivity from './private/createActivity';
@@ -15,8 +17,6 @@ import type { TurnBasedChatIteratorClient } from '../types/TurnBasedChatIterator
 
 type Execute = TurnBasedChatIteratorClient['execute'];
 type StartConversation = ConstructorParameters<typeof TestCanvasChatAdapter>[0];
-
-const SLEEP_INTERVAL = 10;
 
 test('end() while iterating execute().activities should stop everything', async () => {
   const pause = new DeferredPromise<void>();
@@ -49,44 +49,48 @@ test('end() while iterating execute().activities should stop everything', async 
   const postActivityObserver = new MockObserver<string>();
 
   adapter.postActivity(createActivity('Aloha!')).subscribe(postActivityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: It should call execute().
-  expect(execute).toBeCalledTimes(1);
+  await waitFor(() => expect(execute).toBeCalledTimes(1));
 
   // ---
 
   // WHEN: End.
   adapter.end();
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Connection status should observe "ended".
-  expect(connectionStatusObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', ConnectionStatus.Uninitialized],
-    ['next', ConnectionStatus.Connecting],
-    ['next', ConnectionStatus.Online],
-    ['next', ConnectionStatus.Ended],
-    ['complete']
-  ]);
+  await waitFor(() =>
+    expect(connectionStatusObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', ConnectionStatus.Uninitialized],
+      ['next', ConnectionStatus.Connecting],
+      ['next', ConnectionStatus.Online],
+      ['next', ConnectionStatus.Ended],
+      ['complete']
+    ])
+  );
 
   // THEN: Activity should observe complete.
-  expect(activityObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    [
-      'next',
-      expect.objectContaining({
-        id: 'a-00001',
-        text: 'Aloha!'
-      })
-    ],
-    ['complete']
-  ]);
+  await waitFor(() =>
+    expect(activityObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      [
+        'next',
+        expect.objectContaining({
+          id: 'a-00001',
+          text: 'Aloha!'
+        })
+      ],
+      ['complete']
+    ])
+  );
 
   // THEN: Call to postActivity() should be resolved.
-  expect(postActivityObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', 'a-00001'],
-    ['complete']
-  ]);
+  await waitFor(() =>
+    expect(postActivityObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', 'a-00001'],
+      ['complete']
+    ])
+  );
 });

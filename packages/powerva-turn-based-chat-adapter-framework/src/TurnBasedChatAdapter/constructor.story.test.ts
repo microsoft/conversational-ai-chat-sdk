@@ -1,12 +1,14 @@
+/** @jest-environment jsdom */
+
 /*!
  * Copyright (C) Microsoft Corporation. All rights reserved.
  */
 
 import { type Activity, ConnectionStatus } from 'botframework-directlinejs';
 import { MockObserver } from 'powerva-chat-adapter-test-util';
+import { waitFor } from '@testing-library/dom';
 
 import DeferredPromise from '../DeferredPromise';
-import sleep from '../sleep';
 import TestCanvasChatAdapter from '../TurnBasedChatAdapter';
 
 import createActivity from './private/createActivity';
@@ -15,8 +17,6 @@ import type { TurnBasedChatIteratorClient } from '../types/TurnBasedChatIterator
 
 type Execute = TurnBasedChatIteratorClient['execute'];
 type StartConversation = ConstructorParameters<typeof TestCanvasChatAdapter>[0];
-
-const SLEEP_INTERVAL = 10;
 
 test('Constructor should work', async () => {
   const pause = new DeferredPromise<void>();
@@ -40,7 +40,6 @@ test('Constructor should work', async () => {
   const connectionStatusObserver = new MockObserver<ConnectionStatus>();
 
   adapter.connectionStatus$.subscribe(connectionStatusObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // ---
 
@@ -48,37 +47,41 @@ test('Constructor should work', async () => {
   const activityObserver = new MockObserver<Activity>();
 
   adapter.activity$.subscribe(activityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Should call startConversation().
-  expect(startConversation).toBeCalledTimes(1);
+  await waitFor(() => expect(startConversation).toBeCalledTimes(1));
 
   // THEN: Connection status should observe "uninitialized", and "connecting".
-  expect(connectionStatusObserver.observations).toEqual([
-    ['start', expect.any(Object)],
-    ['next', ConnectionStatus.Uninitialized],
-    ['next', ConnectionStatus.Connecting]
-  ]);
+  await waitFor(() =>
+    expect(connectionStatusObserver.observations).toEqual([
+      ['start', expect.any(Object)],
+      ['next', ConnectionStatus.Uninitialized],
+      ['next', ConnectionStatus.Connecting]
+    ])
+  );
 
   // ---
 
   // WHEN: Resume.
   pause.resolve();
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Connection status should observe "online".
-  expect(connectionStatusObserver.observations).toEqual([
-    ['start', expect.any(Object)],
-    ['next', ConnectionStatus.Uninitialized],
-    ['next', ConnectionStatus.Connecting],
-    ['next', ConnectionStatus.Online]
-  ]);
+  await waitFor(() =>
+    expect(connectionStatusObserver.observations).toEqual([
+      ['start', expect.any(Object)],
+      ['next', ConnectionStatus.Uninitialized],
+      ['next', ConnectionStatus.Connecting],
+      ['next', ConnectionStatus.Online]
+    ])
+  );
 
   // THEN: Activity should observe initial activities.
-  expect(activityObserver.observations).toEqual([
-    ['start', expect.any(Object)],
-    ['next', expect.objectContaining({ text: '1' })],
-    ['next', expect.objectContaining({ text: '2' })],
-    ['next', expect.objectContaining({ text: '3' })]
-  ]);
+  await waitFor(() =>
+    expect(activityObserver.observations).toEqual([
+      ['start', expect.any(Object)],
+      ['next', expect.objectContaining({ text: '1' })],
+      ['next', expect.objectContaining({ text: '2' })],
+      ['next', expect.objectContaining({ text: '3' })]
+    ])
+  );
 });

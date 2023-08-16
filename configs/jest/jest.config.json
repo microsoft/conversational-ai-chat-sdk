@@ -7,5 +7,5 @@
       }
     ]
   },
-  "transformIgnorePatterns": ["/node_modules/(?!(p-retry)/)", "\\.pnp\\.[^\\/]+$"]
+  "transformIgnorePatterns": ["/node_modules/(?!(p-retry|uuid)/)", "\\.pnp\\.[^\\/]+$"]
 }

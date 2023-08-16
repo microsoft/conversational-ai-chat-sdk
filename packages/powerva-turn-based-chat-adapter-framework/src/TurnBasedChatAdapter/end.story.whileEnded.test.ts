@@ -1,11 +1,13 @@
+/** @jest-environment jsdom */
+
 /*!
  * Copyright (C) Microsoft Corporation. All rights reserved.
  */
 
 import { type Activity, ConnectionStatus } from 'botframework-directlinejs';
 import { MockObserver } from 'powerva-chat-adapter-test-util';
+import { waitFor } from '@testing-library/dom';
 
-import sleep from '../sleep';
 import TestCanvasChatAdapter from '../TurnBasedChatAdapter';
 
 import createActivity from './private/createActivity';
@@ -14,8 +16,6 @@ import type { TurnBasedChatIteratorClient } from '../types/TurnBasedChatIterator
 
 type Execute = TurnBasedChatIteratorClient['execute'];
 type StartConversation = ConstructorParameters<typeof TestCanvasChatAdapter>[0];
-
-const SLEEP_INTERVAL = 10;
 
 test('end() called after end should do nothing', async () => {
   const execute = jest.fn<ReturnType<Execute>, Parameters<Execute>>();
@@ -38,34 +38,38 @@ test('end() called after end should do nothing', async () => {
 
   // WHEN: Connect.
   adapter.activity$.subscribe(activityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Connection status should observe "uninitialized", "connecting", and "online".
-  expect(connectionStatusObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', ConnectionStatus.Uninitialized],
-    ['next', ConnectionStatus.Connecting],
-    ['next', ConnectionStatus.Online]
-  ]);
+  await waitFor(() =>
+    expect(connectionStatusObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', ConnectionStatus.Uninitialized],
+      ['next', ConnectionStatus.Connecting],
+      ['next', ConnectionStatus.Online]
+    ])
+  );
 
   // ---
 
   // WHEN: End.
   adapter.end();
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Connection status should observe "ended".
-  expect(connectionStatusObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', ConnectionStatus.Uninitialized],
-    ['next', ConnectionStatus.Connecting],
-    ['next', ConnectionStatus.Online],
-    ['next', ConnectionStatus.Ended],
-    ['complete']
-  ]);
+  await waitFor(() =>
+    expect(connectionStatusObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', ConnectionStatus.Uninitialized],
+      ['next', ConnectionStatus.Connecting],
+      ['next', ConnectionStatus.Online],
+      ['next', ConnectionStatus.Ended],
+      ['complete']
+    ])
+  );
 
   // THEN: Activity should observe complete.
-  expect(activityObserver).toHaveProperty('observations', [['start', expect.any(Object)], ['complete']]);
+  await waitFor(() =>
+    expect(activityObserver).toHaveProperty('observations', [['start', expect.any(Object)], ['complete']])
+  );
 
   // ---
 
@@ -73,36 +77,42 @@ test('end() called after end should do nothing', async () => {
   const postActivityObserver = new MockObserver<string>();
 
   adapter.postActivity(createActivity('Aloha!')).subscribe(postActivityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Should be rejected.
-  expect(postActivityObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['error', expect.any(Error)]
-  ]);
+  await waitFor(() =>
+    expect(postActivityObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['error', expect.any(Error)]
+    ])
+  );
 
-  expect(() => {
-    throw postActivityObserver.observations[1][1];
-  }).toThrow('closed');
+  await waitFor(() =>
+    expect(() => {
+      throw postActivityObserver.observations[1][1];
+    }).toThrow('closed')
+  );
 
   // ---
 
   // WHEN: end() is called again.
   adapter.end();
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Connection status should observe "ended".
-  expect(connectionStatusObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', ConnectionStatus.Uninitialized],
-    ['next', ConnectionStatus.Connecting],
-    ['next', ConnectionStatus.Online],
-    ['next', ConnectionStatus.Ended],
-    ['complete']
-  ]);
+  await waitFor(() =>
+    expect(connectionStatusObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', ConnectionStatus.Uninitialized],
+      ['next', ConnectionStatus.Connecting],
+      ['next', ConnectionStatus.Online],
+      ['next', ConnectionStatus.Ended],
+      ['complete']
+    ])
+  );
 
   // THEN: Activity should observe complete.
-  expect(activityObserver).toHaveProperty('observations', [['start', expect.any(Object)], ['complete']]);
+  await waitFor(() =>
+    expect(activityObserver).toHaveProperty('observations', [['start', expect.any(Object)], ['complete']])
+  );
 
   // ---
 
@@ -110,15 +120,18 @@ test('end() called after end should do nothing', async () => {
   const anotherPostActivityObserver = new MockObserver<string>();
 
   adapter.postActivity(createActivity('Aloha!')).subscribe(anotherPostActivityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Should be rejected.
-  expect(anotherPostActivityObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['error', expect.any(Error)]
-  ]);
+  await waitFor(() =>
+    expect(anotherPostActivityObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['error', expect.any(Error)]
+    ])
+  );
 
-  expect(() => {
-    throw anotherPostActivityObserver.observations[1][1];
-  }).toThrow('closed');
+  await waitFor(() =>
+    expect(() => {
+      throw anotherPostActivityObserver.observations[1][1];
+    }).toThrow('closed')
+  );
 });
