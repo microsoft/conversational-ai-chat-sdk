@@ -54,17 +54,28 @@ jobs:
 
           for i in `cat package.json | jq -r '.workspaces | join("\n")'`
           do
-            # TODO: Add time
+            # COMMITTER_DATE=20230815110805
             COMMITTER_DATE=`git log --date=format:%Y%m%d%H%M%S --pretty=format:'%cd' -1 ./$i/`
+
+            # COMMITTER_DATE_IN_ISO8601=2023-08-15T11:08:05-07:00
             COMMITTER_DATE_IN_ISO8601=`git log --pretty=format:'%cI' -1 ./$i/`
+
+            # LONG_COMMITISH=0bf2b813727c5680ac19296442d464fe366ec3e9
             LONG_COMMITISH=`git log --pretty=format:'%H' -1 ./$i/`
+
+            # SHORT_COMMITISH=0bf2b81
             SHORT_COMMITISH=`git log --pretty=format:'%h' -1 ./$i/`
+
+            # TODO: Do we still need this after we have a better tarball name?
+            # SEMVER_SHORT_COMMITISH=bf2b81
+            # semver somehow remove the leading zeroes after dots.
             SEMVER_SHORT_COMMITISH=`echo $SHORT_COMMITISH | sed 's/^0*//'`
+
+            # VERSION=main.20230815110805.bf2b81
             VERSION=`cat ./$i/package.json | jq -r .version | xargs -L1 npm exec --offline -- semver --increment prerelease -n false --preid $BRANCH.$COMMITTER_DATE.$SEMVER_SHORT_COMMITISH`
 
-            cat ./workspaces.json | jq --arg branch $BRANCH --arg committerDateInISO8601 $COMMITTER_DATE_IN_ISO8601 --arg longCommitish $LONG_COMMITISH --arg shortCommitish $SHORT_COMMITISH --arg path ./$i/ --arg version $VERSION --argfile packageJSON ./$i/package.json -r '. + { ($packageJSON.name): { branch: $branch, committerDate: $committerDateInISO8601, longCommitish: $longCommitish, name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), shortCommitish: $shortCommitish, tarball: ("./" + $packageJSON.name + "-" + $version + ".tgz"), version: $version } }' > ./workspaces.json.tmp && true || exit 1
-
-            mv ./workspaces.json.tmp ./workspaces.json && true || exit 1
+            cat ./workspaces.json | jq --arg branch $BRANCH --arg committerDateInISO8601 $COMMITTER_DATE_IN_ISO8601 --arg longCommitish $LONG_COMMITISH --arg shortCommitish $SHORT_COMMITISH --arg path ./$i/ --arg version $VERSION --argfile packageJSON ./$i/package.json -r '. + { ($packageJSON.name): { branch: $branch, committerDate: $committerDateInISO8601, longCommitish: $longCommitish, name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), shortCommitish: $shortCommitish, version: $version } }' > /tmp/workspaces.json && true || exit 1
+            mv /tmp/workspaces.json ./workspaces.json && true || exit 1
           done
 
           cat workspaces.json
@@ -136,13 +147,13 @@ jobs:
       - name: Build
         run: npm run build --if-present --workspaces=true
       - name: Pack tarballs
-        run: npm pack --pack-destination=$PWD --workspaces=true
-      - name: 'Sanity check: all tarballs exist'
+        run: npm pack --json --pack-destination=$PWD --workspaces=true > /tmp/pack-result.json
+      - name: Update workspaces file with tarball
         run: |
-          for TARBALL_NAME in `cat workspaces.json | jq -r '.[] | .tarball'`
-          do
-            compgen -G $TARBALL_NAME
-          done
+          cat workspaces.json | jq --argfile pack /tmp/pack-result.json -rS 'map(.name as $name | . + { tarball: $pack | map(select(.name == $name))[0].filename })' > /tmp/workspaces.json
+          mv /tmp/workspaces.json workspaces.json
+
+          cat workspaces.json
       - name: Upload package-lock.json
         uses: actions/upload-artifact@v3
         with:
@@ -153,6 +164,11 @@ jobs:
         with:
           name: packages
           path: ./*.tgz
+      - name: Upload updated workspaces file
+        uses: actions/upload-artifact@v3
+        with:
+          name: workspaces
+          path: ./workspaces.json
 
   release-upload-workspaces-json:
     name: 'Release: Upload workspaces file'
@@ -353,9 +369,10 @@ jobs:
         working-directory: ./package
       - name: Upload scoped package
         uses: actions/upload-artifact@v3
+        working-directory: ./package
         with:
           name: scoped-packages
-          path: package/${{ steps.prepare.outputs.tarball }}
+          path: ${{ steps.prepare.outputs.tarball }}
 
   github-packages-publish:
     environment:
