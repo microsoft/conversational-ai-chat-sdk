@@ -250,7 +250,9 @@ jobs:
   approval:
     needs: pre-release-approval
     # TODO: Add sanity check here
-    steps: []
+    steps:
+      - name: Approved
+        run: echo Approved.
 
   release-upload-workspaces-json:
     name: 'Release: Upload workspaces file'
