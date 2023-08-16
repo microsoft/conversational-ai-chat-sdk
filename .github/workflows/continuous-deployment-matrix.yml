@@ -219,6 +219,7 @@ jobs:
       - build-github-packages
       - build-github-pages
       - prepare
+    runs-on: ubuntu-latest
     steps:
       - name: Download workspaces file
         uses: actions/download-artifact@v3
