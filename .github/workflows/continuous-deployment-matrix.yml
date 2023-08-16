@@ -92,6 +92,19 @@ jobs:
 
           cat workspaces.json | jq -cr 'map(select(.private | not)) | map(.name) | { "package-name": . }' > /tmp/matrix-public-only.json
           echo matrix-public-only=`cat /tmp/matrix-public-only.json` >> $GITHUB_OUTPUT
+      - name: Print publish packages
+        run: |
+          echo '## Packages' >> $GITHUB_STEP_SUMMARY
+
+          echo '### All packages' >> $GITHUB_STEP_SUMMARY
+          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
+          echo '${{ steps.build-matrix.outputs.matrix }} | jq -r >> $GITHUB_STEP_SUMMARY
+          echo \`\`\` >> $GITHUB_STEP_SUMMARY
+
+          echo '### Public packages' >> $GITHUB_STEP_SUMMARY
+          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
+          echo '${{ steps.build-matrix.outputs.matrix-public-only }} | jq -r >> $GITHUB_STEP_SUMMARY
+          echo \`\`\` >> $GITHUB_STEP_SUMMARY
 
   build:
     environment: build-production
@@ -149,6 +162,15 @@ jobs:
         with:
           name: workspaces
           path: ./workspaces.json
+      - name: Print workspaces file
+        run: |
+          echo '## Workspaces file' >> $GITHUB_STEP_SUMMARY
+          echo \<details\>\<summary\>Content of \<code\>workspaces.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
+          echo >> $GITHUB_STEP_SUMMARY
+          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
+          cat ./workspaces.json >> $GITHUB_STEP_SUMMARY
+          echo \`\`\` >> $GITHUB_STEP_SUMMARY
+          echo \</details\> >> $GITHUB_STEP_SUMMARY
 
   build-github-pages:
     name: 'Build: GitHub Pages'
@@ -213,44 +235,13 @@ jobs:
           name: scoped-packages
           path: ${{ steps.prepare.outputs.tarball }}
 
-  pre-approval:
+  approval:
+    name: Approval
     needs:
+      # TODO: Can we use `build*` here?
       - build
       - build-github-packages
       - build-github-pages
-      - prepare
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download workspaces file
-        uses: actions/download-artifact@v3
-        with:
-          name: workspaces
-      - name: Print workspaces file
-        run: |
-          echo '## Workspaces file' >> $GITHUB_STEP_SUMMARY
-          echo \<details\>\<summary\>Content of \<code\>workspaces.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
-          echo >> $GITHUB_STEP_SUMMARY
-          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
-          cat workspaces.json >> $GITHUB_STEP_SUMMARY
-          echo \`\`\` >> $GITHUB_STEP_SUMMARY
-          echo \</details\> >> $GITHUB_STEP_SUMMARY
-      - name: Print publish packages
-        run: |
-          echo '## Packages' >> $GITHUB_STEP_SUMMARY
-
-          echo '### All packages' >> $GITHUB_STEP_SUMMARY
-          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
-          echo '${{ needs.prepare.outputs.matrix }} | jq -r >> $GITHUB_STEP_SUMMARY
-          echo \`\`\` >> $GITHUB_STEP_SUMMARY
-
-          echo '### Public packages' >> $GITHUB_STEP_SUMMARY
-          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
-          echo '${{ needs.prepare.outputs.matrix-public-only }} | jq -r >> $GITHUB_STEP_SUMMARY
-          echo \`\`\` >> $GITHUB_STEP_SUMMARY
-
-  approval:
-    needs: pre-approval
-    # TODO: Add sanity check here
     runs-on: ubuntu-latest
     steps:
       - name: Approved
