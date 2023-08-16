@@ -131,12 +131,6 @@ jobs:
           NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
         name: Bump versions
         run: cat workspaces.json | jq -cr 'to_entries | map("--workspace=" + .key + " " + .value.version) | join("\n")' | xargs -L1 npm version
-      - name: Update workspaces file with version
-        run: |
-          cat workspaces.json | jq --argfile pack /tmp/pack-result.json -rS 'with_entries(.key as $name | . + (.value += { version: $pack | map(select(.name == $name))[0].version }))' > /tmp/workspaces.json
-          mv /tmp/workspaces.json workspaces.json
-
-          cat workspaces.json
       - env:
           NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
         run: npm clean-install --ignore-scripts # CyberEO: Ignore scripts to prevent malicious scripts from stealing the token.
@@ -147,6 +141,12 @@ jobs:
       - name: Update workspaces file with tarball
         run: |
           cat workspaces.json | jq --argfile pack /tmp/pack-result.json -rS 'with_entries(.key as $name | . + (.value += { tarball: $pack | map(select(.name == $name))[0].filename }))' > /tmp/workspaces.json
+          mv /tmp/workspaces.json workspaces.json
+
+          cat workspaces.json
+      - name: Update workspaces file with version
+        run: |
+          cat workspaces.json | jq --argfile pack /tmp/pack-result.json -rS 'with_entries(.key as $name | . + (.value += { version: $pack | map(select(.name == $name))[0].version }))' > /tmp/workspaces.json
           mv /tmp/workspaces.json workspaces.json
 
           cat workspaces.json
