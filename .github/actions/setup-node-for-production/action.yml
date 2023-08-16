@@ -1,5 +1,5 @@
-name: Use Node.js ${{ inputs.node-version }}
-description: Use Node.js ${{ inputs.node-version }}
+name: Setup Node.js environment
+description: Setup a Node.js environment with registry URL and credentials.
 inputs:
   node-version:
     description: Node version
