@@ -16,7 +16,7 @@ concurrency: continuous-deployment
 
 # Notes:
 # - CyberEO: During production build, we must not install packages from npmjs.org.
-#            Instead, we must use a reputable source, such as an internal feed.
+#            Instead, we must use a reputable source that allow us to quickly disable vulnerable feed, i.e. an internal feed.
 # - CyberEO: Limit token usage. Only expose token in steps, rather than in jobs.
 
 env:
@@ -234,6 +234,7 @@ jobs:
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
           echo \</details\> >> $GITHUB_STEP_SUMMARY
       - name: Print publish packages
+        run: |
           echo '## Packages' >> $GITHUB_STEP_SUMMARY
 
           echo '### All packages' >> $GITHUB_STEP_SUMMARY
@@ -249,9 +250,7 @@ jobs:
   approval:
     needs: pre-release-approval
     # TODO: Add sanity check here
-    steps:
-      - name: Approved
-        run: echo Approved.
+    steps: {}
 
   release-upload-workspaces-json:
     name: 'Release: Upload workspaces file'
