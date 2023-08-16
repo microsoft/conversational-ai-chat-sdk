@@ -316,7 +316,7 @@ jobs:
         run: |
           for ASSET_NAME in `cat assets.json | jq -r --arg name ${{ matrix.package-name }} '.assets | map(select(.name | test($name + "-[0-9]"))) | map(.name) | join("\n")'`
           do
-            gh release delete-asset --json ${{ env.publish-tag }} $ASSET_NAME --repo ${{ github.repository }} || true
+            gh release delete-asset ${{ env.publish-tag }} $ASSET_NAME --repo ${{ github.repository }} || true
             echo "Deleted \`$ASSET_NAME\`"
           done
 
