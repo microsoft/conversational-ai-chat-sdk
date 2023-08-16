@@ -1,0 +1,29 @@
+name: Test
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  prepare:
+    outputs:
+      matrix: ${{ steps.get-workspaces.outputs.workspaces }}
+    steps:
+      - uses: actions/checkout@v3
+      - id: get-workspaces
+        name: List workspaces
+        run: |
+          cat package.json | jq -r '.workspaces | join("\n")' | xargs --max-lines=1 --replace cat {}/package.json | jq .name > /tmp/workspaces.txt
+          MATRIX=`jq -cn --rawfile workspaces /tmp/workspaces.txt '{ name: $workspaces }'`
+          echo workspaces=$MATRIX >> $GITHUB_OUTPUT
+
+          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
+          echo $MATRIX >> $GITHUB_STEP_SUMMARY
+          echo \`\`\` >> $GITHUB_STEP_SUMMARY
+
+  build:
+    needs:
+      - prepare
+    strategy:
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - run: echo ${{ matrix.name }
