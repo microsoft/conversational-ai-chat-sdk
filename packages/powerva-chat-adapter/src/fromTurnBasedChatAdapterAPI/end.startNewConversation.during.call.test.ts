@@ -1,3 +1,5 @@
+/** @jest-environment jsdom */
+
 /*!
  * Copyright (C) Microsoft Corporation. All rights reserved.
  */
@@ -5,14 +7,13 @@
 import { type Activity, ConnectionStatus } from 'botframework-directlinejs';
 // TODO: When Jest support named export, we should shorten the path.
 import { MockObserver } from 'powerva-chat-adapter-test-util';
-import { DeferredPromise, ExecuteTurnContinuationAction, sleep } from 'powerva-turn-based-chat-adapter-framework';
+import { DeferredPromise, ExecuteTurnContinuationAction } from 'powerva-turn-based-chat-adapter-framework';
+import { waitFor } from '@testing-library/dom';
 
 import fromTurnBasedChatAdapterAPI from '../../src/fromTurnBasedChatAdapterAPI';
 
 import createActivity from './private/createActivity';
 import mockAPI from './private/mockAPI';
-
-const SLEEP_INTERVAL = 10;
 
 test('end() while startNewConversation() should stop everything', async () => {
   const {
@@ -44,36 +45,40 @@ test('end() while startNewConversation() should stop everything', async () => {
 
   adapter.connectionStatus$.subscribe(connectionStatusObserver);
   adapter.activity$.subscribe(activityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Should call startNewConversation().
-  expect(startNewConversation).toBeCalledTimes(1);
-  expect(startNewConversation).toHaveBeenNthCalledWith(
-    1,
-    true,
-    expect.objectContaining({ signal: expect.any(AbortSignal) })
+  await waitFor(() => expect(startNewConversation).toBeCalledTimes(1));
+  await waitFor(() =>
+    expect(startNewConversation).toHaveBeenNthCalledWith(
+      1,
+      true,
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
   );
 
   // ---
 
   // WHEN: Call end().
   adapter.end();
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Should signal abort.
-  expect(startNewConversation.mock.calls[0][1]).toHaveProperty('signal.aborted', true);
+  await waitFor(() => expect(startNewConversation.mock.calls[0][1]).toHaveProperty('signal.aborted', true));
 
   // THEN: Should observe activity complete.
-  expect(activityObserver).toHaveProperty('observations', [['start', expect.any(Object)], ['complete']]);
+  await waitFor(() =>
+    expect(activityObserver).toHaveProperty('observations', [['start', expect.any(Object)], ['complete']])
+  );
 
   // THEN: Should observe connection status ended.
-  expect(connectionStatusObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', ConnectionStatus.Uninitialized],
-    ['next', ConnectionStatus.Connecting],
-    ['next', ConnectionStatus.Ended],
-    ['complete']
-  ]);
+  await waitFor(() =>
+    expect(connectionStatusObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', ConnectionStatus.Uninitialized],
+      ['next', ConnectionStatus.Connecting],
+      ['next', ConnectionStatus.Ended],
+      ['complete']
+    ])
+  );
 
   // ---
 
@@ -81,15 +86,18 @@ test('end() while startNewConversation() should stop everything', async () => {
   const postActivityObserver = new MockObserver();
 
   adapter.postActivity(createActivity('Aloha!')).subscribe(postActivityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Should not resolve postActivity().
-  expect(postActivityObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['error', expect.any(Error)]
-  ]);
+  await waitFor(() =>
+    expect(postActivityObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['error', expect.any(Error)]
+    ])
+  );
 
-  expect(() => {
-    throw postActivityObserver.observations[1][1];
-  }).toThrow('closed');
+  await waitFor(() =>
+    expect(() => {
+      throw postActivityObserver.observations[1][1];
+    }).toThrow('closed')
+  );
 });

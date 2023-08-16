@@ -1,3 +1,5 @@
+/** @jest-environment jsdom */
+
 /*!
  * Copyright (C) Microsoft Corporation. All rights reserved.
  */
@@ -5,14 +7,13 @@
 import { type Activity, ConnectionStatus } from 'botframework-directlinejs';
 // TODO: When Jest support named export, we should shorten the path.
 import { MockObserver } from 'powerva-chat-adapter-test-util';
-import { ExecuteTurnContinuationAction, sleep } from 'powerva-turn-based-chat-adapter-framework';
+import { ExecuteTurnContinuationAction } from 'powerva-turn-based-chat-adapter-framework';
+import { waitFor } from '@testing-library/dom';
 
 import fromTurnBasedChatAdapterAPI from '../../src/fromTurnBasedChatAdapterAPI';
 
 import createActivity from './private/createActivity';
 import mockAPI from './private/mockAPI';
-
-const SLEEP_INTERVAL = 10;
 
 test('startConversation() reject during iteration should stop everything', async () => {
   const {
@@ -42,40 +43,47 @@ test('startConversation() reject during iteration should stop everything', async
 
   adapter.connectionStatus$.subscribe(connectionStatusObserver);
   adapter.activity$.subscribe(activityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Should call startNewConversation().
-  expect(startNewConversation).toBeCalledTimes(1);
-  expect(startNewConversation).toHaveBeenNthCalledWith(
-    1,
-    true,
-    expect.objectContaining({ signal: expect.any(AbortSignal) })
+  await waitFor(() => expect(startNewConversation).toBeCalledTimes(1));
+  await waitFor(() =>
+    expect(startNewConversation).toHaveBeenNthCalledWith(
+      1,
+      true,
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
   );
 
   // THEN: Should call continueTurn().
-  expect(continueTurn).toBeCalledTimes(1);
-  expect(continueTurn).toHaveBeenNthCalledWith(
-    1,
-    'c-00001',
-    expect.objectContaining({ signal: expect.any(AbortSignal) })
+  await waitFor(() => expect(continueTurn).toBeCalledTimes(1));
+  await waitFor(() =>
+    expect(continueTurn).toHaveBeenNthCalledWith(
+      1,
+      'c-00001',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
   );
 
   // THEN: Should observe activity completed.
-  expect(activityObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', expect.objectContaining({ text: '1' })],
-    ['complete']
-  ]);
+  await waitFor(() =>
+    expect(activityObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', expect.objectContaining({ text: '1' })],
+      ['complete']
+    ])
+  );
 
   // THEN: Should observe online before complete.
-  expect(connectionStatusObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', ConnectionStatus.Uninitialized],
-    ['next', ConnectionStatus.Connecting],
-    ['next', ConnectionStatus.Online],
-    ['next', ConnectionStatus.FailedToConnect],
-    ['complete']
-  ]);
+  await waitFor(() =>
+    expect(connectionStatusObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', ConnectionStatus.Uninitialized],
+      ['next', ConnectionStatus.Connecting],
+      ['next', ConnectionStatus.Online],
+      ['next', ConnectionStatus.FailedToConnect],
+      ['complete']
+    ])
+  );
 
   // ---
 
@@ -83,15 +91,18 @@ test('startConversation() reject during iteration should stop everything', async
   const postActivityObserver = new MockObserver();
 
   adapter.postActivity(createActivity('Aloha!')).subscribe(postActivityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Should not resolve postActivity().
-  expect(postActivityObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['error', expect.any(Error)]
-  ]);
+  await waitFor(() =>
+    expect(postActivityObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['error', expect.any(Error)]
+    ])
+  );
 
-  expect(() => {
-    throw postActivityObserver.observations[1][1];
-  }).toThrow('artificial');
+  await waitFor(() =>
+    expect(() => {
+      throw postActivityObserver.observations[1][1];
+    }).toThrow('artificial')
+  );
 });

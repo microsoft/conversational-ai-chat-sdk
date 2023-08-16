@@ -1,3 +1,5 @@
+/** @jest-environment jsdom */
+
 /*!
  * Copyright (C) Microsoft Corporation. All rights reserved.
  */
@@ -5,14 +7,13 @@
 import { type Activity, ConnectionStatus } from 'botframework-directlinejs';
 // TODO: When Jest support named export, we should shorten the path.
 import { MockObserver } from 'powerva-chat-adapter-test-util';
-import { DeferredPromise, ExecuteTurnContinuationAction, sleep } from 'powerva-turn-based-chat-adapter-framework';
+import { DeferredPromise, ExecuteTurnContinuationAction } from 'powerva-turn-based-chat-adapter-framework';
+import { waitFor } from '@testing-library/dom';
 
 import fromTurnBasedChatAdapterAPI from '../../src/fromTurnBasedChatAdapterAPI';
 
 import createActivity from './private/createActivity';
 import mockAPI from './private/mockAPI';
-
-const SLEEP_INTERVAL = 10;
 
 test('fromTurnBasedChatAdapterAPI should work', async () => {
   const {
@@ -51,54 +52,62 @@ test('fromTurnBasedChatAdapterAPI should work', async () => {
 
   adapter.connectionStatus$.subscribe(connectionStatusObserver);
   adapter.activity$.subscribe(activityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Should call startNewConversation().
-  expect(startNewConversation).toBeCalledTimes(1);
-  expect(startNewConversation).toHaveBeenNthCalledWith(
-    1,
-    true,
-    expect.objectContaining({ signal: expect.any(AbortSignal) })
+  await waitFor(() => expect(startNewConversation).toBeCalledTimes(1));
+  await waitFor(() =>
+    expect(startNewConversation).toHaveBeenNthCalledWith(
+      1,
+      true,
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
   );
 
   // THEN: Should observe connection status: "uninitialized", and "connecting".
-  expect(connectionStatusObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', ConnectionStatus.Uninitialized],
-    ['next', ConnectionStatus.Connecting]
-  ]);
+  await waitFor(() =>
+    expect(connectionStatusObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', ConnectionStatus.Uninitialized],
+      ['next', ConnectionStatus.Connecting]
+    ])
+  );
 
   // THEN: Should observe no activity.
-  expect(activityObserver).toHaveProperty('observations', [['start', expect.any(Object)]]);
+  await waitFor(() => expect(activityObserver).toHaveProperty('observations', [['start', expect.any(Object)]]));
 
   // ---
 
   // WHEN: Resume.
   pauseStartNewConversation.resolve();
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Should call continueTurn().
-  expect(continueTurn).toBeCalledTimes(1);
-  expect(continueTurn).toHaveBeenNthCalledWith(
-    1,
-    'c-00001',
-    expect.objectContaining({ signal: expect.any(AbortSignal) })
+  await waitFor(() => expect(continueTurn).toBeCalledTimes(1));
+  await waitFor(() =>
+    expect(continueTurn).toHaveBeenNthCalledWith(
+      1,
+      'c-00001',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
   );
 
   // THEN: Should observe connection status: "uninitialized", and "connecting".
-  expect(connectionStatusObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', ConnectionStatus.Uninitialized],
-    ['next', ConnectionStatus.Connecting],
-    ['next', ConnectionStatus.Online]
-  ]);
+  await waitFor(() =>
+    expect(connectionStatusObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', ConnectionStatus.Uninitialized],
+      ['next', ConnectionStatus.Connecting],
+      ['next', ConnectionStatus.Online]
+    ])
+  );
 
   // THEN: Should observe activites from multiple turns.
-  expect(activityObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', expect.objectContaining({ text: '1' })],
-    ['next', expect.objectContaining({ text: '2' })]
-  ]);
+  await waitFor(() =>
+    expect(activityObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', expect.objectContaining({ text: '1' })],
+      ['next', expect.objectContaining({ text: '2' })]
+    ])
+  );
 
   // ---
 
@@ -127,48 +136,54 @@ test('fromTurnBasedChatAdapterAPI should work', async () => {
   const postActivityObserver = new MockObserver<string>();
 
   adapter.postActivity(createActivity('Aloha!')).subscribe(postActivityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Should call executeTurn().
-  expect(executeTurn).toBeCalledTimes(1);
-  expect(executeTurn).toHaveBeenNthCalledWith(
-    1,
-    'c-00001',
-    expect.objectContaining({ text: 'Aloha!' }),
-    expect.objectContaining({ signal: expect.any(AbortSignal) })
+  await waitFor(() => expect(executeTurn).toBeCalledTimes(1));
+  await waitFor(() =>
+    expect(executeTurn).toHaveBeenNthCalledWith(
+      1,
+      'c-00001',
+      expect.objectContaining({ text: 'Aloha!' }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
   );
 
   // THEN: Should observe no activities.
   //       The echo back should be observed with the batch from executeTurn().
-  expect(activityObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', expect.objectContaining({ text: '1' })],
-    ['next', expect.objectContaining({ text: '2' })]
-  ]);
+  await waitFor(() =>
+    expect(activityObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', expect.objectContaining({ text: '1' })],
+      ['next', expect.objectContaining({ text: '2' })]
+    ])
+  );
 
   // ---
 
   // WHEN: Resume.
   pauseExecuteTurn.resolve();
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Should call continueTurn().
-  expect(continueTurn).toBeCalledTimes(2);
-  expect(continueTurn).toHaveBeenNthCalledWith(
-    2,
-    'c-00001',
-    expect.objectContaining({ signal: expect.any(AbortSignal) })
+  await waitFor(() => expect(continueTurn).toBeCalledTimes(2));
+  await waitFor(() =>
+    expect(continueTurn).toHaveBeenNthCalledWith(
+      2,
+      'c-00001',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
   );
 
   // THEN: Should observe echo back activity and its replies.
-  expect(activityObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', expect.objectContaining({ text: '1' })],
-    ['next', expect.objectContaining({ text: '2' })],
-    ['next', expect.objectContaining({ id: expect.any(String), text: 'Aloha!' })],
-    ['next', expect.objectContaining({ text: '3' })],
-    ['next', expect.objectContaining({ text: '4' })]
-  ]);
+  await waitFor(() =>
+    expect(activityObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', expect.objectContaining({ text: '1' })],
+      ['next', expect.objectContaining({ text: '2' })],
+      ['next', expect.objectContaining({ id: expect.any(String), text: 'Aloha!' })],
+      ['next', expect.objectContaining({ text: '3' })],
+      ['next', expect.objectContaining({ text: '4' })]
+    ])
+  );
 
   // ---
 
@@ -186,25 +201,28 @@ test('fromTurnBasedChatAdapterAPI should work', async () => {
   const anotherPostActivityObserver = new MockObserver<string>();
 
   adapter.postActivity(createActivity('Hello!')).subscribe(anotherPostActivityObserver);
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: Should call executeTurn().
-  expect(executeTurn).toBeCalledTimes(2);
-  expect(executeTurn).toHaveBeenNthCalledWith(
-    2,
-    'c-00001',
-    expect.objectContaining({ text: 'Hello!' }),
-    expect.objectContaining({ signal: expect.any(AbortSignal) })
+  await waitFor(() => expect(executeTurn).toBeCalledTimes(2));
+  await waitFor(() =>
+    expect(executeTurn).toHaveBeenNthCalledWith(
+      2,
+      'c-00001',
+      expect.objectContaining({ text: 'Hello!' }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
   );
 
   // THEN: Should observe echo back activity only.
-  expect(activityObserver).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', expect.objectContaining({ text: '1' })],
-    ['next', expect.objectContaining({ text: '2' })],
-    ['next', expect.objectContaining({ id: expect.any(String), text: 'Aloha!' })],
-    ['next', expect.objectContaining({ text: '3' })],
-    ['next', expect.objectContaining({ text: '4' })],
-    ['next', expect.objectContaining({ id: expect.any(String), text: 'Hello!' })]
-  ]);
+  await waitFor(() =>
+    expect(activityObserver).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', expect.objectContaining({ text: '1' })],
+      ['next', expect.objectContaining({ text: '2' })],
+      ['next', expect.objectContaining({ id: expect.any(String), text: 'Aloha!' })],
+      ['next', expect.objectContaining({ text: '3' })],
+      ['next', expect.objectContaining({ text: '4' })],
+      ['next', expect.objectContaining({ id: expect.any(String), text: 'Hello!' })]
+    ])
+  );
 });

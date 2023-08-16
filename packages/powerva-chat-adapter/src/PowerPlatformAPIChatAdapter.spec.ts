@@ -170,7 +170,9 @@ describe('client with telemetry', () => {
     test('fetch should be called with AbortSignal', () =>
       expect((globalThis.fetch as MockedFetch).mock.calls[0][1]).toHaveProperty('signal', abortController.signal));
     test('fetch should be called with URL', () =>
-      expect((globalThis.fetch as MockedFetch).mock.calls[0][0]).toBe('https://dummy/abc/conversations/c-00001?api-version=1'));
+      expect((globalThis.fetch as MockedFetch).mock.calls[0][0]).toBe(
+        'https://dummy/abc/conversations/c-00001?api-version=1'
+      ));
     test('fetch should be called with headers', () =>
       expect((globalThis.fetch as MockedFetch).mock.calls[0][1]).toHaveProperty(
         'headers',
