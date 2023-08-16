@@ -349,15 +349,13 @@ jobs:
       - name: Repack
         run: |
           TARBALL=`npm pack --ignore-scripts --json | jq -r '.[0].filename'`
-
-          echo Repacked in $TARBALL.
-          echo tarball=$TARBALL >> $GITHUB_OUTPUT
+          mv $TARBALL ${{ steps.prepare.outputs.tarball }}
         working-directory: ./package
       - name: Upload scoped package
         uses: actions/upload-artifact@v3
         with:
           name: scoped-packages
-          path: package/${{ steps.repack.outputs.tarball }}
+          path: package/${{ steps.prepare.outputs.tarball }}
 
   github-packages-publish:
     environment:
