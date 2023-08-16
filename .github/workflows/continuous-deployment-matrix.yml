@@ -305,20 +305,18 @@ jobs:
       - id: rescope
         name: Rescope
         run: |
-          cd package
-
           cat package.json | jq --argfile versions ../workspaces.json -r '. | (.name = "@${{ github.repository_owner }}/" + .name) | (.dependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end))) | (.devDependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end)))' > package.tmp.json
           mv package.tmp.json package.json
 
           cat package.json
+        working-directory: ./package
       - name: Repack
         run: |
-          cd package
-
           TARBALL=`npm pack --ignore-scripts --json | jq -r '.[0].filename'`
 
           echo Repacked in $TARBALL.
           echo tarball=$TARBALL >> $GITHUB_OUTPUT
+        working-directory: ./package
       - name: Upload scoped package
         uses: actions/upload-artifact@v3
         with:
