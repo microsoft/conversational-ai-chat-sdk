@@ -92,18 +92,17 @@ jobs:
 
           cat workspaces.json | jq -cr 'map(select(.private | not)) | map(.name) | { "package-name": . }' > /tmp/matrix-public-only.json
           echo matrix-public-only=`cat /tmp/matrix-public-only.json` >> $GITHUB_OUTPUT
-      - name: Print publish packages
-        run: |
+
           echo '## Packages' >> $GITHUB_STEP_SUMMARY
 
           echo '### All packages' >> $GITHUB_STEP_SUMMARY
           echo \`\`\`json >> $GITHUB_STEP_SUMMARY
-          echo '${{ steps.build-matrix.outputs.matrix }} | jq -r >> $GITHUB_STEP_SUMMARY
+          cat /tmp/matrix.json | jq -r >> $GITHUB_STEP_SUMMARY
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
 
           echo '### Public packages' >> $GITHUB_STEP_SUMMARY
           echo \`\`\`json >> $GITHUB_STEP_SUMMARY
-          echo '${{ steps.build-matrix.outputs.matrix-public-only }} | jq -r >> $GITHUB_STEP_SUMMARY
+          cat /tmp/matrix-public-only.json | jq -r >> $GITHUB_STEP_SUMMARY
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
 
   build:
