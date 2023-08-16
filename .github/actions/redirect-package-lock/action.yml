@@ -6,7 +6,9 @@ inputs:
   registry-url:
     description: Registry URL to redirect to. Must starts with https://.
 outputs:
-  registry-url: ${{ steps.prepare.outputs.registry-url }}
+  registry-url:
+    description: Registry URL to redirect to.
+    value: ${{ steps.prepare.outputs.registry-url }}
 runs:
   using: composite
   steps:
