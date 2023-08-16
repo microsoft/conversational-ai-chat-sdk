@@ -291,7 +291,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         name: Get current assets
         run: |
-          gh release view ${{ env.publish-tag }} assets --json --repo ${{ github.repository }} > assets.json
+          gh release view ${{ env.publish-tag }} --json assets --repo ${{ github.repository }} > assets.json
           cat assets.json | jq
       - id: check-existence
         name: Check if asset already present
@@ -432,15 +432,7 @@ jobs:
           registry-url: https://npm.pkg.github.com/
       - id: package-existence
         name: Check if package already present
-        run: |
-          echo exist=`npm view ${{ steps.prepare.outputs.package-id }} --json 2>/dev/null | jq -r 'if .error then if .error.code == "E404" then false else halt_error(1) end else true end'` >> $GITHUB_OUTPUT
-
-          if [[ exist == "true" ]]
-          then
-            echo Package already published, skipping.
-          else
-            echo Package is ready to publish.
-          fi
+        run: echo exist=`npm view ${{ steps.prepare.outputs.package-id }} --json 2>/dev/null | jq -r 'if .error then if .error.code == "E404" then false else halt_error(1) end else true end'` >> $GITHUB_OUTPUT
       - env:
           NODE_AUTH_TOKEN: ${{ github.token }}
         if: ${{ steps.package-existence.outputs.exist == 'false' }}
