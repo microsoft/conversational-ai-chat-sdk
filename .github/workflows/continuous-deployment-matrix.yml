@@ -263,7 +263,7 @@ jobs:
       - env:
           GH_TOKEN: ${{ github.token }}
         name: Upload workspaces file to GitHub "${{ env.publish-tag }}" release
-        run: gh release upload ${{ env.publish-tag }} workspaces.json --clobber --repo ${{ github.repository }}
+        run: gh release upload --clobber --json ${{ env.publish-tag }} workspaces.json --repo ${{ github.repository }}
 
   release-upload-package:
     name: 'Release: Upload package'
@@ -291,20 +291,28 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         name: Get current assets
         run: |
-          gh release view ${{ env.publish-tag }} --json assets --repo ${{ github.repository }} > assets.json
-          cat assets.json
+          gh release view --json ${{ env.publish-tag }} assets --repo ${{ github.repository }} > assets.json
+          cat assets.json | jq
       - id: check-existence
         name: Check if asset already present
-        run: echo exist=`cat assets.json | jq --arg name ${{ steps.prepare.outputs.tarball }} '.assets | any(select(.name == $name))'` >> $GITHUB_OUTPUT
+        run: |
+          echo exist=`cat assets.json | jq --arg name ${{ steps.prepare.outputs.tarball }} '.assets | any(select(.name == $name))'` >> $GITHUB_OUTPUT
+
+          if [[ exist == 'false' ]]
+          then
+            echo Asset does not exists, should upload.
+          else
+            echo Asset already exists, should not overwrite.
+          fi
       - if: ${{ steps.check-existence.outputs.exist == 'false' }}
         name: Upload new asset
-        run: gh release upload ${{ env.publish-tag }} ${{ steps.prepare.outputs.tarball }} --repo ${{ github.repository }}
+        run: gh release upload --json ${{ env.publish-tag }} ${{ steps.prepare.outputs.tarball }} --repo ${{ github.repository }}
       - if: ${{ steps.check-existence.outputs.exist == 'false' }}
         name: Delete obsoleted assets
         run: |
           for ASSET_NAME in `cat assets.json | jq -r --arg name ${{ matrix.package-name }} '.assets | map(select(.name | test($name + "-[0-9]"))) | map(.name) | join("\n")'`
           do
-            gh release delete-asset ${{ env.publish-tag }} $ASSET_NAME --repo ${{ github.repository }} || true
+            gh release delete-asset --json ${{ env.publish-tag }} $ASSET_NAME --repo ${{ github.repository }} || true
             echo "Deleted \`$ASSET_NAME\`"
           done
 
@@ -320,12 +328,12 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: github-pages
+      - name: Rename to github-pages.tar
+        run: mv artifact.tar github-pages.tar
       - env:
           GH_TOKEN: ${{ github.token }}
         name: Upload pages to GitHub "${{ env.publish-tag }}" release
-        run: |
-          mv artifact.tar github-pages.tar
-          gh release upload ${{ env.publish-tag }} github-pages.tar --clobber --repo ${{ github.repository }}
+        run: gh release upload --clobber --json ${{ env.publish-tag }} github-pages.tar --repo ${{ github.repository }}
 
   # Update release after re-pushing a new tag.
   release-publish:
@@ -365,7 +373,7 @@ jobs:
       - env:
           GH_TOKEN: ${{ github.token }}
         name: Publish release
-        run: gh release edit ${{ env.publish-tag }} --draft=false --prerelease --repo ${{ github.repository }}
+        run: gh release edit --draft=false --json --prerelease ${{ env.publish-tag }} --repo ${{ github.repository }}
 
   github-pages-deploy:
     environment:
@@ -431,7 +439,7 @@ jobs:
         name: Publish ${{ steps.prepare.outputs.package-id }}
         run: |
           ls -l ${{ steps.prepare.outputs.tarball }}
-          # npm publish ${{ steps.prepare.outputs.tarball }}
+          npm publish --json ${{ steps.prepare.outputs.tarball }}
 
   summary:
     if: ${{ always() }}
