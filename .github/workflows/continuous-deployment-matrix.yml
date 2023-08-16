@@ -428,7 +428,9 @@ jobs:
 
           echo package-id=`tar -xf $TARBALL --to-stdout package/package.json | jq -r '.name + "@" + .version'` >> $GITHUB_OUTPUT
           echo tarball=$TARBALL >> $GITHUB_OUTPUT
-          echo url=${{ github.server_url }}/${{ github.repository_owner }}?tab=packages&repo_name=${{ github.event.repository.name }} >> $GITHUB_OUTPUT
+
+          # url=https://github.com/compulim/power-virtual-agents-sdk/pkgs/npm/powerva-chat-adapter
+          echo url=${{ github.server_url }}/${{ github.repository }}/pkgs/npm/${{ matrix.package-name }} >> $GITHUB_OUTPUT
       - name: Set up Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
@@ -461,7 +463,7 @@ jobs:
     steps:
       - name: Post deployment
         run: |
-          echo - [GitHub Packages]\(${{ needs.github-packages-publish.outputs.url }}\) >> $GITHUB_STEP_SUMMARY
+          echo - [GitHub Packages]\(${{ github.server_url }}/${{ github.repository_owner }}?tab=packages\&repo_name=${{ github.event.repository.name }}\) >> $GITHUB_STEP_SUMMARY
           echo - [Pages]\(${{ needs.github-pages-deploy.outputs.url }}\) >> $GITHUB_STEP_SUMMARY
           echo - [Release]\(${{ needs.release-publish.outputs.url }}\) >> $GITHUB_STEP_SUMMARY
           echo - [Source code \(tagged\)]\(${{ needs.release-publish.outputs.tag-url }}\) >> $GITHUB_STEP_SUMMARY
