@@ -54,8 +54,8 @@ jobs:
 
           for i in `cat package.json | jq -r '.workspaces | join("\n")'`
           do
-            # COMMITTER_DATE=20230815.110805
-            COMMITTER_DATE=`git log --date=format:%Y%m%d.%H%M%S --pretty=format:'%cd' -1 ./$i/`
+            # COMMITTER_DATE=20230815-110805
+            COMMITTER_DATE=`git log --date=format:%Y%m%d-%H%M%S --pretty=format:'%cd' -1 ./$i/`
 
             # COMMITTER_DATE_IN_ISO8601=2023-08-15T11:08:05-07:00
             COMMITTER_DATE_IN_ISO8601=`git log --pretty=format:'%cI' -1 ./$i/`
@@ -66,11 +66,12 @@ jobs:
             # SHORT_COMMITISH=0bf2b81
             SHORT_COMMITISH=`git log --pretty=format:'%h' -1 ./$i/`
 
-            # VERSION=main.20230815110805.0bf2b81
-            # This version is not very accurate, after running `npm version`, it will remove leading zeroes in prerelease tags.
-            # "main.20230815110805.0bf2b81" -> "main.20230815110805.bf2b81"
+            # VERSION=main.20230815-110805.0bf2b81
+            # This version is not very accurate, after running `npm version`, it will remove leading zeroes in prerelease tags if that certain part is all numeric.
+            # "main.20230815-110805.0bf2b81" -> "main.20230815-110805.0bf2b81"
+            # "main.20230815-110805.0012345" -> "main.20230815-110805.12345"
             # We will update the workspaces file again in build job.
-            VERSION=`cat ./$i/package.json | jq -r .version | xargs -L1 npm exec --offline -- semver --increment prerelease -n false --preid $BRANCH.$COMMITTER_DATE.000$SHORT_COMMITISH`
+            VERSION=`cat ./$i/package.json | jq -r .version | xargs -L1 npm exec --offline -- semver --increment prerelease -n false --preid $BRANCH.$COMMITTER_DATE.$SHORT_COMMITISH`
 
             cat ./workspaces.json | jq --arg branch $BRANCH --arg committerDateInISO8601 $COMMITTER_DATE_IN_ISO8601 --arg longCommitish $LONG_COMMITISH --arg shortCommitish $SHORT_COMMITISH --arg path ./$i/ --arg version $VERSION --argfile packageJSON ./$i/package.json -r '. + { ($packageJSON.name): { branch: $branch, committerDate: $committerDateInISO8601, longCommitish: $longCommitish, name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), shortCommitish: $shortCommitish, version: $version } }' > /tmp/workspaces.json && true || exit 1
             mv /tmp/workspaces.json ./workspaces.json && true || exit 1
