@@ -1,3 +1,5 @@
+/** @jest-environment jsdom */
+
 /*!
  * Copyright (C) Microsoft Corporation. All rights reserved.
  */
@@ -6,16 +8,14 @@
 import Observable from 'core-js/features/observable';
 import noop from 'lodash/noop';
 import { MockObserver } from 'powerva-chat-adapter-test-util';
+import { waitFor } from '@testing-library/dom';
 
 import type ObservableType from '../Observable';
 import { type SubscriberFunction } from '../Observable';
-import sleep from '../sleep';
 
 import shareObservable from './shareObservable';
 
 type SubscriptionObserver<T> = Parameters<SubscriberFunction<T>>[0];
-
-const SLEEP_INTERVAL = 10;
 
 test('should only subscribe when there is at least one subscriber', () => {
   // GIVEN: A shared observable.
@@ -106,19 +106,22 @@ test('should call next/complete for all subscribers', async () => {
 
   // WHEN: Call complete().
   observer.complete();
-  await sleep(SLEEP_INTERVAL);
 
   // THEN: complete() should be observed.
-  expect(observer1).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', 'Hello, World!'],
-    ['complete']
-  ]);
-  expect(observer2).toHaveProperty('observations', [
-    ['start', expect.any(Object)],
-    ['next', 'Hello, World!'],
-    ['complete']
-  ]);
+  await waitFor(() =>
+    expect(observer1).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', 'Hello, World!'],
+      ['complete']
+    ])
+  );
+  await waitFor(() =>
+    expect(observer2).toHaveProperty('observations', [
+      ['start', expect.any(Object)],
+      ['next', 'Hello, World!'],
+      ['complete']
+    ])
+  );
 });
 
 test('should call error for all subscribers', () => {
