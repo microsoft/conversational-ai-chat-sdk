@@ -14,7 +14,7 @@ jobs:
         name: List workspaces
         run: |
           cat package.json | jq -r '.workspaces | join("\n")' | xargs --max-lines=1 --replace cat {}/package.json | jq .name > /tmp/workspaces.txt
-          MATRIX=`jq -cn --rawfile workspaces /tmp/workspaces.txt '{ name: $workspaces }'`
+          MATRIX=`jq -cn --slurpfile workspaces /tmp/workspaces.txt '{ name: $workspaces }'`
           echo workspaces=$MATRIX >> $GITHUB_OUTPUT
 
           echo \`\`\`json >> $GITHUB_STEP_SUMMARY
