@@ -209,7 +209,9 @@ jobs:
           name: packages
       - id: prepare
         name: Prepare
-        run: echo tarball=`cat workspaces.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball'` >> $GITHUB_OUTPUT
+        run: |
+          cat workspaces.json
+          echo tarball=`cat workspaces.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball'` >> $GITHUB_OUTPUT
       - name: Extract package
         run: |
           ls -l ${{ steps.prepare.outputs.tarball }}
