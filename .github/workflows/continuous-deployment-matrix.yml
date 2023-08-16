@@ -243,7 +243,6 @@ jobs:
       - build
       - build-github-packages
       - build-github-pages
-      - build*
     runs-on: ubuntu-latest
     steps:
       - name: Approved
