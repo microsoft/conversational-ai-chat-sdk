@@ -24,6 +24,7 @@ env:
   publish-tag: release/vnext
 
 jobs:
+  # TODO: Add "prepare" job to prepare workspaces file
   build:
     # TODO: Turn some build steps into a reusable action under the current repo.
     #       - Set up NPM for production build
@@ -85,7 +86,7 @@ jobs:
           echo matrix=`cat /tmp/matrix.json` >> $GITHUB_OUTPUT
 
           echo \`\`\`json >> $GITHUB_STEP_SUMMARY
-          echo `cat /tmp/matrix.json | jq` >> $GITHUB_STEP_SUMMARY
+          cat /tmp/matrix.json >> $GITHUB_STEP_SUMMARY
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
       - # We cannot run "npm version" right after "npx semver". Otherwise, next run of "npx semver" will ignore "-n false".
         # "npm version" will update workspaces. During update, it will need to talk to NPM registry.
@@ -135,7 +136,7 @@ jobs:
         run: gh release upload ${{ env.publish-tag }} package-versions.json --clobber --repo ${{ github.repository }}
 
   release-upload-package:
-    name: 'Release: Upload asset'
+    name: 'Release: Upload package'
     needs:
       - build
     permissions:
