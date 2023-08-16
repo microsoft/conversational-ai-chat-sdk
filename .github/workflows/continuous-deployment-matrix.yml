@@ -313,6 +313,8 @@ jobs:
           cat package.json
       - name: Repack
         run: |
+          cd package
+
           TARBALL=`npm pack --ignore-scripts --json | jq -r '.[0].filename'`
 
           echo Repacked in $TARBALL.
@@ -321,7 +323,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: scoped-packages
-          path: ${{ steps.repack.outputs.tarball }}
+          path: package/${{ steps.repack.outputs.tarball }}
 
   github-packages-publish:
     environment:
