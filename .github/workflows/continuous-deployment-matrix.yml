@@ -142,7 +142,7 @@ jobs:
         run: npm pack --json --pack-destination=$PWD --workspaces=true > /tmp/pack-result.json
       - name: Update workspaces file with tarball
         run: |
-          cat workspaces.json | jq --argfile pack /tmp/pack-result.json -rS 'map(.name as $name | . + { tarball: $pack | map(select(.name == $name))[0].filename })' > /tmp/workspaces.json
+          cat workspaces.json | jq --argfile pack /tmp/pack-result.json -rS 'with_entries(.key as $name | . + (.value += { tarball: $pack | map(select(.name == $name))[0].filename }))' > /tmp/workspaces.json
           mv /tmp/workspaces.json workspaces.json
 
           cat workspaces.json
