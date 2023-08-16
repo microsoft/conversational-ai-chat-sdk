@@ -67,6 +67,7 @@ jobs:
 
           cat workspaces.json
 
+          echo '## Workspaces file' >> $GITHUB_STEP_SUMMARY
           echo \<details\>\<summary\>Content of \<code\>workspaces.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
           echo \`\`\`json >> $GITHUB_STEP_SUMMARY
@@ -86,7 +87,7 @@ jobs:
 
           echo '## Build matrix' >> $GITHUB_STEP_SUMMARY
           echo \`\`\`json >> $GITHUB_STEP_SUMMARY
-          cat /tmp/matrix.json >> $GITHUB_STEP_SUMMARY
+          cat /tmp/matrix.json | jq -r >> $GITHUB_STEP_SUMMARY
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
 
   build:
@@ -311,12 +312,16 @@ jobs:
 
           cat package.json
       - name: Repack
-        run: echo tarball=`npm pack --ignore-scripts --json | jq -r '.[0].filename'` >> $GITHUB_OUTPUT
+        run: |
+          TARBALL=`npm pack --ignore-scripts --json | jq -r '.[0].filename'`
+
+          echo Repacked in $TARBALL.
+          echo tarball=$TARBALL >> $GITHUB_OUTPUT
       - name: Upload scoped package
         uses: actions/upload-artifact@v3
         with:
           name: scoped-packages
-          path: ${{ steps.rescope.outputs.tarball }}
+          path: ${{ steps.repack.outputs.tarball }}
 
   github-packages-publish:
     environment:
