@@ -1,0 +1,34 @@
+name: Redirect registry URL in package-lock.json
+description: Redirect registry URL in package-lock.json to another destination.
+inputs:
+  path:
+    description: Path to package-lock.json.
+  registry-url:
+    description: Registry URL to redirect to. Must starts with https://.
+outputs:
+  registry-url: ${{ steps.prepare.outputs.registry-url }}
+runs:
+  using: composite
+  steps:
+    - id: prepare
+      name: Get registry URL
+      run: |
+        if [[ -z "${{ inputs.registry-url }}" ]]
+        then
+          REGISTRY_URL=`npm config get registry`
+        else
+          REGISTRY_URL=${{ inputs.registry-url }}
+        fi
+
+        echo registry-url=$REGISTRY_URL >> $GITHUB_OUTPUT
+        echo Will redirect to $REGISTRY_URL
+    - if: ${{ steps.prepare.outputs.registry-url }} != ''
+      name: 'Sanity check: registry URL must starts with https://'
+      run: if [[ ! "${{ steps.prepare.outputs.registry-url }}" =~ ^https:// ]]; then exit 1; fi
+      shell: bash
+    - name: Redirect package-lock.json
+      run: |
+        cat ${{ inputs.path }}package-lock.json | jq -r '.packages = (.packages | with_entries(.value = (.value | (if ((.link | not) and .resolved) then (.resolved = "${{ steps.prepare.outputs.registry-url }}" + (.resolved | ltrimstr("https://registry.npmjs.org/"))) else . end))))' > /tmp/package-lock.json.tmp
+
+        mv /tmp/package-lock.json.tmp ${{ inputs.path }}package-lock.json
+      shell: bash
