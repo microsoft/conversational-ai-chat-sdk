@@ -249,7 +249,7 @@ jobs:
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
 
   approval:
-    needs: pre-release-approval
+    needs: pre-approval
     # TODO: Add sanity check here
     runs-on: ubuntu-latest
     steps:
