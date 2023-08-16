@@ -300,7 +300,7 @@ jobs:
           ls -l ${{ steps.prepare.outputs.tarball }}
 
           tar -xvf ${{ steps.prepare.outputs.tarball }}
-          cat package.json
+          cat package/package.json
       - id: rescope
         name: Rescope
         run: |
