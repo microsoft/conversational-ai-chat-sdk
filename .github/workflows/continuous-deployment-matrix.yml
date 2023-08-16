@@ -80,7 +80,8 @@ jobs:
           cat package-versions.json >> $GITHUB_STEP_SUMMARY
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
           echo \</details\> >> $GITHUB_STEP_SUMMARY
-      - name: Build matrix
+      - id: build-matrix
+        name: Build matrix
         run: |
           cat package-versions.json | jq -cr 'map(.name) | { "package-name": . }' > /tmp/matrix.json
           echo matrix=`cat /tmp/matrix.json` >> $GITHUB_OUTPUT
