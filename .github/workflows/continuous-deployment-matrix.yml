@@ -79,14 +79,6 @@ jobs:
           done
 
           cat workspaces.json
-
-          echo '## Workspaces file' >> $GITHUB_STEP_SUMMARY
-          echo \<details\>\<summary\>Content of \<code\>workspaces.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
-          echo >> $GITHUB_STEP_SUMMARY
-          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
-          cat workspaces.json >> $GITHUB_STEP_SUMMARY
-          echo \`\`\` >> $GITHUB_STEP_SUMMARY
-          echo \</details\> >> $GITHUB_STEP_SUMMARY
       - name: Upload workspaces file
         uses: actions/upload-artifact@v3
         with:
@@ -100,18 +92,6 @@ jobs:
 
           cat workspaces.json | jq -cr 'map(select(.private | not)) | map(.name) | { "package-name": . }' > /tmp/matrix-public-only.json
           echo matrix-public-only=`cat /tmp/matrix-public-only.json` >> $GITHUB_OUTPUT
-
-          echo '## Build matrix' >> $GITHUB_STEP_SUMMARY
-
-          echo '### All packages' >> $GITHUB_STEP_SUMMARY
-          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
-          cat /tmp/matrix.json | jq -r >> $GITHUB_STEP_SUMMARY
-          echo \`\`\` >> $GITHUB_STEP_SUMMARY
-
-          echo '### Public only' >> $GITHUB_STEP_SUMMARY
-          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
-          cat /tmp/matrix-public-only.json | jq -r >> $GITHUB_STEP_SUMMARY
-          echo \`\`\` >> $GITHUB_STEP_SUMMARY
 
   build:
     environment: build-production
@@ -170,11 +150,111 @@ jobs:
           name: workspaces
           path: ./workspaces.json
 
-  release-upload-workspaces-json:
-    name: 'Release: Upload workspaces file'
+  build-github-pages:
+    name: 'Build: GitHub Pages'
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download packages artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: packages
+      - name: Extract pages package
+        run: |
+          mkdir ./_site/
+          tar --extract --verbose --file=`ls -1 pages-[0-9]*.tgz` --strip-component=2 --directory=./_site/ package/public
+          ls -la ./_site/
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v2
+
+  build-github-packages:
+    name: 'Build: GitHub Packages'
     needs:
       - build
       - prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix-public-only) }}
+    steps:
+      - name: Download workspaces file
+        uses: actions/download-artifact@v3
+        with:
+          name: workspaces
+      - name: Download packages
+        uses: actions/download-artifact@v3
+        with:
+          name: packages
+      - id: prepare
+        name: Prepare
+        run: echo tarball=`cat workspaces.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball'` >> $GITHUB_OUTPUT
+      - name: Extract package
+        run: |
+          ls -l ${{ steps.prepare.outputs.tarball }}
+
+          tar -xvf ${{ steps.prepare.outputs.tarball }}
+          cat package/package.json
+      - id: rescope
+        name: Rescope
+        run: |
+          cat package.json | jq --argfile versions ../workspaces.json -r '. | (.name = "@${{ github.repository_owner }}/" + .name) | (.dependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end))) | (.devDependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end)))' > package.tmp.json
+          mv package.tmp.json package.json
+
+          cat package.json
+        working-directory: ./package
+      - name: Repack
+        run: |
+          TARBALL=`npm pack --ignore-scripts --json | jq -r '.[0].filename'`
+          mv $TARBALL ../${{ steps.prepare.outputs.tarball }}
+        working-directory: ./package
+      - name: Upload scoped package
+        uses: actions/upload-artifact@v3
+        with:
+          name: scoped-packages
+          path: ${{ steps.prepare.outputs.tarball }}
+
+  pre-approval:
+    needs:
+      - build
+      - build-github-packages
+      - build-github-pages
+      - prepare
+    steps:
+      - name: Download workspaces file
+        uses: actions/download-artifact@v3
+        with:
+          name: workspaces
+      - name: Print workspaces file
+        run: |
+          echo '## Workspaces file' >> $GITHUB_STEP_SUMMARY
+          echo \<details\>\<summary\>Content of \<code\>workspaces.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
+          echo >> $GITHUB_STEP_SUMMARY
+          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
+          cat workspaces.json >> $GITHUB_STEP_SUMMARY
+          echo \`\`\` >> $GITHUB_STEP_SUMMARY
+          echo \</details\> >> $GITHUB_STEP_SUMMARY
+      - name: Print publish packages
+          echo '## Packages' >> $GITHUB_STEP_SUMMARY
+
+          echo '### All packages' >> $GITHUB_STEP_SUMMARY
+          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
+          echo '${{ needs.prepare.outputs.matrix }} | jq -r >> $GITHUB_STEP_SUMMARY
+          echo \`\`\` >> $GITHUB_STEP_SUMMARY
+
+          echo '### Public packages' >> $GITHUB_STEP_SUMMARY
+          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
+          echo '${{ needs.prepare.outputs.matrix-public-only }} | jq -r >> $GITHUB_STEP_SUMMARY
+          echo \`\`\` >> $GITHUB_STEP_SUMMARY
+
+  approval:
+    needs: pre-release-approval
+    # TODO: Add sanity check here
+    steps: {}
+
+  release-upload-workspaces-json:
+    name: 'Release: Upload workspaces file'
+    needs:
+      - approval
     permissions:
       contents: write # "contents" is required for modifying releases.
     runs-on: ubuntu-latest
@@ -191,7 +271,7 @@ jobs:
   release-upload-package:
     name: 'Release: Upload package'
     needs:
-      - build
+      - approval
       - prepare
     permissions:
       contents: write # "contents" is required for modifying releases.
@@ -234,9 +314,7 @@ jobs:
   release-upload-pages:
     name: 'Release: Upload pages'
     needs:
-      - build
-      - prepare
-      - github-pages-prepare
+      - approval
     permissions:
       contents: write # "contents" is required for modifying releases.
     runs-on: ubuntu-latest
@@ -292,24 +370,6 @@ jobs:
         name: Publish release
         run: gh release edit ${{ env.publish-tag }} --draft=false --prerelease --repo ${{ github.repository }}
 
-  github-pages-prepare:
-    name: 'GitHub Pages: Prepare'
-    needs:
-      - build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download packages artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: packages
-      - name: Extract pages package
-        run: |
-          mkdir ./_site/
-          tar --extract --verbose --file=`ls -1 pages-[0-9]*.tgz` --strip-component=2 --directory=./_site/ package/public
-          ls -la ./_site/
-      - name: Upload pages artifact
-        uses: actions/upload-pages-artifact@v2
-
   github-pages-deploy:
     environment:
       name: github-pages
@@ -318,7 +378,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     name: 'GitHub Pages: Deploy'
     needs:
-      - github-pages-prepare
+      - approval
     permissions:
       id-token: write
       pages: write
@@ -328,58 +388,13 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v2
 
-  github-packages-prepare:
-    name: 'GitHub Packages: Prepare'
-    needs:
-      - build
-      - prepare
-    runs-on: ubuntu-latest
-    strategy:
-      matrix: ${{ fromJSON(needs.prepare.outputs.matrix-public-only) }}
-    steps:
-      - name: Download workspaces file
-        uses: actions/download-artifact@v3
-        with:
-          name: workspaces
-      - name: Download packages
-        uses: actions/download-artifact@v3
-        with:
-          name: packages
-      - id: prepare
-        name: Prepare
-        run: echo tarball=`cat workspaces.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball'` >> $GITHUB_OUTPUT
-      - name: Extract package
-        run: |
-          ls -l ${{ steps.prepare.outputs.tarball }}
-
-          tar -xvf ${{ steps.prepare.outputs.tarball }}
-          cat package/package.json
-      - id: rescope
-        name: Rescope
-        run: |
-          cat package.json | jq --argfile versions ../workspaces.json -r '. | (.name = "@${{ github.repository_owner }}/" + .name) | (.dependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end))) | (.devDependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end)))' > package.tmp.json
-          mv package.tmp.json package.json
-
-          cat package.json
-        working-directory: ./package
-      - name: Repack
-        run: |
-          TARBALL=`npm pack --ignore-scripts --json | jq -r '.[0].filename'`
-          mv $TARBALL ../${{ steps.prepare.outputs.tarball }}
-        working-directory: ./package
-      - name: Upload scoped package
-        uses: actions/upload-artifact@v3
-        with:
-          name: scoped-packages
-          path: ${{ steps.prepare.outputs.tarball }}
-
   github-packages-publish:
     environment:
       name: github-packages
       url: ${{ steps.prepare.outputs.url }}
     name: 'GitHub Packages: Publish'
     needs:
-      - github-packages-prepare
+      - approval
       - prepare
     outputs:
       url: ${{ steps.prepare.outputs.url }}
