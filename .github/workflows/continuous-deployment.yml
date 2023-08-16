@@ -34,27 +34,32 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - name: 'Sanity check: NPM registry URL is valid'
-        run: if [[ "${{ vars.AZDO_NPM_REGISTRY_URL }}" != */ ]]; then exit 1; fi
+      # - name: 'Sanity check: NPM registry URL is valid'
+      #   run: if [[ "${{ vars.AZDO_NPM_REGISTRY_URL }}" != */ ]]; then exit 1; fi
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Use Node.js ${{ env.node-version }}
-        uses: actions/setup-node@v3
+      - uses: ./.github/actions/setup-node-for-production.yml
         with:
-          always-auth: true
-          cache: npm
           node-version: ${{ env.node-version }}
           registry-url: ${{ vars.AZDO_NPM_REGISTRY_URL }}
-      - name: Configure NPM
-        run: |
-          NPM_REGISTRY_URL_WITHOUT_PROTOCOL=`echo ${{ vars.AZDO_NPM_REGISTRY_URL }} | sed -e 's/^https://'`
+          registry-username: ${{ vars.AZDO_NPM_REGISTRY_USERNAME }}
+      # - name: Use Node.js ${{ env.node-version }}
+      #   uses: actions/setup-node@v3
+      #   with:
+      #     always-auth: true
+      #     cache: npm
+      #     node-version: ${{ env.node-version }}
+      #     registry-url: ${{ vars.AZDO_NPM_REGISTRY_URL }}
+      # - name: Configure NPM
+      #   run: |
+      #     NPM_REGISTRY_URL_WITHOUT_PROTOCOL=`echo ${{ vars.AZDO_NPM_REGISTRY_URL }} | sed -e 's/^https://'`
 
-          npm config delete $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_authToken
-          npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_password=\${NODE_AUTH_PASSWORD}
-          npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:username=${{ vars.AZDO_NPM_REGISTRY_USERNAME }}
+      #     npm config delete $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_authToken
+      #     npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_password=\${NODE_AUTH_PASSWORD}
+      #     npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:username=${{ vars.AZDO_NPM_REGISTRY_USERNAME }}
 
-          npm config get
+      #     npm config get
       - env:
           NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
         run: npm install --global --ignore-scripts semver@latest # Skip scripts to prevent malicious scripts from stealing the token.
@@ -70,6 +75,7 @@ jobs:
 
           for i in `cat package.json | jq -r '.workspaces | join("\n")'`
           do
+            # TODO: Add time
             COMMITTER_DATE=`git log --date=format:%Y%m%d --pretty=format:'%cd' -1 ./$i/`
             COMMITTER_DATE_IN_ISO8601=`git log --pretty=format:'%cI' -1 ./$i/`
             LONG_COMMITISH=`git log --pretty=format:'%H' -1 ./$i/`

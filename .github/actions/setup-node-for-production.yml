@@ -1,0 +1,39 @@
+name: Use Node.js ${{ inputs.node-version }}
+description: Use Node.js ${{ inputs.node-version }}
+inputs:
+  node-version:
+    description: Node version
+    required: true
+    default: lts/Hydrogen
+  registry-url:
+    description: Reputable NPM registry URL
+  registry-username:
+    description: Username for NPM registry
+runs:
+  using: composite
+  steps:
+    - if: ${{ inputs.registry-url }} != ''
+      name: 'Sanity check: NPM registry URL must starts with https://'
+      run: if [[ ! "${{ inputs.registry-url }}" =~ ^https:// ]]; then exit 1; fi
+    - uses: actions/setup-node@v3
+      with:
+        always-auth: true
+        cache: npm
+        node-version: ${{ inputs.node-version }}
+        registry-url: ${{ inputs.registry-url }}
+    - name: Configure NPM
+      run: |
+        npm config get
+
+        NPM_REGISTRY_URL_WITHOUT_PROTOCOL=`echo ${{ inputs.registry-url }} | sed -e 's/^https://'`
+
+        if [[ -z "${{ inputs.registry-username }}" ]]
+        then
+          npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_authToken=\${NODE_AUTH_TOKEN}
+        else
+          npm config delete $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_authToken
+          npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_password=\${NODE_AUTH_PASSWORD}
+          npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:username=${{ inputs.registry-username }}
+        fi
+
+        npm config get
