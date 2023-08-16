@@ -388,10 +388,9 @@ jobs:
         run: |
           TARBALL=`cat workspaces.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball'`
 
+          echo package-name-and-version=`tar -xf $TARBALL --to-stdout package/package.json | jq -r '.name + "@" + .version'` >> $GITHUB_OUTPUT
           echo tarball=$TARBALL >> $GITHUB_OUTPUT
           echo url=${{ github.server_url }}/${{ github.repository_owner }}?tab=packages&repo_name=${{ github.event.repository.name }} >> $GITHUB_OUTPUT
-
-          echo package-name-and-version=`tar -xf ${{ steps.prepare.outputs.tarball }} --to-stdout package/package.json | jq -r '.name + "@" + .version'` >> $GITHUB_OUTPUT
       - name: Set up Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
