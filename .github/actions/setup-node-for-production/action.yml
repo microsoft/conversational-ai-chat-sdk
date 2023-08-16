@@ -15,6 +15,7 @@ runs:
     - if: ${{ inputs.registry-url }} != ''
       name: 'Sanity check: NPM registry URL must starts with https://'
       run: if [[ ! "${{ inputs.registry-url }}" =~ ^https:// ]]; then exit 1; fi
+      shell: bash
     - uses: actions/setup-node@v3
       with:
         always-auth: true
@@ -37,3 +38,4 @@ runs:
         fi
 
         npm config get
+      shell: bash
