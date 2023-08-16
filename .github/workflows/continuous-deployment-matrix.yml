@@ -304,10 +304,14 @@ jobs:
           else
             echo Asset already exists, should not overwrite.
           fi
-      - if: ${{ steps.check-existence.outputs.exist == 'false' }}
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        if: ${{ steps.check-existence.outputs.exist == 'false' }}
         name: Upload new asset
         run: gh release upload ${{ env.publish-tag }} ${{ steps.prepare.outputs.tarball }} --repo ${{ github.repository }}
-      - if: ${{ steps.check-existence.outputs.exist == 'false' }}
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        if: ${{ steps.check-existence.outputs.exist == 'false' }}
         name: Delete obsoleted assets
         run: |
           for ASSET_NAME in `cat assets.json | jq -r --arg name ${{ matrix.package-name }} '.assets | map(select(.name | test($name + "-[0-9]"))) | map(.name) | join("\n")'`
@@ -432,7 +436,10 @@ jobs:
           registry-url: https://npm.pkg.github.com/
       - id: package-existence
         name: Check if package already present
-        run: echo exist=`npm view ${{ steps.prepare.outputs.package-id }} --json 2>/dev/null | jq -r 'if .error then if .error.code == "E404" then false else halt_error(1) end else true end'` >> $GITHUB_OUTPUT
+        run: |
+          EXIST=`npm view ${{ steps.prepare.outputs.package-id }} --json 2>/dev/null | jq -r 'if .error then if .error.code == "E404" then false else "error" end else true end'` && true || exit 1
+
+          echo exist=$EXIST >> $GITHUB_OUTPUT
       - env:
           NODE_AUTH_TOKEN: ${{ github.token }}
         if: ${{ steps.package-existence.outputs.exist == 'false' }}
