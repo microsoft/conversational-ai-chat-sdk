@@ -42,11 +42,7 @@ jobs:
         uses: ./.github/actions/setup-node-for-production
         with:
           node-version: ${{ env.node-version }}
-          registry-url: ${{ vars.AZDO_NPM_REGISTRY_URL }}
-          registry-username: ${{ vars.AZDO_NPM_REGISTRY_USERNAME }}
-      - env:
-          NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
-        run: npm install --global --ignore-scripts semver@latest # Skip scripts to prevent malicious scripts from stealing the token.
+      - run: npm install --global --ignore-scripts semver@latest # Skip scripts to prevent malicious scripts from stealing the token.
       - name: Build workspaces file # This will become source of truth.
         run: |
           BRANCH=`git branch --show-current`
@@ -119,8 +115,6 @@ jobs:
         uses: ./.github/actions/setup-node-for-production
         with:
           node-version: ${{ env.node-version }}
-          registry-url: ${{ vars.AZDO_NPM_REGISTRY_URL }}
-          registry-username: ${{ vars.AZDO_NPM_REGISTRY_USERNAME }}
       - name: Download workspaces file
         uses: actions/download-artifact@v3
         with:
@@ -129,13 +123,9 @@ jobs:
         uses: ./.github/actions/redirect-package-lock
       - # We cannot run "npm version" right after "npx semver". Otherwise, next run of "npx semver" will ignore "-n false".
         # "npm version" will update workspaces. During update, it will need to talk to NPM registry.
-        env:
-          NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
         name: Bump versions
         run: cat workspaces.json | jq -cr 'to_entries | map("--workspace=" + .key + " " + .value.version) | join("\n")' | xargs -L1 npm version
-      - env:
-          NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
-        run: npm clean-install --ignore-scripts # CyberEO: Ignore scripts to prevent malicious scripts from stealing the token.
+      - run: npm clean-install --ignore-scripts # CyberEO: Ignore scripts to prevent malicious scripts from stealing the token.
       - name: Build
         run: npm run build --if-present --workspaces=true
       - name: Pack tarballs
