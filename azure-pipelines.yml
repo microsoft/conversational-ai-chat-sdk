@@ -12,8 +12,8 @@ pool:
 steps:
 - task: NodeTool@0
   inputs:
-    versionSpec: 'lts/Hydrogen'
-  displayName: 'Use Node.js lts/Hydrogen'
+    versionSpec: '18.x'
+  displayName: 'Use Node.js 18.x'
 
 - script: npm clean-install
   displayName: 'npm cleanp-install'
