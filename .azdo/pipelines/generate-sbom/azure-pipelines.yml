@@ -4,7 +4,11 @@ pool:
   vmImage: ubuntu-latest
 
 schedules:
-  - cron: 5 4 * * 0 # At 04:05 on Sunday.
+  - branches:
+      include:
+        - main
+    cron: 5 4 * * 0 # At 04:05 on Sunday.
+    displayName: Weekly Sunday 04:05 run
 
 trigger:
   - release/*
