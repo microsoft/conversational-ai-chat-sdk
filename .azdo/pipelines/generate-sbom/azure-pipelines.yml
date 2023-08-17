@@ -21,27 +21,26 @@ variables:
 steps:
   - task: NodeTool@0
     inputs:
-      versionSpec: '18.x'
-    displayName: 'Use Node.js 18.x'
+      versionSpec: 18.x
+    displayName: Use Node.js 18.x
 
-  - task: SSSC-Setup@0
-    inputs:
-      sourceDirectory: '$(System.DefaultWorkingDirectory)'
+  - scripts: npx https://aka.ms/EnableSecureFeed
+    displayName: Enable secure feed
 
   - script: npm clean-install
-    displayName: 'Run npm clean-install'
+    displayName: Run npm clean-install
 
   - script: npm run build
-    displayName: 'Run npm run build'
+    displayName: Run npm run build
 
   - task: ManifestGeneratorTask@0
-    displayName: 'Generate manifest'
+    displayName: Generate manifest
     inputs:
-      BuildDropPath: '$(Build.SourcesDirectory)'
+      BuildDropPath: $(Build.SourcesDirectory)
       PackageName: powerva-chat-adapter-sdk
 
   - task: PublishPipelineArtifact@1
-    displayName: 'Publish manifest'
+    displayName: Publish manifest
     inputs:
-      targetPath: '$(Build.SourcesDirectory)/_manifest'
+      targetPath: $(Build.SourcesDirectory)/_manifest
       artifact: manifest
