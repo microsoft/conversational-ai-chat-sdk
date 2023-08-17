@@ -1,0 +1,36 @@
+# Generate Software Bill of Material (SBOM) with CodeQL.
+
+pool:
+  vmImage: ubuntu-latest
+
+schedules:
+  - always: true
+    cron: 5 4 * * 0 # At 04:05 on Sunday.
+
+trigger:
+  - release/*
+
+variables:
+  - name: Codeql.Enabled
+    value: true
+
+steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '18.x'
+    displayName: 'Use Node.js 18.x'
+
+  - script: npm clean-install
+    displayName: 'npm clean-install'
+
+  - task: ManifestGeneratorTask@0
+    displayName: 'Generate manifest'
+    inputs:
+      BuildDropPath: '$(Build.SourcesDirectory)'
+      PackageName: powerva-chat-adapter-sdk
+
+  - task: PublishPipelineArtifact@1
+    displayName: 'Publish manifest'
+    inputs:
+      targetPath: '$(Build.SourcesDirectory)/_manifest'
+      artifact: manifest
