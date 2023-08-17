@@ -1,4 +1,4 @@
-# Generate Software Bill of Material (SBOM) with CodeQL.
+# Generate Software Bill of Materials (SBOM) with CodeQL.
 
 pool:
   vmImage: ubuntu-latest
@@ -24,8 +24,15 @@ steps:
       versionSpec: '18.x'
     displayName: 'Use Node.js 18.x'
 
+  - task: SSSC-Setup@0
+    inputs:
+      sourceDirectory: '$(System.DefaultWorkingDirectory)'
+
   - script: npm clean-install
-    displayName: 'npm clean-install'
+    displayName: 'Run npm clean-install'
+
+  - script: npm run build
+    displayName: 'Run npm run build'
 
   - task: ManifestGeneratorTask@0
     displayName: 'Generate manifest'
