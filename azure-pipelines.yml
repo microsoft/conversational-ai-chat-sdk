@@ -1,7 +1,4 @@
-# Node.js
-# Build a general Node.js project with npm.
-# Add steps that analyze code, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
+# Generate SBOM
 
 trigger:
 - main
@@ -16,7 +13,16 @@ steps:
   displayName: 'Use Node.js 18.x'
 
 - script: npm clean-install
-  displayName: 'npm cleanp-install'
+  displayName: 'npm clean-install'
 
-- script: npm run build
-  displayName: 'npm run build'
+- task: ManifestGeneratorTask@0
+  displayName: 'Generate manifest'
+  inputs:
+    BuildDropPath: '$(Build.SourcesDirectory)'
+    PackageName: powerva-chat-adapter-sdk
+
+- task: PublishPipelineArtifact@1
+  displayName: 'Publish manifest'
+  inputs:
+    targetPath: '$(Build.SourcesDirectory)/_manifest'
+    artifact: manifest
