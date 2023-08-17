@@ -1,0 +1,22 @@
+# Node.js
+# Build a general Node.js project with npm.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
+
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- task: NodeTool@0
+  inputs:
+    versionSpec: 'lts/Hydrogen'
+  displayName: 'Use Node.js lts/Hydrogen'
+
+- script: npm clean-install
+  displayName: 'npm cleanp-install'
+
+- script: npm run build
+  displayName: 'npm run build'
