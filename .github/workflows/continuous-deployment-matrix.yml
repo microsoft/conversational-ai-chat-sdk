@@ -9,7 +9,13 @@ on:
       - '.azdo/**'
       - '.devcontainer/**'
       - '.github/**'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      use-secure-feed:
+        default: true
+        description: Use secure feed (required for production)
+        required: true
+        type: boolean
 
 # Do not cancel current run. This is because we are using ${{ github.sha }} to determine what to publish.
 # If current run is cancelled, we will not publish packages for the current run.
@@ -42,6 +48,7 @@ jobs:
         uses: ./.github/actions/setup-node-for-production
         with:
           node-version: ${{ env.node-version }}
+          use-secure-feed: ${{ inputs.use-secure-feed }}
       - run: npm install --global --ignore-scripts semver@latest # Skip scripts to prevent malicious scripts from stealing the token.
       - name: Build workspaces file # This will become source of truth.
         run: |
@@ -115,6 +122,7 @@ jobs:
         uses: ./.github/actions/setup-node-for-production
         with:
           node-version: ${{ env.node-version }}
+          use-secure-feed: ${{ inputs.use-secure-feed }}
       - name: Download workspaces file
         uses: actions/download-artifact@v3
         with:
@@ -439,10 +447,11 @@ jobs:
           # url=https://github.com/compulim/power-virtual-agents-sdk/pkgs/npm/powerva-chat-adapter
           echo url=${{ github.server_url }}/${{ github.repository }}/pkgs/npm/${{ matrix.package-name }} >> $GITHUB_OUTPUT
       - name: Set up Node.js ${{ env.node-version }}
-        uses: actions/setup-node@v3
+        uses: ./.github/actions/setup-node-for-production
         with:
           node-version: ${{ env.node-version }}
           registry-url: https://npm.pkg.github.com/
+          use-secure-feed: ${{ inputs.use-secure-feed }}
       - env:
           NODE_AUTH_TOKEN: ${{ github.token }}
         id: package-existence

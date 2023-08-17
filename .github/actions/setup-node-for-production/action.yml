@@ -2,13 +2,13 @@ name: Setup Node.js environment
 description: Setup a Node.js environment with secure feed.
 inputs:
   node-version:
+    default: lts/Hydrogen
     description: Node version
     required: true
-    default: lts/Hydrogen
   secure-feed:
+    default: true
     description: Use secure feed (required for production)
     required: true
-    default: true
 runs:
   using: composite
   steps:
