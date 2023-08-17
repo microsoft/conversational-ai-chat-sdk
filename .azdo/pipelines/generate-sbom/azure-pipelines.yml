@@ -24,13 +24,13 @@ steps:
       versionSpec: 18.x
     displayName: Use Node.js 18.x
 
-  - scripts: npx https://aka.ms/EnableSecureFeed
+  - bash: npx https://aka.ms/EnableSecureFeed
     displayName: Enable secure feed
 
-  - script: npm clean-install
+  - bash: npm clean-install
     displayName: Run npm clean-install
 
-  - script: npm run build
+  - bash: npm run build
     displayName: Run npm run build
 
   - task: ManifestGeneratorTask@0
