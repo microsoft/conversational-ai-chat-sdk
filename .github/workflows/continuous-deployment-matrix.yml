@@ -44,7 +44,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0 # Infinite depth required for commitish
-      - name: Set up ${{ inputs.node-version }}
+      - name: Set up Node.js ${{ inputs.node-version }}
         uses: actions/setup-node@v3
         with:
           cache: npm
@@ -123,7 +123,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Set up ${{ inputs.node-version }}
+      - name: Set up Node.js ${{ inputs.node-version }}
         uses: actions/setup-node@v3
         with:
           cache: npm
@@ -454,16 +454,11 @@ jobs:
 
           # url=https://github.com/compulim/power-virtual-agents-sdk/pkgs/npm/powerva-chat-adapter
           echo url=${{ github.server_url }}/${{ github.repository }}/pkgs/npm/${{ matrix.package-name }} >> $GITHUB_OUTPUT
-      - name: Set up ${{ inputs.node-version }}
+      - name: Set up Node.js ${{ inputs.node-version }}
         uses: actions/setup-node@v3
         with:
-          cache: npm
           node-version: ${{ inputs.node-version }}
           registry-url: https://npm.pkg.github.com/
-      - if: ${{ inputs.secure-feed }}
-        name: Set up secure feed
-        run: npx https://aka.ms/EnableSecureFeed
-        shell: bash
       - env:
           NODE_AUTH_TOKEN: ${{ github.token }}
         id: package-existence
