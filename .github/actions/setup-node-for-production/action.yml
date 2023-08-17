@@ -18,24 +18,27 @@ runs:
       shell: bash
     - uses: actions/setup-node@v3
       with:
-        always-auth: true
+        # always-auth: true
         cache: npm
         node-version: ${{ inputs.node-version }}
-        registry-url: ${{ inputs.registry-url }}
-    - name: Configure NPM
-      run: |
-        npm config get
-
-        NPM_REGISTRY_URL_WITHOUT_PROTOCOL=`echo ${{ inputs.registry-url }} | sed -e 's/^https://'`
-
-        if [[ -z "${{ inputs.registry-username }}" ]]
-        then
-          npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_authToken=\${NODE_AUTH_TOKEN}
-        else
-          npm config delete $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_authToken
-          npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_password=\${NODE_AUTH_PASSWORD}
-          npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:username=${{ inputs.registry-username }}
-        fi
-
-        npm config get
+        # registry-url: ${{ inputs.registry-url }}
+    - name: Set up secure feed
+      run: npx https://aka.ms/EnableSecureFeed
       shell: bash
+    # - name: Configure NPM
+    #   run: |
+    #     npm config get
+
+    #     NPM_REGISTRY_URL_WITHOUT_PROTOCOL=`echo ${{ inputs.registry-url }} | sed -e 's/^https://'`
+
+    #     if [[ -z "${{ inputs.registry-username }}" ]]
+    #     then
+    #       npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_authToken=\${NODE_AUTH_TOKEN}
+    #     else
+    #       npm config delete $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_authToken
+    #       npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_password=\${NODE_AUTH_PASSWORD}
+    #       npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:username=${{ inputs.registry-username }}
+    #     fi
+
+    #     npm config get
+    #   shell: bash
