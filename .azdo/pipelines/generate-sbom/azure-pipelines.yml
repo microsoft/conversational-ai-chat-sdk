@@ -4,8 +4,7 @@ pool:
   vmImage: ubuntu-latest
 
 schedules:
-  - always: true
-    cron: 5 4 * * 0 # At 04:05 on Sunday.
+  - cron: 5 4 * * 0 # At 04:05 on Sunday.
 
 trigger:
   - release/*
