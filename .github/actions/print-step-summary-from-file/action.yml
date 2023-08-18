@@ -1,0 +1,18 @@
+name: Print step summary from file
+description: Print step summary from file
+inputs:
+  filename:
+    required: true
+  title:
+    required: true
+  type: {}
+runs:
+  using: composite
+  steps:
+    - run: |
+        echo \<details\>\<summary\>${{ inputs.title || inputs.filename }}\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
+        echo >> $GITHUB_STEP_SUMMARY
+        echo \`\`\`${{ inputs.type }} >> $GITHUB_STEP_SUMMARY
+        cat ${{ inputs.filename }} >> $GITHUB_STEP_SUMMARY && true || exit 1
+        echo \`\`\` >> $GITHUB_STEP_SUMMARY
+        echo \</details\> >> $GITHUB_STEP_SUMMARY

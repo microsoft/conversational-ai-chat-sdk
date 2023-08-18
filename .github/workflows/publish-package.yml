@@ -45,25 +45,29 @@ jobs:
         name: Use secure feed
         run: npx https://aka.ms/EnableSecureFeed
         shell: bash
-      - name: 'Sanity check: committed version must be prerelease'
+      - id: get-committed-version
+        name: Get committed version
         run: |
-          if [[ "`cat ${{ steps.look-up-package-path.outputs.path }}/package.json | jq -r .version`" != *-* ]]
-          then
-            exit 1
-          fi
-      - id: compute-production-version
-        name: Compute production version
-        run: |
-          PRERELEASE_VERSION=`cat ${{ steps.look-up-package-path.outputs.path }}/package.json | jq -r .version` && true || exit 1
-          VERSION=`npm exec -- semver --increment patch $PRERELEASE_VERSION` && true || exit 1
+          VERSION=`cat ${{ steps.look-up-package-path.outputs.path }}/package.json | jq -r .version` && true || exit 1
 
-          echo Bumping version from $PRERELEASE_VERSION to $VERSION.
+          echo Committed version is $VERSION.
+          echo version=$VERSION >> $GITHUB_OUTPUT
+      - name: 'Sanity check: committed version must be prerelease'
+        run: if [[ "${{ steps.get-committed-version.outputs.version }}" != *-* ]]; then exit 1; fi
+      - id: compute-production-version
+        name: Compute production version from ${{ steps.get-committed-version.outputs.version }}
+        run: |
+          VERSION=`npm exec -- semver --increment patch ${{ steps.get-committed-version.outputs.version }}` && true || exit 1
+
+          echo Production version will be $VERSION.
           echo version=$VERSION >> $GITHUB_OUTPUT
       - name: Build workflow file
-        run: |
-          jq --arg packageName "${{ inputs.package-name }}" --arg packagePath "${{ steps.look-up-package-path.outputs.path }}" --arg version "${{ steps.compute-production-version.outputs.version }}" -nr '{ packageName: $packageName, packagePath: $packagePath, version: $version }' > workflow.json
-
-          cat workflow.json
+        run: jq --arg packageName "${{ inputs.package-name }}" --arg packagePath "${{ steps.look-up-package-path.outputs.path }}" --arg version "${{ steps.compute-production-version.outputs.version }}" -nr '{ packageName: $packageName, packagePath: $packagePath, version: $version }' > workflow.json
+      - name: Print workflow file
+        uses: ./.github/actions/print-step-summary-from-file
+        with:
+          filename: workflow.json
+          title: Workflow file
       - name: 'Sanity check: workflow.json/packageName must not be empty'
         run: if [[ -z "`cat workflow.json | jq -r .packageName`" ]]; then exit 1; fi
       - name: 'Sanity check: workflow.json/packagePath must not be empty'
@@ -135,27 +139,21 @@ jobs:
           if-no-files-found: error
           name: package
           path: ${{ steps.pack-tarball.outputs.tarball }}
-      - name: Summary
+      - name: Prepare summary
         run: |
-          echo \| Package name \| Version \| >> $GITHUB_STEP_SUMMARY
-          echo \| - \| - \| >> $GITHUB_STEP_SUMMARY
-          echo \| ${{ steps.prepare.outputs.package-name }} \| ${{ steps.prepare.outputs.version }} \| >> $GITHUB_STEP_SUMMARY
-          echo >> $GITHUB_STEP_SUMMARY
-
-          echo \<details\>\<summary\>Content of \<code\>packages/${{ steps.pack-tarball.outputs.tarball }}/package.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
-          echo >> $GITHUB_STEP_SUMMARY
-          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
-          tar --extract --file=${{ steps.pack-tarball.outputs.tarballl }} --to-stdout package/package.json >> $GITHUB_STEP_SUMMARY
-          echo \`\`\` >> $GITHUB_STEP_SUMMARY
-          echo \</details\> >> $GITHUB_STEP_SUMMARY
-          echo >> $GITHUB_STEP_SUMMARY
-
-          echo \<details\>\<summary\>Content of \<code\>${{ steps.pack-tarball.outputs.tarball }}\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
-          echo >> $GITHUB_STEP_SUMMARY
-          echo \`\`\` >> $GITHUB_STEP_SUMMARY
-          tar --list --file=${{ steps.pack-tarball.outputs.tarball }} --verbose >> $GITHUB_STEP_SUMMARY
-          echo \`\`\` >> $GITHUB_STEP_SUMMARY
-          echo \</details\> >> $GITHUB_STEP_SUMMARY
+          tar --extract --file=${{ steps.pack-tarball.outputs.tarball }} --to-stdout package/package.json > extracted-package.json
+          tar --list --file=${{ steps.pack-tarball.outputs.tarball }} --verbose > tarball-content.txt
+      - name: Print content of ${{ steps.pack-tarball.outputs.tarball }}
+        uses: ./.github/actions/print-step-summary-from-file
+        with:
+          filename: tarball-content.txt
+          title: Content of ${{ steps.pack-tarball.outputs.tarball }}
+      - name: Print ${{ steps.pack-tarball.outputs.tarball }}/package.json
+        uses: ./.github/actions/print-step-summary-from-file
+        with:
+          filename: extracted-package.json
+          title: ${{ steps.pack-tarball.outputs.tarball }}/package.json
+          type: json
 
   publish:
     environment:
