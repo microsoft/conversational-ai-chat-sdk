@@ -1,8 +1,5 @@
 # Generate Software Bill of Materials (SBOM) with CodeQL.
 
-pool:
-  vmImage: ubuntu-latest
-
 schedules:
   - cron: 5 4 * * 0 # At 04:05 on Sunday.branches:
     displayName: Weekly Sunday 04:05 run
@@ -18,35 +15,49 @@ variables:
   - name: Codeql.Enabled
     value: true
 
-steps:
-  - task: NodeTool@0
-    inputs:
-      versionSpec: 18.x
-    displayName: Use Node.js 18.x
+jobs:
+  - job: sbom
+    displayName: Software Bills of Materials
+    continueOnError: true
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+      - task: NodeTool@0
+        inputs:
+          versionSpec: 18.x
+        displayName: Use Node.js 18.x
 
-  - bash: npx https://aka.ms/EnableSecureFeed
-    displayName: Enable secure feed
+      - bash: npx https://aka.ms/EnableSecureFeed
+        displayName: Enable secure feed
 
-  - bash: npm clean-install
-    displayName: Run npm clean-install
+      - bash: npm clean-install
+        displayName: Run npm clean-install
 
-  - bash: npm run build
-    displayName: Run npm run build
+      - bash: npm run build
+        displayName: Run npm run build
 
-  - task: ManifestGeneratorTask@0
-    displayName: Generate manifest
-    inputs:
-      BuildDropPath: $(Build.SourcesDirectory)
-      PackageName: powerva-chat-adapter-sdk
+      - task: ManifestGeneratorTask@0
+        displayName: Generate manifest
+        inputs:
+          BuildDropPath: $(Build.SourcesDirectory)
+          PackageName: powerva-chat-adapter-sdk
 
-  - task: PublishPipelineArtifact@1
-    displayName: Publish manifest
-    inputs:
-      targetPath: $(Build.SourcesDirectory)/_manifest
-      artifact: manifest
+      - task: PublishPipelineArtifact@1
+        displayName: Publish manifest
+        inputs:
+          targetPath: $(Build.SourcesDirectory)/_manifest
+          artifact: manifest
 
-  - task: CredScan@3
-    displayName: 'Run Credential Scanner'
+  - job: credscan
+    displayName: Credential Scanner
+    continueOnError: true
+    steps:
+      - task: CredScan@3
+        displayName: 'Run Credential Scanner'
 
-  - task: PoliCheck@2
-    displayName: 'Run PoliCheck'
+  - job: policheck
+    displayName: PoliCheck
+    continueOnError: true
+    steps:
+      - task: PoliCheck@2
+        displayName: 'Run PoliCheck'
