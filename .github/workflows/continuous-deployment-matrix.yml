@@ -139,7 +139,7 @@ jobs:
         # "npm version" will update workspaces. During update, it will need to talk to NPM registry.
         name: Bump versions
         run: cat workspaces.json | jq -cr 'to_entries | map("--workspace=" + .key + " " + .value.version) | join("\n")' | xargs -L1 npm version
-      - run: npm clean-install --ignore-scripts # CyberEO: Ignore scripts to prevent malicious scripts from stealing the token.
+      - run: npm clean-install --ignore-scripts --strict-peer-deps # CyberEO: Ignore scripts to prevent malicious scripts from stealing the token.
       - name: Build
         run: npm run build --if-present --workspaces=true
       - name: Pack tarballs
