@@ -14,7 +14,7 @@ on:
         required: true
         type: choice
 
-concurrency: publish-package/${{ steps.prepare.outputs.package-name }}
+concurrency: publish-package/${{ inputs.package-name }}
 
 env:
   node-version: lts/Hydrogen
@@ -33,10 +33,10 @@ jobs:
         name: Get package path
         uses: ./.github/actions/get-package-path
         with:
-          name: ${{ steps.prepare.outputs.package-name }}
+          name: ${{ inputs.package-name }}
       - name: Build workflow file
         run: |
-          jq --arg packageName "${{ steps.prepare.outputs.package-name }}" --arg packagePath "${{ outputs.get-package-path }}" -nr '{ packageName: $packageName, packagePath: $packagePath }' > workflow.json
+          jq --arg packageName "${{ inputs.package-name }}" --arg packagePath "${{ outputs.get-package-path.outputs.path }}" -nr '{ packageName: $packageName, packagePath: $packagePath }' > workflow.json
 
           cat workflow.json
       - name: Upload workflow file
@@ -47,6 +47,8 @@ jobs:
           path: ./workflow.json
   build:
     name: Build
+    needs:
+      - prepare
     outputs:
       tarball: ${{ steps.pack-tarball.outputs.tarball }}
       version: ${{ steps.bump-version.outputs.version }}
