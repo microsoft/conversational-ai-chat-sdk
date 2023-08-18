@@ -13,16 +13,12 @@ on:
           - powerva-turn-based-chat-adapter-framework
         required: true
         type: choice
-      # use-secure-feed:
-      #   default: true
-      #   description: Use secure feed (required for production)
-      #   required: true
-      #   type: boolean
 
 concurrency: publish-package/${{ inputs.package-name }}
 
 env:
   node-version: lts/Hydrogen
+  use-secure-feed: false # TODO: Temporary set to false during development.
 
 # Notes:
 # - CyberEO: During production build, we must not install packages from npmjs.com.
@@ -36,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - id: look-up-package-path
-        name: Get package path
+        name: Look up package path
         uses: ./.github/actions/look-up-package-path
         with:
           name: ${{ inputs.package-name }}
@@ -45,10 +41,10 @@ jobs:
         with:
           cache: npm
           node-version: ${{ env.node-version }}
-      # TODO: Uncomment this one for production, we must use secure feed.
-      # - name: Use secure feed
-      #   run: npx https://aka.ms/EnableSecureFeed
-      #   shell: bash
+      - if: ${{ env.use-secure-feed }}
+        name: Use secure feed
+        run: npx https://aka.ms/EnableSecureFeed
+        shell: bash
       - name: 'Sanity check: committed version must be prerelease'
         run: |
           if [[ "`cat ${{ steps.look-up-package-path.outputs.path }}/package.json | jq -r .version`" != *-* ]]
@@ -58,8 +54,8 @@ jobs:
       - id: bump-version
         name: Bump version to production
         run: |
-          PRERELEASE_VERSION=`cat ${{ steps.look-up-package-path.outputs.path }}/package.json | jq -r .version`
-          VERSION=`npm exec -- semver --increment patch $PRERELEASE_VERSION`
+          PRERELEASE_VERSION=`cat ${{ steps.look-up-package-path.outputs.path }}/package.json | jq -r .version` && true || exit 1
+          VERSION=`npm exec -- semver --increment patch $PRERELEASE_VERSION` && true || exit 1
 
           echo Bumping version from $PRERELEASE_VERSION to $VERSION.
           echo version=$VERSION >> $GITHUB_OUTPUT
@@ -68,6 +64,20 @@ jobs:
           jq --arg packageName "${{ inputs.package-name }}" --arg packagePath "${{ steps.look-up-package-path.outputs.path }}" --arg version "$VERSION" -nr '{ packageName: $packageName, packagePath: $packagePath, version: $version }' > workflow.json
 
           cat workflow.json
+      - name: 'Sanity check: workflow.json/packageName must not be empty'
+        run: if [[ -z "`cat workflow.json | jq -r .packageName`" ]] then exit 1 fi
+      - name: 'Sanity check: workflow.json/packagePath must not be empty'
+        run: if [[ -z "`cat workflow.json | jq -r .packagePath`" ]] then exit 1 fi
+      - name: 'Sanity check: workflow.json/version must not be empty'
+        run: if [[ -z "`cat workflow.json | jq -r .version`" ]] then exit 1 fi
+      - name: 'Sanity check: workflow.json/packagePath must point to the right package'
+        run: |
+          PACKAGE_PATH=`cat workflow.json | jq -r .packagePath` && true || exit 1
+
+          if [[ "`cat $PACKAGE_PATH/package.json | jq -r .name`" != ${{ inputs.package-name }} ]]
+          then
+            exit 1
+          fi
       - name: Upload workflow file
         uses: actions/upload-artifact@v3
         with:
@@ -105,7 +115,7 @@ jobs:
       - id: bump-version
         name: Bump version to production
         run: |
-          npm version --no-git-tag-version --workspace=${{ steps.prepare.outputs.package-name }} ${{ steps.prepare.outputs.version }}
+          npm version --no-git-tag-version --workspace=${{ steps.prepare.outputs.package-name }} ${{ steps.prepare.outputs.version }} && true || exit 1
 
           cat ${{ steps.prepare.outputs.package-path }}/package.json
       - name: Run npm clean-install
@@ -115,7 +125,7 @@ jobs:
       - id: pack-tarball
         name: Pack tarball
         run: |
-          TARBALL=`npm pack --json --pack-destination=$PWD --workspace=${{ steps.prepare.outputs.package-name }} | jq -r '.[0].file'`
+          TARBALL=`npm pack --json --pack-destination=$PWD --workspace=${{ steps.prepare.outputs.package-name }} | jq -r '.[0].filename'` && true || exit 1
 
           echo Packed as $TARBALL.
           echo tarball=$TARBALL >> $GITHUB_OUTPUT
@@ -149,7 +159,7 @@ jobs:
 
   publish:
     environment:
-      name: npm-publish
+      name: ${{ matrix.registry == '' && 'npm-publish' || '' }}
       url: ${{ steps.publish.outputs.url }}
     name: Publish
     needs:

@@ -24,6 +24,9 @@ runs:
         do
           if [[ "`cat $i/package.json | jq -r '.name'`" == "${{ inputs.name }}" ]]
           then
+            echo Found package "${{ inputs.name }}" at $i/package.json.
+            cat $i/package.json
+
             echo path=$i >> $GITHUB_OUTPUT
             exit 0
           fi
