@@ -9,7 +9,7 @@ runs:
   using: composite
   steps:
     - run: |
-        echo \<details\>\<summary\>${{ inputs.title || ("Content of " + inputs.path) }}\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
+        echo \<details\>\<summary\>${{ inputs.title || ('Content of ' + inputs.path) }}\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
         echo >> $GITHUB_STEP_SUMMARY
         echo \`\`\`${{ inputs.type }} >> $GITHUB_STEP_SUMMARY
         cat ${{ inputs.path }} >> $GITHUB_STEP_SUMMARY && true || exit 1
