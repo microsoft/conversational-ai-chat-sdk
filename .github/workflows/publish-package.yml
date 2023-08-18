@@ -171,7 +171,7 @@ jobs:
     strategy:
       matrix:
         registry:
-          - ''
+          - https://registry.npmjs.org/
           - https://npm.pkg.github.com/
     steps:
       - uses: actions/checkout@v3
@@ -192,7 +192,7 @@ jobs:
         name: Prepare
         run: |
           echo package-name=`cat workflow.json | jq -r '.packageName'` >> $GITHUB_OUTPUT
-          echo token=${{ matrix.registry == '' && secrets.NPM_TOKEN || github.token }} >> $GITHUB_OUTPUT
+          echo token=${{ matrix.registry == 'https://npm.pkg.github.com/' && github.token || secrets.NPM_TOKEN }} >> $GITHUB_OUTPUT
           echo version=`cat workflow.json | jq -r '.version'` >> $GITHUB_OUTPUT
       - id: has-published
         name: Checks if ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }} is already published
