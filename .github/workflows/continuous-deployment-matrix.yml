@@ -33,7 +33,6 @@ env:
 jobs:
   # TODO: Add "prepare" job to prepare workspaces file
   prepare:
-    environment: build-production
     name: Prepare
     outputs:
       # TODO: Do we need all matrix? Looks like we are using public-only matrix.
@@ -114,7 +113,6 @@ jobs:
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
 
   build:
-    environment: build-production
     name: Build
     needs:
       - prepare
