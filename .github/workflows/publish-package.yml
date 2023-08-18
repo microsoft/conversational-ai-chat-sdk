@@ -63,7 +63,7 @@ jobs:
       - name: Print workflow control file
         uses: .github/actions/print-step-summary-from-file
         with:
-          filename: workflow.json
+          path: workflow.json
           title: Workflow control file
       - name: 'Sanity check: workflow.json/packageName must not be empty'
         run: if [[ -z "`cat workflow.json | jq -r .packageName`" ]]; then exit 1; fi
@@ -120,7 +120,7 @@ jobs:
       - name: Print bumped package.json
         uses: .github/actions/print-step-summary-from-file
         with:
-          filename: ${{ steps.prepare.outputs.package-path }}/package.json
+          path: ${{ steps.prepare.outputs.package-path }}/package.json
           title: Content of ${{ steps.prepare.outputs.package-path }}/package.json
           type: json
       - name: Run npm clean-install
@@ -146,7 +146,7 @@ jobs:
       - name: Print workflow control file
         uses: .github/actions/print-step-summary-from-file
         with:
-          filename: workflow.json
+          path: workflow.json
           title: Workflow control file
           type: json
       - name: Upload workflow control file
@@ -162,12 +162,12 @@ jobs:
       - name: Print content of ${{ steps.pack-tarball.outputs.tarball }}
         uses: .github/actions/print-step-summary-from-file
         with:
-          filename: /tmp/tarball-content.txt
+          path: /tmp/tarball-content.txt
           title: List of content of ${{ steps.pack-tarball.outputs.tarball }}
       - name: Print ${{ steps.pack-tarball.outputs.tarball }}/package.json
         uses: .github/actions/print-step-summary-from-file
         with:
-          filename: /tmp/extracted-package.json
+          path: /tmp/extracted-package.json
           title: Content of ${{ steps.pack-tarball.outputs.tarball }}/package.json
           type: json
 
@@ -342,7 +342,7 @@ jobs:
       - name: Print package.json
         uses: .github/actions/print-step-summary-from-file
         with:
-          filename: ${{ steps.prepare.outputs.package-path }}/package.json
+          path: ${{ steps.prepare.outputs.package-path }}/package.json
           title: Content of ${{ steps.prepare.outputs.package-name }}/package.json
           type: json
       - name: Stage package-lock.json
