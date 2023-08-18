@@ -141,7 +141,7 @@ jobs:
           path: ${{ steps.pack-tarball.outputs.tarball }}
       - name: Update workflow control file
         run: |
-          cat workflow.json | jq --argfile tarball "${{ steps.pack-tarball.outputs.tarball }}" -r '. + { tarball: $tarball }' | tee /tmp/workflow.json
+          cat workflow.json | jq --arg tarball "${{ steps.pack-tarball.outputs.tarball }}" -r '. + { tarball: $tarball }' | tee /tmp/workflow.json
           mv /tmp/workflow.json workflow.json
       - name: Print workflow control file
         uses: ./.github/actions/print-step-summary-from-file
