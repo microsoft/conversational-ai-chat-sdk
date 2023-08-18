@@ -1,5 +1,5 @@
 name: Publish package
-run-name: 'Publish: ${{ steps.prepare.outputs.package-name }}'
+run-name: 'Publish: ${{ inputs.package-name }}'
 
 on:
   workflow_dispatch:
