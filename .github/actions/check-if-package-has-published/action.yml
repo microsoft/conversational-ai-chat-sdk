@@ -25,5 +25,5 @@ runs:
       run: |
         PUBLISHED=`cat /tmp/output.json | jq -r 'if .error then if .error.code == "E404" then false else halt_error(1) end else true end'` && true || exit 1
 
-        echo published=$PUBLISHED >> $GITHUB_OUTPUT
+        echo published=$PUBLISHED | tee --append $GITHUB_OUTPUT
       shell: bash
