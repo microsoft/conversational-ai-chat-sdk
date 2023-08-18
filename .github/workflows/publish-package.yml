@@ -49,18 +49,14 @@ jobs:
         name: Get committed version
         run: |
           VERSION=`cat ${{ steps.look-up-package-path.outputs.path }}/package.json | jq -r .version` && true || exit 1
-
-          echo Committed version is $VERSION.
-          echo version=$VERSION >> $GITHUB_OUTPUT
+          echo version=$VERSION | tee --append $GITHUB_OUTPUT
       - name: 'Sanity check: committed version must be prerelease'
         run: if [[ "${{ steps.get-committed-version.outputs.version }}" != *-* ]]; then exit 1; fi
       - id: compute-production-version
         name: Compute production version from ${{ steps.get-committed-version.outputs.version }}
         run: |
           VERSION=`npm exec -- semver --increment patch ${{ steps.get-committed-version.outputs.version }}` && true || exit 1
-
-          echo Production version will be $VERSION.
-          echo version=$VERSION >> $GITHUB_OUTPUT
+          echo version=$VERSION | tee --append $GITHUB_OUTPUT
       - name: Build workflow control file
         run: |
           jq --arg packageName "${{ inputs.package-name }}" --arg packagePath "${{ steps.look-up-package-path.outputs.path }}" --arg version "${{ steps.compute-production-version.outputs.version }}" -nr '{ packageName: $packageName, packagePath: $packagePath, version: $version }' | tee workflow.json
@@ -105,9 +101,9 @@ jobs:
       - id: prepare
         name: Prepare
         run: |
-          echo package-name=`cat workflow.json | jq -r '.packageName'` >> $GITHUB_OUTPUT
-          echo package-path=`cat workflow.json | jq -r '.packagePath'` >> $GITHUB_OUTPUT
-          echo version=`cat workflow.json | jq -r '.version'` >> $GITHUB_OUTPUT
+          echo package-name=`cat workflow.json | jq -r '.packageName'` | tee --append $GITHUB_OUTPUT
+          echo package-path=`cat workflow.json | jq -r '.packagePath'` | tee --append $GITHUB_OUTPUT
+          echo version=`cat workflow.json | jq -r '.version'` | tee --append $GITHUB_OUTPUT
       - name: Use Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
@@ -121,8 +117,12 @@ jobs:
         name: Bump version to production
         run: |
           npm version --no-git-tag-version --workspace=${{ steps.prepare.outputs.package-name }} ${{ steps.prepare.outputs.version }} && true || exit 1
-
-          cat ${{ steps.prepare.outputs.package-path }}/package.json
+      - name: Print bumped package.json
+        uses: ./.github/actions/print-step-summary-from-file
+        with:
+          filename: ${{ steps.prepare.outputs.package-path }}/package.json
+          title: Content of ${{ steps.prepare.outputs.package-path }}/package.json
+          type: json
       - name: Run npm clean-install
         run: npm clean-install --ignore-scripts # Prevents malicious scripts from stealing our token.
       - name: Build
@@ -132,9 +132,7 @@ jobs:
         run: |
           npm pack --json --pack-destination=$PWD --workspace=${{ steps.prepare.outputs.package-name }} | tee /tmp/output.json
           TARBALL=`cat /tmp/output.json | jq -r '.[0].filename'` && true || exit 1
-
-          echo Packed as $TARBALL.
-          echo tarball=$TARBALL >> $GITHUB_OUTPUT
+          echo tarball=$TARBALL | tee --append $GITHUB_OUTPUT
       - name: Upload tarball
         uses: actions/upload-artifact@v3
         with:
@@ -150,6 +148,7 @@ jobs:
         with:
           filename: workflow.json
           title: Workflow control file
+          type: json
       - name: Upload workflow control file
         uses: actions/upload-artifact@v3
         with:
@@ -206,11 +205,17 @@ jobs:
       - id: prepare
         name: Prepare
         run: |
-          echo package-name=`cat workflow.json | jq -r '.packageName'` >> $GITHUB_OUTPUT
-          echo tarball=`cat workflow.json | jq -r '.tarball'` >> $GITHUB_OUTPUT
+          PACKAGE_NAME=`cat workflow.json | jq -r '.packageName'`
+          TARBALL=`cat workflow.json | jq -r '.tarball'`
+          VERSION=`cat workflow.json | jq -r '.version'`
+
+          URL=https://npmjs.com/package/$PACKAGE_NAME/v/$VERSION
+
+          echo package-name=$PACKAGE_NAME | tee --append $GITHUB_OUTPUT
+          echo tarball=$TARBALL | tee --append $GITHUB_OUTPUT
           echo token=${{ matrix.registry == 'https://npm.pkg.github.com/' && github.token || secrets.NPM_TOKEN }} >> $GITHUB_OUTPUT
-          echo url=https://npmjs.com/package/${{ steps.prepare.outputs.package-name }}/v/${{ steps.prepare.outputs.version }} >> $GITHUB_OUTPUT
-          echo version=`cat workflow.json | jq -r '.version'` >> $GITHUB_OUTPUT
+          echo url=$URL | tee --append $GITHUB_OUTPUT
+          echo version=$VERSION | tee --append $GITHUB_OUTPUT
       - name: 'Sanity check: tarball exists'
         run: |
           compgen -G ${{ steps.prepare.outputs.tarball }}
@@ -231,7 +236,7 @@ jobs:
   create-release:
     environment:
       name: pull-request
-      url: ${{ steps.create-release.outputs.url }}
+      url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.prepare.output.tag }}
     name: Create release
     needs:
       - build
@@ -255,33 +260,25 @@ jobs:
           PACKAGE_NAME=`cat workflow.json | jq -r '.packageName'`
           VERSION=`cat workflow.json | jq -r '.version'`
 
-          echo package-name=$PACKAGE_NAME >> $GITHUB_OUTPUT
-          echo tag=release/$PACKAGE_NAME/v$VERSION
-          echo version=$VERSION >> $GITHUB_OUTPUT
+          TAG=release/$PACKAGE_NAME/v$VERSION
+
+          echo package-name=$PACKAGE_NAME | tee --append $GITHUB_OUTPUT
+          echo tag=$TAG | tee --append $GITHUB_OUTPUT
+          echo version=$VERSION | tee --append $GITHUB_OUTPUT
       - # We need to use "gh api" to create a tag/ref.
         # Otherwise, if last commit was modifying workflow, it will fail with permission issues.
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         id: push-tag
         name: Push tag
-        run: |
-          URL=${{ github.server_url }}/${{ github.repository }}/tree/${{ steps.prepare.outputs.tag }}
-
-          gh api repos/${{ github.repository }}/git/refs --field ref=refs/tags/${{ steps.prepare.outputs.tag }} --field sha=${{ github.sha }}
-
-          echo Tag [\`${{ steps.prepare.outputs.tag }}\`]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ steps.prepare.outputs.tag }}\) created. >> $GITHUB_STEP_SUMMARY
+        run: gh api repos/${{ github.repository }}/git/refs --field ref=refs/tags/${{ steps.prepare.outputs.tag }} --field sha=${{ github.sha }}
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         id: create-release
         name: Create release
         run: |
           DATE=`date +%F`
-          URL=${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.push-tag.outputs.tag }}
-
           gh release create ${{ steps.push-tag.outputs.tag }} ./*.tgz --repo ${{ github.repository }} --title "${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }} - $DATE"
-          echo url=$URL >> $GITHUB_OUTPUT
-
-          echo Release at $URL >> $GITHUB_STEP_SUMMARY
 
   pull-request-create-bump-version:
     environment:
