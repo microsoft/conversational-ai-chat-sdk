@@ -57,9 +57,20 @@ jobs:
         run: |
           VERSION=`npm exec -- semver --increment patch ${{ steps.get-committed-version.outputs.version }}` && true || exit 1
           echo version=$VERSION | tee --append $GITHUB_OUTPUT
+      - id: compute-next-prerelease-version
+        name: Compute next prerelease version from ${{ steps.compute-production-version.outputs.version }}
+        run: |
+          VERSION=`npm exec -- semver --increment prepatch ${{ steps.compute-production-version.outputs.version }}` && true || exit 1
+          echo version=$VERSION | tee --append $GITHUB_OUTPUT
       - name: Build workflow control file
         run: |
-          jq --arg packageName "${{ inputs.package-name }}" --arg packagePath "${{ steps.look-up-package-path.outputs.path }}" --arg version "${{ steps.compute-production-version.outputs.version }}" -nr '{ packageName: $packageName, packagePath: $packagePath, version: $version }' | tee workflow.json
+          jq
+            --arg nextVersion "${{ steps.compute-next-prerelease-version.outputs.version }}"
+            --arg packageName "${{ inputs.package-name }}"
+            --arg packagePath "${{ steps.look-up-package-path.outputs.path }}"
+            --arg version "${{ steps.compute-production-version.outputs.version }}"
+            -nr
+            '{ nextVersion: $nextVersion, packageName: $packageName, packagePath: $packagePath, version: $version }' | tee workflow.json
       - name: Print workflow control file
         uses: ./.github/actions/print-step-summary-from-file
         with:
@@ -174,7 +185,7 @@ jobs:
   publish:
     environment:
       name: ${{ matrix.registry == '' && 'npm-publish' || '' }}
-      url: ${{ steps.publish.outputs.url }}
+      url: ${{ steps.result.outputs.url }}
     name: Publish
     needs:
       - build
@@ -232,6 +243,16 @@ jobs:
         if: ${{ steps.has-published.outputs.published == 'false' }}
         name: Publish ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }}
         run: echo npm publish --access public --json --provenance ${{ needs.build.outputs.tarball }}
+      - id: result
+        name: Result
+        run: |
+          if [[ "${{ matrix.registry }}" == "https://registry.npmjs.org/" ]]
+            echo url=https://npmjs.com/package/${{ steps.prepare.outputs.package-name }}/v/${{ steps.prepare.outputs.version }}
+          then
+          elif [[ "${{ matrix.registry }}" == "https://npm.pkg.github.com/" ]]
+          then
+            echo url=${{ github.server_url }}/${{ github.repository }}/pkgs/npm/${{ steps.prepare.outputs.package-name }}
+          fi
 
   create-release:
     environment:
@@ -304,6 +325,7 @@ jobs:
         with:
           cache: npm
           node-version: ${{ env.node-version }}
+          registry-url: https://npm.pkg.github.com/
       - if: ${{ env.use-secure-feed != 'false' }}
         name: Use secure feed
         run: npx https://aka.ms/EnableSecureFeed
@@ -311,10 +333,10 @@ jobs:
       - id: prepare
         name: Prepare
         run: |
+          NEXT_VERSION=`cat workflow.json | jq -r '.nextVersion'`
           PACKAGE_NAME=`cat workflow.json | jq -r '.packageName'`
           PACKAGE_PATH=`cat workflow.json | jq -r '.packagePath'`
           VERSION=`cat workflow.json | jq -r '.version'`
-          NEXT_VERSION=`npx semver -i prepatch $VERSION`
 
           BRANCH_NAME=bot/postpublish/$PACKAGE_NAME/v$NEXT_VERSION
 
@@ -332,12 +354,14 @@ jobs:
           git config user.name "@${{ github.actor }}"
 
           git checkout -b ${{ steps.prepare.outputs.branch-name }}
-      - name: Bump CHANGELOG.md
+      - name: Bump ${{ steps.prepare.outputs.package-path }}/CHANGELOG.md
         run: npx keep-a-changelog --file="${{ steps.prepare.outputs.package-path }}/CHANGELOG.md" --format=markdownlint --url="${{ github.server_url }}/${{ github.repository }}" --release="${{ steps.prepare.outputs.version }}"
-      - name: Stage CHANGELOG.md
+      - name: Stage ${{ steps.prepare.outputs.package-path }}/CHANGELOG.md
         run: git add ${{ steps.prepare.outputs.package-path }}/CHANGELOG.md
-      - id: bump-version
-        name: Bump package.json to ${{ steps.prepare.outputs.next-version }}
+      - env:
+          NODE_AUTH_TOKEN: ${{ github.token }}
+        id: bump-version
+        name: Bump ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.next-version }}
         run: npm version --no-git-tag-version --workspace=${{ steps.prepare.outputs.package-name }} ${{ steps.prepare.outputs.next-version }}
       - name: Print package.json
         uses: ./.github/actions/print-step-summary-from-file
