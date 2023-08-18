@@ -63,7 +63,7 @@ jobs:
           echo version=$VERSION >> $GITHUB_OUTPUT
       - name: Build workflow control file
         run: |
-          jq --arg packageName "${{ inputs.package-name }}" --arg packagePath "${{ steps.look-up-package-path.outputs.path }}" --arg version "${{ steps.compute-production-version.outputs.version }}" -nr '{ packageName: $packageName, packagePath: $packagePath, version: $version }' > workflow.json
+          jq --arg packageName "${{ inputs.package-name }}" --arg packagePath "${{ steps.look-up-package-path.outputs.path }}" --arg version "${{ steps.compute-production-version.outputs.version }}" -nr '{ packageName: $packageName, packagePath: $packagePath, version: $version }' | tee workflow.json
       - name: Print workflow control file
         uses: ./.github/actions/print-step-summary-from-file
         with:
@@ -88,7 +88,7 @@ jobs:
         with:
           if-no-files-found: error
           name: workflow
-          path: ./workflow.json
+          path: workflow.json
   build:
     name: Build
     needs:
@@ -141,6 +141,21 @@ jobs:
           if-no-files-found: error
           name: package
           path: ${{ steps.pack-tarball.outputs.tarball }}
+      - name: Update workflow control file
+        run: |
+          cat workflow.json | jq -r '. + { tarball: $tarball }' | tee /tmp/workflow.json
+          mv /tmp/workflow.json workflow.json
+      - name: Print updated workflow control file
+        uses: ./.github/actions/print-step-summary-from-file
+        with:
+          filename: workflow.json
+          title: Workflow control file
+      - name: Upload workflow control file
+        uses: actions/upload-artifact@v3
+        with:
+          if-no-files-found: error
+          name: workflow
+          path: workflow.json
       - name: Prepare summary
         run: |
           tar --extract --file=${{ steps.pack-tarball.outputs.tarball }} --to-stdout package/package.json | tee /tmp/extracted-package.json
@@ -192,8 +207,14 @@ jobs:
         name: Prepare
         run: |
           echo package-name=`cat workflow.json | jq -r '.packageName'` >> $GITHUB_OUTPUT
+          echo tarball=`cat workflow.json | jq -r '.tarball'` >> $GITHUB_OUTPUT
           echo token=${{ matrix.registry == 'https://npm.pkg.github.com/' && github.token || secrets.NPM_TOKEN }} >> $GITHUB_OUTPUT
+          echo url=https://npmjs.com/package/${{ steps.prepare.outputs.package-name }}/v/${{ steps.prepare.outputs.version }} >> $GITHUB_OUTPUT
           echo version=`cat workflow.json | jq -r '.version'` >> $GITHUB_OUTPUT
+      - name: 'Sanity check: tarball exists'
+        run: |
+          compgen -G ${{ steps.prepare.outputs.tarball }}
+          ls ${{ steps.prepare.outputs.tarball }}
       - id: has-published
         name: Checks if ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }} is already published
         uses: ./.github/actions/check-if-package-has-published
@@ -205,15 +226,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ steps.prepare.outputs.token }}
         if: ${{ steps.has-published.outputs.published == 'false' }}
         name: Publish ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }}
-        run: |
-          ls -l ${{ steps.prepare.outputs.tarball }}
-          echo npm publish --access public --json --provenance ${{ needs.build.outputs.tarball }}
-
-          URL=https://npmjs.com/package/${{ steps.prepare.outputs.package-name }}/v/${{ steps.prepare.outputs.version }}
-
-          echo Published to $URL. >> $GITHUB_STEP_SUMMARY
-
-          echo url=$URL >> $GITHUB_OUTPUT
+        run: echo npm publish --access public --json --provenance ${{ needs.build.outputs.tarball }}
 
   create-release:
     environment:
