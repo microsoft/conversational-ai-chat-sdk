@@ -29,6 +29,7 @@ jobs:
     name: Prepare
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
       - id: get-package-path
         name: Get package path
         uses: ./.github/actions/get-package-path
@@ -140,7 +141,7 @@ jobs:
     environment:
       name: npm-publish
       url: ${{ steps.publish.outputs.url }}
-    name: Publish to NPMJS
+    name: Publish
     needs:
       - build
     permissions:
