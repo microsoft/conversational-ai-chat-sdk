@@ -52,7 +52,7 @@ jobs:
     displayName: Trust Services Automation
     continueOnError: true
     pool:
-      vmImage: ubuntu-latest
+      vmImage: windows-latest # PoliCheck requires Windows
     steps:
       - task: CredScan@3
         displayName: 'Run Credential Scanner'
