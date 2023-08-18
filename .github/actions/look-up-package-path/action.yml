@@ -1,5 +1,5 @@
-name: Get path of a package
-description: Get path of a package given its name
+name: Look up package path
+description: Look up package path given its package name
 inputs:
   name:
     description: Name of the package
@@ -19,12 +19,17 @@ runs:
     - id: get-package-path
       name: Get package path
       run: |
-        cat package.json
-        npm ls --workspace=${{ inputs.name }} --json
+        # We cannot use "npm ls" because this could run before "npm ci".
+        for i in `cat package.json | jq -r '.workspaces | join("\n")'`
+        do
+          if [[ "`cat $i/package.json | jq -r '.name'`" == "${{ inputs.name }}" ]]
+          then
+            echo path=$i >> $GITHUB_OUTPUT
+            exit 0
+          fi
+        done
 
-        PATH=`npm ls --workspace=${{ inputs.name }} --json | jq --arg "packageName" ${{ inputs.name }} -r '.dependencies[$packageName].resolved | ltrimstr("file:../") | if . then . else halt_error(1) end'` && true || exit 1
-
-        echo path=$PATH >> $GITHUB_OUTPUT
+        exit 1
       shell: bash
     - name: 'Sanity check: path contains the specific package'
       run:

@@ -30,14 +30,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - id: get-package-path
+      - id: look-up-package-path
         name: Get package path
-        uses: ./.github/actions/get-package-path
+        uses: ./.github/actions/look-up-package-path
         with:
           name: ${{ inputs.package-name }}
       - name: Build workflow file
         run: |
-          jq --arg packageName "${{ inputs.package-name }}" --arg packagePath "${{ steps.get-package-path.outputs.path }}" -nr '{ packageName: $packageName, packagePath: $packagePath }' > workflow.json
+          jq --arg packageName "${{ inputs.package-name }}" --arg packagePath "${{ steps.look-up-package-path.outputs.path }}" -nr '{ packageName: $packageName, packagePath: $packagePath }' > workflow.json
 
           cat workflow.json
       - name: Upload workflow file
