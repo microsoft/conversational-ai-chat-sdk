@@ -13,12 +13,17 @@ runs:
     - name: 'Sanity check: root package.json exists'
       run: compgen -G package.json
       shell: bash
-    - name: 'Sanity check: root package.json is workspace-enabled'
+    - name: 'Sanity check: root package.json is a workspace'
       run: cat package.json | jq -r 'if .workspaces | length > 0 then empty else halt_error(1) end'
       shell: bash
     - id: get-package-path
       name: Get package path
-      run: echo path=`npm ls --workspace=${{ inputs.name }} --json | jq --arg packageName ${{ inputs.name }} -r '.dependencies[$packageName].resolved | ltrimstr("file:../") | if . then . else halt_error(1) end'` >> $GITHUB_OUTPUT
+      run: |
+        npm ls --workspace=${{ inputs.name }} --json
+
+        PATH=`npm ls --workspace=${{ inputs.name }} --json | jq --arg "packageName" ${{ inputs.name }} -r '.dependencies[$packageName].resolved | ltrimstr("file:../") | if . then . else halt_error(1) end'` && true || exit 1
+
+        echo path=$PATH >> $GITHUB_OUTPUT
       shell: bash
     - name: 'Sanity check: path contains the specific package'
       run:
