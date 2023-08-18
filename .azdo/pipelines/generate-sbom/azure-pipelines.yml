@@ -44,3 +44,9 @@ steps:
     inputs:
       targetPath: $(Build.SourcesDirectory)/_manifest
       artifact: manifest
+
+  - task: CredScan@3
+    displayName: 'Run Credential Scanner'
+
+  - task: PoliCheck@2
+    displayName: 'Run PoliCheck'
