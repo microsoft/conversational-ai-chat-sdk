@@ -41,7 +41,7 @@ jobs:
         with:
           cache: npm
           node-version: ${{ env.node-version }}
-      - if: ${{ env.use-secure-feed }}
+      - if: ${{ env.use-secure-feed != 'false' }}
         name: Use secure feed
         run: npx https://aka.ms/EnableSecureFeed
         shell: bash
@@ -108,10 +108,10 @@ jobs:
         with:
           cache: npm
           node-version: ${{ env.node-version }}
-      # TODO: Uncomment this one for production, we must use secure feed.
-      # - name: Use secure feed
-      #   run: npx https://aka.ms/EnableSecureFeed
-      #   shell: bash
+      - if: ${{ env.use-secure-feed != 'false' }}
+        name: Use secure feed
+        run: npx https://aka.ms/EnableSecureFeed
+        shell: bash
       - id: bump-version
         name: Bump version to production
         run: |
@@ -295,10 +295,10 @@ jobs:
         with:
           cache: npm
           node-version: ${{ env.node-version }}
-      # TODO: Temporarily disable secure feed.
-      # - name: Use secure feed
-      #   run: npx https://aka.ms/EnableSecureFeed
-      #   shell: bash
+      - if: ${{ env.use-secure-feed != 'false' }}
+        name: Use secure feed
+        run: npx https://aka.ms/EnableSecureFeed
+        shell: bash
       - id: prepare
         name: Prepare
         run: |
