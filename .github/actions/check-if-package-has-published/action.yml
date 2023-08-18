@@ -19,7 +19,7 @@ runs:
         NODE_AUTH_TOKEN: ${{ inputs.token }}
       id: check-publish-status
       run: |
-        npm view ${{ inputs.name }}@{{ inputs.version }} --json 2>/dev/null | tee /tmp/output.json
+        npm view ${{ inputs.name }}@${{ inputs.version }} --json 2>/dev/null | tee /tmp/output.json
         PUBLISHED=`cat /tmp/output.json | jq -r 'if .error then if .error.code == "E404" then false else halt_error(1) end else true end'` && true || exit 1
 
         echo published=$PUBLISHED >> $GITHUB_OUTPUT
