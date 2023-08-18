@@ -173,6 +173,7 @@ jobs:
           - ''
           - https://npm.pkg.github.com/
     steps:
+      - uses: actions/checkout@v3
       - name: Download workflow file
         uses: actions/download-artifact@v3
         with:
