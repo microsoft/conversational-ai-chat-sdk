@@ -100,13 +100,13 @@ jobs:
           cat workspaces.json | jq -r 'map(select(.private | not)) | map(.name) | { "package-name": . }' > /tmp/matrix-public-only.json
           echo matrix-public-only=`cat /tmp/matrix-public-only.json | jq -cr` >> $GITHUB_OUTPUT
       - name: Print all packages
-        uses: .github/actions/print-step-summary-from-file
+        uses: ./.github/actions/print-step-summary-from-file
         with:
           path: /tmp/matrix.json
           title: All packages
           type: json
       - name: Print public packages
-        uses: .github/actions/print-step-summary-from-file
+        uses: ./.github/actions/print-step-summary-from-file
         with:
           path: /tmp/matrix-public-only.json
           title: Public packages
@@ -172,7 +172,7 @@ jobs:
           name: workspaces
           path: ./workspaces.json
       - name: Print workflow control file
-        uses: .github/actions/print-step-summary-from-file
+        uses: ./.github/actions/print-step-summary-from-file
         with:
           path: ./workspaces.json
           title: Workflow control file
