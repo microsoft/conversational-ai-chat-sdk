@@ -50,7 +50,7 @@ jobs:
           cache: npm
           node-version: ${{ inputs.node-version }}
           registry-url: https://npm.pkg.github.com/
-      - if: ${{ inputs.secure-feed }}
+      - if: ${{ inputs.use-secure-feed }}
         name: Set up secure feed
         run: npx https://aka.ms/EnableSecureFeed
         shell: bash
@@ -129,7 +129,7 @@ jobs:
           cache: npm
           node-version: ${{ inputs.node-version }}
           registry-url: https://npm.pkg.github.com/
-      - if: ${{ inputs.secure-feed }}
+      - if: ${{ inputs.use-secure-feed }}
         name: Set up secure feed
         run: npx https://aka.ms/EnableSecureFeed
         shell: bash
