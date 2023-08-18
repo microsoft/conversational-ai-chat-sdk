@@ -94,23 +94,23 @@ jobs:
       - id: build-matrix
         name: Build matrix
         run: |
-          cat workspaces.json | jq -cr 'map(.name) | { "package-name": . }' > /tmp/matrix.json
-          echo matrix=`cat /tmp/matrix.json` >> $GITHUB_OUTPUT
+          cat workspaces.json | jq -r 'map(.name) | { "package-name": . }' > /tmp/matrix.json
+          echo matrix=`cat /tmp/matrix.json | jq -cr` >> $GITHUB_OUTPUT
 
-          cat workspaces.json | jq -cr 'map(select(.private | not)) | map(.name) | { "package-name": . }' > /tmp/matrix-public-only.json
-          echo matrix-public-only=`cat /tmp/matrix-public-only.json` >> $GITHUB_OUTPUT
-
-          echo '## Packages' >> $GITHUB_STEP_SUMMARY
-
-          echo '### All packages' >> $GITHUB_STEP_SUMMARY
-          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
-          cat /tmp/matrix.json | jq -r >> $GITHUB_STEP_SUMMARY
-          echo \`\`\` >> $GITHUB_STEP_SUMMARY
-
-          echo '### Public packages' >> $GITHUB_STEP_SUMMARY
-          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
-          cat /tmp/matrix-public-only.json | jq -r >> $GITHUB_STEP_SUMMARY
-          echo \`\`\` >> $GITHUB_STEP_SUMMARY
+          cat workspaces.json | jq -r 'map(select(.private | not)) | map(.name) | { "package-name": . }' > /tmp/matrix-public-only.json
+          echo matrix-public-only=`cat /tmp/matrix-public-only.json | jq -cr` >> $GITHUB_OUTPUT
+      - name: Print all packages
+        uses: ./.github/actions/print-step-summary-from-file
+        with:
+          filename: /tmp/matrix.json
+          title: All packages
+          type: json
+      - name: Print public packages
+        uses: ./.github/actions/print-step-summary-from-file
+        with:
+          filename: /tmp/matrix-public-only.json
+          title: Public packages
+          type: json
 
   build:
     name: Build
@@ -171,15 +171,12 @@ jobs:
         with:
           name: workspaces
           path: ./workspaces.json
-      - name: Print workspaces file
-        run: |
-          echo '## Workspaces file' >> $GITHUB_STEP_SUMMARY
-          echo \<details\>\<summary\>Content of \<code\>workspaces.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
-          echo >> $GITHUB_STEP_SUMMARY
-          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
-          cat ./workspaces.json >> $GITHUB_STEP_SUMMARY
-          echo \`\`\` >> $GITHUB_STEP_SUMMARY
-          echo \</details\> >> $GITHUB_STEP_SUMMARY
+      - name: Print workflow control file
+        uses: ./.github/actions/print-step-summary-from-file
+        with:
+          filename: ./workspaces.json
+          title: Workflow control file
+          type: json
 
   build-github-pages:
     name: 'Build: GitHub Pages'
