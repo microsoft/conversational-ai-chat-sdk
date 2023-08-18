@@ -1,5 +1,5 @@
 name: Publish package
-run-name: 'Publish: ${{ inputs.package-name }}'
+run-name: 'Publish: ${{ steps.prepare.outputs.package-name }}'
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ on:
         required: true
         type: choice
 
-concurrency: publish-package/${{ inputs.package-name }}
+concurrency: publish-package/${{ steps.prepare.outputs.package-name }}
 
 env:
   node-version: lts/Hydrogen
@@ -25,121 +25,136 @@ env:
 # - CyberEO: Limit token usage. Only expose token in steps, rather than in jobs.
 
 jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    steps:
+      - id: get-package-path
+        name: Get package path
+        uses: ./.github/actions/get-package-path
+        with:
+          name: ${{ steps.prepare.outputs.package-name }}
+      - name: Build workflow file
+        run: |
+          jq --arg packageName "${{ steps.prepare.outputs.package-name }}" --arg packagePath "${{ outputs.get-package-path }}" -nr '{ packageName: $packageName, packagePath: $packagePath }' > workflow.json
+
+          cat workflow.json
+      - name: Upload workflow file
+        uses: actions/upload-artifact@v3
+        with:
+          if-no-files-found: error
+          name: workflow
+          path: ./workflow.json
   build:
-    environment: build-production
     name: Build
     outputs:
-      package-path: ${{ steps.get-package-json.outputs.package-path }}
-      tarball-path: ${{ steps.pack-tarball.outputs.tarball-path }}
+      tarball: ${{ steps.pack-tarball.outputs.tarball }}
       version: ${{ steps.bump-version.outputs.version }}
     runs-on: ubuntu-latest
     steps:
-      - name: 'Sanity check: NPM registry URL is valid'
-        run: if [[ "${{ vars.AZDO_NPM_REGISTRY_URL }}" != */ ]]; then exit 1; fi
       - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
         with:
-          fetch-depth: 0
+          name: workflow
+      - id: prepare
+        name: Prepare
+        run: |
+          echo package-name=`cat workflow.json | jq -r '.packageName'` >> $GITHUB_OUTPUT
+          echo package-path=`cat workflow.json | jq -r '.packagePath'` >> $GITHUB_OUTPUT
       - name: Use Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
-          always-auth: true
           cache: npm
           node-version: ${{ env.node-version }}
-          registry-url: ${{ vars.AZDO_NPM_REGISTRY_URL }}
-      - name: Configure NPM
-        run: |
-          NPM_REGISTRY_URL_WITHOUT_PROTOCOL=`echo ${{ vars.AZDO_NPM_REGISTRY_URL }} | sed -e 's/^https://'`
-
-          npm config delete $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_authToken
-          npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:_password=\${NODE_AUTH_PASSWORD}
-          npm config set $NPM_REGISTRY_URL_WITHOUT_PROTOCOL:username=${{ vars.AZDO_NPM_REGISTRY_USERNAME }}
-
-          npm config get
-      - name: Redirect package-lock.json
-        run: |
-          cat package-lock.json | jq -r '.packages = (.packages | with_entries(.value = (.value | (if ((.link | not) and .resolved) then (.resolved = "${{ vars.AZDO_NPM_REGISTRY_URL }}" + (.resolved | ltrimstr("https://registry.npmjs.org/"))) else . end))))' > package-lock.json.tmp
-          mv package-lock.json.tmp package-lock.json
-      - run: npm clean-install --ignore-scripts
-      - # Gets the path of the package which match inputs.package-name.
-        id: get-package-json
-        name: Get package JSON
-        run: echo package-path=`npm ls --workspace=${{ inputs.package-name }} --json | jq --arg packageName ${{ inputs.package-name }} -r '.dependencies[$packageName].resolved | ltrimstr("file:../") | if . then . else halt_error(1) end'` >> $GITHUB_OUTPUT
-      - name: 'Sanity check: found package path'
-        run: |
-          ls -l ${{ steps.get-package-json.outputs.package-path }}
-          compgen -G ${{ steps.get-package-json.outputs.package-path }}/package.json
-      - name: 'Sanity check: package.json/name is same as package-name'
-        run: |
-          cat ${{ steps.get-package-json.outputs.package-path }}/package.json | jq '.name'
-          cat ${{ steps.get-package-json.outputs.package-path }}/package.json | jq '.name == "${{ inputs.package-name }}" | if . then empty else halt_error(1) end'
-      - name: 'Sanity check: package.json/version must be prerelease'
-        run: |
-          cat ${{ steps.get-package-json.outputs.package-path }}/package.json | jq '.version'
-          cat ${{ steps.get-package-json.outputs.package-path }}/package.json | jq '.version | contains("-") | if . then empty else halt_error(1) end'
+      # TODO: Uncomment this one for production, we must use secure feed.
+      # - name: Use secure feed
+      #   run: npx https://aka.ms/EnableSecureFeed
+      #   shell: bash
       - id: bump-version
         name: Bump version
         run: |
-          npm version --no-git-tag-version --workspace=${{ inputs.package-name }} patch
-          echo version=`npm version --json --workspace=${{ inputs.package-name }} | jq --arg packageName ${{ inputs.package-name }} -r '.[$packageName]'` >> $GITHUB_OUTPUT
-          cat ${{ steps.get-package-json.outputs.package-path }}/package.json
-      - env:
-          NODE_AUTH_PASSWORD: ${{ secrets.AZDO_NPM_REGISTRY_PASSWORD }}
+          npm version --no-git-tag-version --workspace=${{ steps.prepare.outputs.package-name }} patch
+
+          cat ${{ steps.prepare.outputs.outputs.package-path }}/package.json
+
+          VERSION=`cat ${{ steps.prepare.outputs.outputs.package-path }}/package.json | jq -r '.version'`
+
+          echo Bumped to $PACKAGE_ID.
+
+          echo version=$VERSION >> $GITHUB_OUTPUT
+      - name: Run npm clean-install
         run: npm clean-install --ignore-scripts # Prevents malicious scripts from stealing our token.
       - name: Build
         run: npm run build --if-present --workspaces=true
       - id: pack-tarball
         name: Pack tarball
         run: |
-          npm pack --pack-destination=$PWD --workspace=${{ inputs.package-name }}
-          echo tarball-path=${{ inputs.package-name }}-${{ steps.bump-version.outputs.version }}.tgz >> $GITHUB_OUTPUT
-      - name: 'Sanity check: got tarball'
-        run: compgen -G ${{ steps.pack-tarball.outputs.tarball-path }}
+          TARBALL=`npm pack --json --pack-destination=$PWD --workspace=${{ steps.prepare.outputs.package-name }} | jq -r '.[0].file'`
+
+          echo Packed to $TARBALL.
+
+          echo tarball=$TARBALL >> $GITHUB_OUTPUT
       - name: Upload tarball artifact
         uses: actions/upload-artifact@v3
         with:
+          if-no-files-found: error
           name: package
-          path: ${{ steps.pack-tarball.outputs.tarball-path }}
+          path: ${{ steps.pack-tarball.outputs.tarball }}
+      - name: Update workflow file
+        run: |
+          cat ./workflow.json | jq --arg version "${{ steps.pack-tarball.outputs.version }}" -r '. + { version: $version }' > /tmp/workflow.json
+          mv /tmp/workflow.json ./workflow.json
 
-  prepare-to-publish:
-    name: Prepare
-    needs:
-      - build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download tarball artifact
-        uses: actions/download-artifact@v3
+          cat ./workflow.json
+      - name: Upload workflow file
+        uses: actions/upload-artifact@v3
         with:
-          name: package
+          if-no-files-found: error
+          name: workflow
+          path: ./workflow.json
       - name: Summary
         run: |
           echo \| Package name \| Version \| >> $GITHUB_STEP_SUMMARY
           echo \| - \| - \| >> $GITHUB_STEP_SUMMARY
-          echo \| ${{ inputs.package-name }} \| ${{ needs.build.outputs.version }} \| >> $GITHUB_STEP_SUMMARY
+          echo \| ${{ steps.prepare.outputs.package-name }} \| ${{ steps.bump-version.outputs.version }} \| >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
-          echo \<details\>\<summary\>Content of \<code\>packages/${{ inputs.package-name }}/package.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
+
+          echo \<details\>\<summary\>Content of \<code\>packages/${{ steps.pack-tarball.outputs.tarball }}/package.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
           echo \`\`\`json >> $GITHUB_STEP_SUMMARY
-          tar --extract --file=${{ needs.build.outputs.tarball-path }} --to-stdout package/package.json >> $GITHUB_STEP_SUMMARY
+          tar --extract --file=${{ steps.pack-tarball.outputs.tarballl }} --to-stdout package/package.json >> $GITHUB_STEP_SUMMARY
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
           echo \</details\> >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
-          echo \<details\>\<summary\>Content of \<code\>${{ needs.build.outputs.tarball-path }}\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
+
+          echo \<details\>\<summary\>Content of \<code\>${{ steps.pack-tarball.outputs.tarball }}\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
-          tar --list --file=${{ needs.build.outputs.tarball-path }} --verbose >> $GITHUB_STEP_SUMMARY
+          tar --list --file=${{ steps.pack-tarball.outputs.tarball }} --verbose >> $GITHUB_STEP_SUMMARY
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
           echo \</details\> >> $GITHUB_STEP_SUMMARY
 
-  publish-to-npm:
+  publish:
     environment:
       name: npm-publish
       url: ${{ steps.publish.outputs.url }}
-    name: Publish to NPM
+    name: Publish to NPMJS
     needs:
       - build
-      - prepare-to-publish
+    permissions:
+      contents: read
+      id-token: write
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        registry:
+          - ''
+          - https://npm.pkg.github.com/
     steps:
+      - name: Download workflow file
+        uses: actions/download-artifact@v3
+        with:
+          name: workflow
       - name: Download tarball artifact
         uses: actions/download-artifact@v3
         with:
@@ -148,33 +163,66 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.node-version }}
-      - # TODO: Add publish to NPM
-        id: publish
-        name: Publish
+          registry-url: ${{ matrix.registry }}
+      - id: prepare
+        name: Prepare
         run: |
-          echo TODO: npm publish --access public ${{ needs.build.outputs.tarball-path }}
+          echo package-name=`cat workflow.json | jq -r '.packageName'` >> $GITHUB_OUTPUT
+          echo version=`cat workflow.json | jq -r '.version'` >> $GITHUB_OUTPUT
 
-          URL=https://npmjs.com/package/${{ inputs.package-name }}/v/${{ needs.build.outputs.version }}
-          echo url=$URL >> $GITHUB_OUTPUT
+          echo package-id=`tar -xf ${{ needs.build.outputs.tarball }} --to-stdout package/package.json | jq -r '.name + "@" + .version'` >> $GITHUB_OUTPUT
+          echo token=${{ matrix.registry === '' && secrets.NPM_TOKEN || github.token }}
+      - id: has-published
+        name: Checks if the package has already published
+        uses: ./.github/actions/check-if-package-has-published
+        with:
+          name: ${{ steps.prepare.outputs.package-name }}
+          token: ${{ steps.prepare.outputs.token }}
+          version: ${{ needs.build.outputs.versions }}
+      - env:
+          NODE_AUTH_TOKEN: ${{ steps.prepare.outputs.token }}
+        if: ${{ steps.has-published.outputs.published == 'false' }}
+        name: Publish ${{ steps.prepare.outputs.package-id }}
+        run: |
+          ls -l ${{ steps.prepare.outputs.tarball }}
+          echo npm publish --access public --json --provenance ${{ needs.build.outputs.tarball }}
+
+          URL=https://npmjs.com/package/${{ steps.prepare.outputs.package-name }}/v/${{ steps.prepare.outputs.version }}
+
           echo Published to $URL. >> $GITHUB_STEP_SUMMARY
+
+          echo url=$URL >> $GITHUB_OUTPUT
 
   create-release:
     environment:
       name: pull-request
       url: ${{ steps.create-release.outputs.url }}
-    name: Create tag
+    name: Create release
     needs:
       - build
-      - publish-to-npm
+      - publish
     permissions:
       contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Download workflow file
+        uses: actions/download-artifact@v3
+        with:
+          name: workflow
       - name: Download tarball artifact
         uses: actions/download-artifact@v3
         with:
           name: package
+      - id: prepare
+        name: Prepare
+        run: |
+          PACKAGE_NAME=`cat workflow.json | jq -r '.packageName'`
+          VERSION=`cat workflow.json | jq -r '.version'`
+
+          echo package-name=$PACKAGE_NAME >> $GITHUB_OUTPUT
+          echo tag=release/$PACKAGE_NAME/v$VERSION
+          echo version=$VERSION >> $GITHUB_OUTPUT
       - # We need to use "gh api" to create a tag/ref.
         # Otherwise, if last commit was modifying workflow, it will fail with permission issues.
         env:
@@ -182,15 +230,11 @@ jobs:
         id: push-tag
         name: Push tag
         run: |
-          TAG=release/${{ inputs.package-name }}/v${{ needs.build.outputs.version }}
-          URL=${{ github.server_url }}/${{ github.repository }}/tree/$TAG
+          URL=${{ github.server_url }}/${{ github.repository }}/tree/${{ steps.prepare.outputs.tag }}
 
-          gh api repos/${{ github.repository }}/git/refs --field ref=refs/tags/$TAG --field sha=${{ github.sha }}
+          gh api repos/${{ github.repository }}/git/refs --field ref=refs/tags/${{ steps.prepare.outputs.tag }} --field sha=${{ github.sha }}
 
-          echo tag=$TAG >> $GITHUB_OUTPUT
-          echo url=$URL >> $GITHUB_OUTPUT
-
-          echo Tag [\`$TAG\`]\($URL\) created. >> $GITHUB_STEP_SUMMARY
+          echo Tag [\`${{ steps.prepare.outputs.tag }}\`]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ steps.prepare.outputs.tag }}\) created. >> $GITHUB_STEP_SUMMARY
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         id: create-release
@@ -199,19 +243,19 @@ jobs:
           DATE=`date +%F`
           URL=${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.push-tag.outputs.tag }}
 
-          gh release create ${{ steps.push-tag.outputs.tag }} ./*.tgz --repo ${{ github.repository }} --title "${{ inputs.package-name }}@${{ needs.build.outputs.version }} - $DATE"
+          gh release create ${{ steps.push-tag.outputs.tag }} ./*.tgz --repo ${{ github.repository }} --title "${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }} - $DATE"
           echo url=$URL >> $GITHUB_OUTPUT
 
           echo Release at $URL >> $GITHUB_STEP_SUMMARY
 
-  create-bump-prepatch-pull-request:
+  pull-request-create-bump-version:
     environment:
       name: pull-request
       url: ${{ steps.create-pull-request.outputs.url }}
-    name: Create pull request to bump to prepatch
+    name: Create pull request to bump
     needs:
       - build
-      - publish-to-npm
+      - publish
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -219,57 +263,69 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+      - name: Download workflow file
+        uses: actions/download-artifact@v3
+        with:
+          name: workflow
       - name: Use Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
           cache: npm
           node-version: ${{ env.node-version }}
+      # TODO: Temporarily disable secure feed.
+      # - name: Use secure feed
+      #   run: npx https://aka.ms/EnableSecureFeed
+      #   shell: bash
       - id: prepare
         name: Prepare
         run: |
-          VERSION=`npx semver -i prepatch ${{ needs.build.outputs.version }}`
-          BRANCH_NAME=bot/postpublish/${{ inputs.package-name }}/v$VERSION
+          PACKAGE_NAME=`cat workflow.json | jq -r '.packageName'`
+          PACKAGE_PATH=`cat workflow.json | jq -r '.packagePath'`
+          VERSION=`cat workflow.json | jq -r '.version'`
+          NEXT_VERSION=`npx semver -i prepatch $VERSION`
+          BRANCH_NAME=bot/postpublish/$PACKAGE_NAME/v$NEXT_VERSION
 
           echo branch-name=$BRANCH_NAME >> $GITHUB_OUTPUT
+          echo next-version=$NEXT_VERSION >> $GITHUB_OUTPUT
+          echo package-name=$PACKAGE_NAME >> $GITHUB_OUTPUT
           echo version=$VERSION >> $GITHUB_OUTPUT
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         id: create-branch
         name: Create branch
         run: |
-          git config user.email "${{ format('@{0}', github.actor) }}"
-          git config user.name "${{ format('@{0}', github.actor) }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git config user.name "@${{ github.actor }}"
 
           git checkout -b ${{ steps.prepare.outputs.branch-name }}
-
-          echo branch-name=${{ steps.prepare.outputs.branch-name }} >> $GITHUB_OUTPUT
       - name: Bump CHANGELOG.md
         run: |
-          npx keep-a-changelog --file="./packages/${{ inputs.package-name }}/CHANGELOG.md" --format=markdownlint --url="${{ github.server_url }}/${{ github.repository }}" --release="${{ needs.build.outputs.version }}"
-          git add ./packages/${{ inputs.package-name }}/CHANGELOG.md
-      - id: bump-to-prepatch
-        name: Bump to prepatch
+          npx keep-a-changelog --file="${{ steps.prepare.outputs.package-path }}/CHANGELOG.md" --format=markdownlint --url="${{ github.server_url }}/${{ github.repository }}" --release="${{ steps.prepare.outputs.version }}"
+          git add ${{ steps.prepare.outputs.package-path }}/CHANGELOG.md
+      - id: bump-version
+        name: Bump version to prepatch
         run: |
-          npm version --no-git-tag-version --workspace=${{ inputs.package-name }} ${{ steps.prepare.outputs.version }}
+          npm version --no-git-tag-version --workspace=${{ steps.prepare.outputs.package-name }} ${{ steps.prepare.outputs.next-version }}
 
           git add ./package-lock.json
-          git add ./packages/${{ inputs.package-name }}/package.json
+          git add ${{ steps.prepare.outputs.package-path }}/package.json
 
-          cat ./packages/${{ inputs.package-name }}/package.json
+          cat ${{ steps.prepare.outputs.package-path }}/package.json
 
-          echo Bump [\`${{ inputs.package-name }}\`]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref_name }}/packages/${{ inputs.package-name }}/\) to \`${{ steps.prepare.outputs.version }}\`. >> $GITHUB_STEP_SUMMARY
+          echo Bump [\`${{ steps.prepare.outputs.package-name }}\`]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref_name }}/packages/${{ steps.prepare.outputs.package-name }}/\) to \`${{ steps.prepare.outputs.version }}\`. >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
-          echo \<details\>\<summary\>Content of \<code\>packages/${{ inputs.package-name }}/package.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
+
+          echo \<details\>\<summary\>Content of \<code\>${{ steps.prepare.outputs.package-name }}/package.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
           echo \`\`\`json >> $GITHUB_STEP_SUMMARY
-          cat ./packages/${{ inputs.package-name }}/package.json >> $GITHUB_STEP_SUMMARY
+          cat ${{ steps.prepare.outputs.package-path }}/package.json >> $GITHUB_STEP_SUMMARY
           echo \`\`\` >> $GITHUB_STEP_SUMMARY
           echo \</details\> >> $GITHUB_STEP_SUMMARY
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         name: Commit branch
         run: |
-          git commit -m "Bump ${{ inputs.package-name }}@${{ steps.bump-to-prepatch.outputs.version }}"
+          git commit -m "Bump ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.next-version }}"
           git push --set-upstream origin ${{ steps.prepare.outputs.branch-name }}
 
           echo Branch created at [\`${{ steps.prepare.outputs.branch-name }}\`]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ steps.prepare.outputs.branch-name }}\). >> $GITHUB_STEP_SUMMARY

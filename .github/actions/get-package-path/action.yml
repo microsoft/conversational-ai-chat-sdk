@@ -1,0 +1,31 @@
+name: Get path of a package
+description: Get path of a package given its name
+inputs:
+  name:
+    description: Name of the package
+    required: true
+outputs:
+  path:
+    value: ${{ steps.get-package-path.outputs.path }}
+runs:
+  using: composite
+  steps:
+    - name: 'Sanity check: root package.json exists'
+      run: compgen -G package.json
+      shell: bash
+    - name: 'Sanity check: root package.json is workspace-enabled'
+      run: cat package.json | jq -r 'if .workspaces | length > 0 then empty else halt_error(1) end'
+      shell: bash
+    - id: get-package-path
+      name: Get package path
+      run: echo path=`npm ls --workspace=${{ inputs.package-name }} --json | jq --arg packageName ${{ inputs.package-name }} -r '.dependencies[$packageName].resolved | ltrimstr("file:../") | if . then . else halt_error(1) end'` >> $GITHUB_OUTPUT
+      shell: bash
+    - name: 'Sanity check: path contains the specific package'
+      run:
+        PACKAGE_NAME=`cat ${{ steps.get-package-path.outputs.path }}/package.json | jq -r '.name'`
+
+        if [[ "$PACKAGE_NAME" != "${{ inputs.package-name" ]]
+        then
+          exit 1
+        fi
+      shell: bash
