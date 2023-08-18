@@ -62,7 +62,8 @@ jobs:
           echo Production version will be $VERSION.
           echo version=$VERSION >> $GITHUB_OUTPUT
       - name: Build workflow file
-        run: jq --arg packageName "${{ inputs.package-name }}" --arg packagePath "${{ steps.look-up-package-path.outputs.path }}" --arg version "${{ steps.compute-production-version.outputs.version }}" -nr '{ packageName: $packageName, packagePath: $packagePath, version: $version }' > workflow.json
+        run: |
+          jq --arg packageName "${{ inputs.package-name }}" --arg packagePath "${{ steps.look-up-package-path.outputs.path }}" --arg version "${{ steps.compute-production-version.outputs.version }}" -nr '{ packageName: $packageName, packagePath: $packagePath, version: $version }' > workflow.json
       - name: Print workflow file
         uses: ./.github/actions/print-step-summary-from-file
         with:
