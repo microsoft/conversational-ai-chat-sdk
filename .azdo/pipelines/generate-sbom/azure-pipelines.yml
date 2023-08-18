@@ -58,3 +58,7 @@ jobs:
         displayName: 'Run Credential Scanner'
       - task: PoliCheck@2
         displayName: 'Run PoliCheck'
+      - task: ESLint@1
+        displayName: 'Run ESLint'
+        inputs:
+          Configuration: recommended
