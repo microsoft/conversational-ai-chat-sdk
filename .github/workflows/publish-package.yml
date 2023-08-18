@@ -13,6 +13,11 @@ on:
           - powerva-turn-based-chat-adapter-framework
         required: true
         type: choice
+      # use-secure-feed:
+      #   default: true
+      #   description: Use secure feed (required for production)
+      #   required: true
+      #   type: boolean
 
 concurrency: publish-package/${{ inputs.package-name }}
 
@@ -35,9 +40,29 @@ jobs:
         uses: ./.github/actions/look-up-package-path
         with:
           name: ${{ inputs.package-name }}
+      - name: Use Node.js ${{ env.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          cache: npm
+          node-version: ${{ env.node-version }}
+      - name: 'Sanity check: committed version must be prerelease'
+        run: |
+          if [[ "`cat ${{ steps.look-up-package-path.outputs.path }}/package.json | jq -r .version`" != *-* ]]
+          then
+            exit 1
+          fi
+      - id: bump-version
+        name: Bump version to production
+        run: |
+          PRERELEASE_VERSION=`cat ${{ steps.look-up-package-path.outputs.path }}/package.json | jq -r .version`
+
+          VERSION=`npm exec --offline -- semver --increment patch $PRERELEASE_VERSION`
+
+          echo Bumping version from $PRERELEASE_VERSION to $VERSION.
+          echo version=$VERSION >> $GITHUB_OUTPUT
       - name: Build workflow file
         run: |
-          jq --arg packageName "${{ inputs.package-name }}" --arg packagePath "${{ steps.look-up-package-path.outputs.path }}" -nr '{ packageName: $packageName, packagePath: $packagePath }' > workflow.json
+          jq --arg packageName "${{ inputs.package-name }}" --arg packagePath "${{ steps.look-up-package-path.outputs.path }}" --arg version "$VERSION" -nr '{ packageName: $packageName, packagePath: $packagePath, version: $version }' > workflow.json
 
           cat workflow.json
       - name: Upload workflow file
@@ -64,6 +89,7 @@ jobs:
         run: |
           echo package-name=`cat workflow.json | jq -r '.packageName'` >> $GITHUB_OUTPUT
           echo package-path=`cat workflow.json | jq -r '.packagePath'` >> $GITHUB_OUTPUT
+          echo version=`cat workflow.json | jq -r '.version'` >> $GITHUB_OUTPUT
       - name: Use Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
@@ -74,17 +100,11 @@ jobs:
       #   run: npx https://aka.ms/EnableSecureFeed
       #   shell: bash
       - id: bump-version
-        name: Bump version
+        name: Bump version to production
         run: |
-          npm version --no-git-tag-version --workspace=${{ steps.prepare.outputs.package-name }} patch
+          npm version --no-git-tag-version --workspace=${{ steps.prepare.outputs.package-name }} ${{ steps.prepare.outputs.version }}
 
           cat ${{ steps.prepare.outputs.outputs.package-path }}/package.json
-
-          VERSION=`cat ${{ steps.prepare.outputs.outputs.package-path }}/package.json | jq -r '.version'`
-
-          echo Bumped to $PACKAGE_ID.
-
-          echo version=$VERSION >> $GITHUB_OUTPUT
       - name: Run npm clean-install
         run: npm clean-install --ignore-scripts # Prevents malicious scripts from stealing our token.
       - name: Build
@@ -94,32 +114,19 @@ jobs:
         run: |
           TARBALL=`npm pack --json --pack-destination=$PWD --workspace=${{ steps.prepare.outputs.package-name }} | jq -r '.[0].file'`
 
-          echo Packed to $TARBALL.
-
+          echo Packed as $TARBALL.
           echo tarball=$TARBALL >> $GITHUB_OUTPUT
-      - name: Upload tarball artifact
+      - name: Upload tarball
         uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error
           name: package
           path: ${{ steps.pack-tarball.outputs.tarball }}
-      - name: Update workflow file
-        run: |
-          cat ./workflow.json | jq --arg version "${{ steps.pack-tarball.outputs.version }}" -r '. + { version: $version }' > /tmp/workflow.json
-          mv /tmp/workflow.json ./workflow.json
-
-          cat ./workflow.json
-      - name: Upload workflow file
-        uses: actions/upload-artifact@v3
-        with:
-          if-no-files-found: error
-          name: workflow
-          path: ./workflow.json
       - name: Summary
         run: |
           echo \| Package name \| Version \| >> $GITHUB_STEP_SUMMARY
           echo \| - \| - \| >> $GITHUB_STEP_SUMMARY
-          echo \| ${{ steps.prepare.outputs.package-name }} \| ${{ steps.bump-version.outputs.version }} \| >> $GITHUB_STEP_SUMMARY
+          echo \| ${{ steps.prepare.outputs.package-name }} \| ${{ steps.prepare.outputs.version }} \| >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
 
           echo \<details\>\<summary\>Content of \<code\>packages/${{ steps.pack-tarball.outputs.tarball }}/package.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
