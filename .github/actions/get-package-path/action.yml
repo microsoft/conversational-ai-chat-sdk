@@ -18,13 +18,13 @@ runs:
       shell: bash
     - id: get-package-path
       name: Get package path
-      run: echo path=`npm ls --workspace=${{ inputs.package-name }} --json | jq --arg packageName ${{ inputs.package-name }} -r '.dependencies[$packageName].resolved | ltrimstr("file:../") | if . then . else halt_error(1) end'` >> $GITHUB_OUTPUT
+      run: echo path=`npm ls --workspace=${{ inputs.name }} --json | jq --arg packageName ${{ inputs.name }} -r '.dependencies[$packageName].resolved | ltrimstr("file:../") | if . then . else halt_error(1) end'` >> $GITHUB_OUTPUT
       shell: bash
     - name: 'Sanity check: path contains the specific package'
       run:
         PACKAGE_NAME=`cat ${{ steps.get-package-path.outputs.path }}/package.json | jq -r '.name'`
 
-        if [[ "$PACKAGE_NAME" != "${{ inputs.package-name }}" ]]
+        if [[ "$PACKAGE_NAME" != "${{ inputs.name }}" ]]
         then
           exit 1
         fi
