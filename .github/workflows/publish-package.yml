@@ -173,7 +173,7 @@ jobs:
           echo version=`cat workflow.json | jq -r '.version'` >> $GITHUB_OUTPUT
 
           echo package-id=`tar -xf ${{ needs.build.outputs.tarball }} --to-stdout package/package.json | jq -r '.name + "@" + .version'` >> $GITHUB_OUTPUT
-          echo token=${{ matrix.registry === '' && secrets.NPM_TOKEN || github.token }}
+          echo token=${{ matrix.registry == '' && secrets.NPM_TOKEN || github.token }}
       - id: has-published
         name: Checks if the package has already published
         uses: ./.github/actions/check-if-package-has-published
