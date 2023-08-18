@@ -15,7 +15,8 @@ outputs:
 runs:
   using: composite
   steps:
-    - env:
+    - continue-on-error: true
+      env:
         NODE_AUTH_TOKEN: ${{ inputs.token }}
       id: check-publish-status
       run: npm view ${{ inputs.name }}@${{ inputs.version }} --json 2>/dev/null | tee /tmp/output.json
