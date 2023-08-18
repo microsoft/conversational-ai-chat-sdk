@@ -24,7 +24,7 @@ runs:
       run:
         PACKAGE_NAME=`cat ${{ steps.get-package-path.outputs.path }}/package.json | jq -r '.name'`
 
-        if [[ "$PACKAGE_NAME" != "${{ inputs.package-name" ]]
+        if [[ "$PACKAGE_NAME" != "${{ inputs.package-name }}" ]]
         then
           exit 1
         fi
