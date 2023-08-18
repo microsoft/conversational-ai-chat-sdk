@@ -48,20 +48,13 @@ jobs:
           targetPath: $(Build.SourcesDirectory)/_manifest
           artifact: manifest
 
-  - job: credscan
-    displayName: Credential Scanner
+  - job: tsa
+    displayName: Trust Services Automation
     continueOnError: true
     pool:
       vmImage: ubuntu-latest
     steps:
       - task: CredScan@3
         displayName: 'Run Credential Scanner'
-
-  - job: policheck
-    displayName: PoliCheck
-    continueOnError: true
-    pool:
-      vmImage: windows-latest
-    steps:
       - task: PoliCheck@2
         displayName: 'Run PoliCheck'
