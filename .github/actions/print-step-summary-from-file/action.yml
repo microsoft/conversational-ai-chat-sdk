@@ -16,3 +16,4 @@ runs:
         cat ${{ inputs.filename }} >> $GITHUB_STEP_SUMMARY && true || exit 1
         echo \`\`\` >> $GITHUB_STEP_SUMMARY
         echo \</details\> >> $GITHUB_STEP_SUMMARY
+      shell: bash
