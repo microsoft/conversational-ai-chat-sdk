@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v3
       - id: look-up-package-path
         name: Look up package path
-        uses: ./.github/actions/look-up-package-path
+        uses: .github/actions/look-up-package-path
         with:
           name: ${{ inputs.package-name }}
       - name: Use Node.js ${{ env.node-version }}
@@ -61,7 +61,7 @@ jobs:
         run: |
           jq --arg packageName "${{ inputs.package-name }}" --arg packagePath "${{ steps.look-up-package-path.outputs.path }}" --arg version "${{ steps.compute-production-version.outputs.version }}" -nr '{ packageName: $packageName, packagePath: $packagePath, version: $version }' | tee workflow.json
       - name: Print workflow control file
-        uses: ./.github/actions/print-step-summary-from-file
+        uses: .github/actions/print-step-summary-from-file
         with:
           filename: workflow.json
           title: Workflow control file
@@ -118,7 +118,7 @@ jobs:
         run: |
           npm version --no-git-tag-version --workspace=${{ steps.prepare.outputs.package-name }} ${{ steps.prepare.outputs.version }} && true || exit 1
       - name: Print bumped package.json
-        uses: ./.github/actions/print-step-summary-from-file
+        uses: .github/actions/print-step-summary-from-file
         with:
           filename: ${{ steps.prepare.outputs.package-path }}/package.json
           title: Content of ${{ steps.prepare.outputs.package-path }}/package.json
@@ -141,10 +141,10 @@ jobs:
           path: ${{ steps.pack-tarball.outputs.tarball }}
       - name: Update workflow control file
         run: |
-          cat workflow.json | jq -r '. + { tarball: $tarball }' | tee /tmp/workflow.json
+          cat workflow.json | jq --argfile tarball "${{ steps.pack-tarball.outputs.tarball }}" -r '. + { tarball: $tarball }' | tee /tmp/workflow.json
           mv /tmp/workflow.json workflow.json
-      - name: Print updated workflow control file
-        uses: ./.github/actions/print-step-summary-from-file
+      - name: Print workflow control file
+        uses: .github/actions/print-step-summary-from-file
         with:
           filename: workflow.json
           title: Workflow control file
@@ -160,12 +160,12 @@ jobs:
           tar --extract --file=${{ steps.pack-tarball.outputs.tarball }} --to-stdout package/package.json | tee /tmp/extracted-package.json
           tar --list --file=${{ steps.pack-tarball.outputs.tarball }} --verbose | tee /tmp/tarball-content.txt
       - name: Print content of ${{ steps.pack-tarball.outputs.tarball }}
-        uses: ./.github/actions/print-step-summary-from-file
+        uses: .github/actions/print-step-summary-from-file
         with:
           filename: /tmp/tarball-content.txt
           title: List of content of ${{ steps.pack-tarball.outputs.tarball }}
       - name: Print ${{ steps.pack-tarball.outputs.tarball }}/package.json
-        uses: ./.github/actions/print-step-summary-from-file
+        uses: .github/actions/print-step-summary-from-file
         with:
           filename: /tmp/extracted-package.json
           title: Content of ${{ steps.pack-tarball.outputs.tarball }}/package.json
@@ -222,7 +222,7 @@ jobs:
           ls ${{ steps.prepare.outputs.tarball }}
       - id: has-published
         name: Checks if ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }} is already published
-        uses: ./.github/actions/check-if-package-has-published
+        uses: .github/actions/check-if-package-has-published
         with:
           name: ${{ steps.prepare.outputs.package-name }}
           token: ${{ steps.prepare.outputs.token }}
@@ -315,12 +315,14 @@ jobs:
           PACKAGE_PATH=`cat workflow.json | jq -r '.packagePath'`
           VERSION=`cat workflow.json | jq -r '.version'`
           NEXT_VERSION=`npx semver -i prepatch $VERSION`
+
           BRANCH_NAME=bot/postpublish/$PACKAGE_NAME/v$NEXT_VERSION
 
-          echo branch-name=$BRANCH_NAME >> $GITHUB_OUTPUT
-          echo next-version=$NEXT_VERSION >> $GITHUB_OUTPUT
-          echo package-name=$PACKAGE_NAME >> $GITHUB_OUTPUT
-          echo version=$VERSION >> $GITHUB_OUTPUT
+          echo branch-name=$BRANCH_NAME | tee --append $GITHUB_OUTPUT
+          echo next-version=$NEXT_VERSION | tee --append $GITHUB_OUTPUT
+          echo package-name=$PACKAGE_NAME | tee --append $GITHUB_OUTPUT
+          echo package-path=$PACKAGE_PATH | tee --append $GITHUB_OUTPUT
+          echo version=$VERSION | tee --append $GITHUB_OUTPUT
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         id: create-branch
@@ -331,42 +333,32 @@ jobs:
 
           git checkout -b ${{ steps.prepare.outputs.branch-name }}
       - name: Bump CHANGELOG.md
-        run: |
-          npx keep-a-changelog --file="${{ steps.prepare.outputs.package-path }}/CHANGELOG.md" --format=markdownlint --url="${{ github.server_url }}/${{ github.repository }}" --release="${{ steps.prepare.outputs.version }}"
-          git add ${{ steps.prepare.outputs.package-path }}/CHANGELOG.md
+        run: npx keep-a-changelog --file="${{ steps.prepare.outputs.package-path }}/CHANGELOG.md" --format=markdownlint --url="${{ github.server_url }}/${{ github.repository }}" --release="${{ steps.prepare.outputs.version }}"
+      - name: Stage CHANGELOG.md
+        run: git add ${{ steps.prepare.outputs.package-path }}/CHANGELOG.md
       - id: bump-version
-        name: Bump version to prepatch
-        run: |
-          npm version --no-git-tag-version --workspace=${{ steps.prepare.outputs.package-name }} ${{ steps.prepare.outputs.next-version }}
-
-          git add ./package-lock.json
-          git add ${{ steps.prepare.outputs.package-path }}/package.json
-
-          cat ${{ steps.prepare.outputs.package-path }}/package.json
-
-          echo Bump [\`${{ steps.prepare.outputs.package-name }}\`]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref_name }}/packages/${{ steps.prepare.outputs.package-name }}/\) to \`${{ steps.prepare.outputs.version }}\`. >> $GITHUB_STEP_SUMMARY
-          echo >> $GITHUB_STEP_SUMMARY
-
-          echo \<details\>\<summary\>Content of \<code\>${{ steps.prepare.outputs.package-name }}/package.json\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
-          echo >> $GITHUB_STEP_SUMMARY
-          echo \`\`\`json >> $GITHUB_STEP_SUMMARY
-          cat ${{ steps.prepare.outputs.package-path }}/package.json >> $GITHUB_STEP_SUMMARY
-          echo \`\`\` >> $GITHUB_STEP_SUMMARY
-          echo \</details\> >> $GITHUB_STEP_SUMMARY
+        name: Bump package.json to ${{ steps.prepare.outputs.next-version }}
+        run: npm version --no-git-tag-version --workspace=${{ steps.prepare.outputs.package-name }} ${{ steps.prepare.outputs.next-version }}
+      - name: Print package.json
+        uses: .github/actions/print-step-summary-from-file
+        with:
+          filename: ${{ steps.prepare.outputs.package-path }}/package.json
+          title: Content of ${{ steps.prepare.outputs.package-name }}/package.json
+          type: json
+      - name: Stage package-lock.json
+        run: git add package-lock.json
+      - name: Stage ${{ steps.prepare.outputs.package-path }}/package.json
+        run: git add ${{ steps.prepare.outputs.package-path }}/package.json
+      - name: Commit branch
+        run: git commit --message="Bump ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.next-version }}"
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        name: Commit branch
-        run: |
-          git commit -m "Bump ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.next-version }}"
-          git push --set-upstream origin ${{ steps.prepare.outputs.branch-name }}
-
-          echo Branch created at [\`${{ steps.prepare.outputs.branch-name }}\`]\(${{ github.server_url }}/${{ github.repository }}/tree/${{ steps.prepare.outputs.branch-name }}\). >> $GITHUB_STEP_SUMMARY
+        name: Push branch
+        run: git push --set-upstream origin ${{ steps.prepare.outputs.branch-name }}
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         id: create-pull-request
         name: Create pull request
         run: |
-          URL=`gh pr create --assignee @me --body "Post-publish of ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}." --fill --label bot --repo ${{ github.repository }}`
-
-          echo url=$URL >> $GITHUB_OUTPUT
-          echo Pull request created at $URL. >> $GITHUB_STEP_SUMMARY
+          URL=`gh pr create --assignee @me --body "Post-publish of ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}." --fill --label bot --repo ${{ github.repository }}` && true || exit 1
+          echo url=$URL | tee --append $GITHUB_OUTPUT
