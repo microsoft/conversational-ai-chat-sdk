@@ -51,8 +51,8 @@ jobs:
           then
             exit 1
           fi
-      - id: bump-version
-        name: Bump version to production
+      - id: compute-production-version
+        name: Compute production version
         run: |
           PRERELEASE_VERSION=`cat ${{ steps.look-up-package-path.outputs.path }}/package.json | jq -r .version` && true || exit 1
           VERSION=`npm exec -- semver --increment patch $PRERELEASE_VERSION` && true || exit 1
@@ -61,15 +61,15 @@ jobs:
           echo version=$VERSION >> $GITHUB_OUTPUT
       - name: Build workflow file
         run: |
-          jq --arg packageName "${{ inputs.package-name }}" --arg packagePath "${{ steps.look-up-package-path.outputs.path }}" --arg version "$VERSION" -nr '{ packageName: $packageName, packagePath: $packagePath, version: $version }' > workflow.json
+          jq --arg packageName "${{ inputs.package-name }}" --arg packagePath "${{ steps.look-up-package-path.outputs.path }}" --arg version "${{ steps.compute-production-version.outputs.version }}" -nr '{ packageName: $packageName, packagePath: $packagePath, version: $version }' > workflow.json
 
           cat workflow.json
       - name: 'Sanity check: workflow.json/packageName must not be empty'
-        run: if [[ -z "`cat workflow.json | jq -r .packageName`" ]] then exit 1 fi
+        run: if [[ -z "`cat workflow.json | jq -r .packageName`" ]]; then exit 1; fi
       - name: 'Sanity check: workflow.json/packagePath must not be empty'
-        run: if [[ -z "`cat workflow.json | jq -r .packagePath`" ]] then exit 1 fi
+        run: if [[ -z "`cat workflow.json | jq -r .packagePath`" ]]; then exit 1; fi
       - name: 'Sanity check: workflow.json/version must not be empty'
-        run: if [[ -z "`cat workflow.json | jq -r .version`" ]] then exit 1 fi
+        run: if [[ -z "`cat workflow.json | jq -r .version`" ]]; then exit 1; fi
       - name: 'Sanity check: workflow.json/packagePath must point to the right package'
         run: |
           PACKAGE_PATH=`cat workflow.json | jq -r .packagePath` && true || exit 1
