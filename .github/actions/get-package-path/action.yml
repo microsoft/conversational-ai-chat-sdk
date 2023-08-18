@@ -19,6 +19,7 @@ runs:
     - id: get-package-path
       name: Get package path
       run: |
+        cat package.json
         npm ls --workspace=${{ inputs.name }} --json
 
         PATH=`npm ls --workspace=${{ inputs.name }} --json | jq --arg "packageName" ${{ inputs.name }} -r '.dependencies[$packageName].resolved | ltrimstr("file:../") | if . then . else halt_error(1) end'` && true || exit 1
