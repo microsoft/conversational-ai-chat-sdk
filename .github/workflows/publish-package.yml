@@ -226,7 +226,7 @@ jobs:
         with:
           name: ${{ steps.prepare.outputs.package-name }}
           token: ${{ steps.prepare.outputs.token }}
-          version: ${{ needs.build.outputs.versions }}
+          version: ${{ needs.prepare.outputs.version }}
       - env:
           NODE_AUTH_TOKEN: ${{ steps.prepare.outputs.token }}
         if: ${{ steps.has-published.outputs.published == 'false' }}
