@@ -441,9 +441,11 @@ jobs:
         name: Prepare
         run: |
           TARBALL=`cat workspaces.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball'`
+
+          PACKAGE_NAME=`tar -xf $TARBALL --to-stdout package/package.json | jq -r '.name'`
           VERSION=`tar -xf $TARBALL --to-stdout package/package.json | jq -r '.version'`
 
-          echo package-id=${{ matrix.package-name }}@$VERSION | tee --append $GITHUB_OUTPUT
+          echo package-name=$PACKAGE_NAME | tee --append $GITHUB_OUTPUT
           echo tarball=$TARBALL | tee --append $GITHUB_OUTPUT
           echo version=$VERSION | tee --append $GITHUB_OUTPUT
 
@@ -458,14 +460,14 @@ jobs:
         name: Checks if ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }} is already published
         uses: ./.github/actions/check-if-package-has-published
         with:
-          name: ${{ matrix.package-name }}
+          name: ${{ steps.prepare.outputs.package-name }}
           registry-url: https://npm.pkg.github.com/
           token: ${{ github.token }}
           version: ${{ steps.prepare.outputs.version }}
       - env:
           NODE_AUTH_TOKEN: ${{ github.token }}
         if: ${{ steps.has-published.outputs.published == 'false' }}
-        name: Publish ${{ steps.prepare.outputs.package-id }}
+        name: Publish ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }}
         run: |
           ls -l ${{ steps.prepare.outputs.tarball }}
           npm publish --json ${{ steps.prepare.outputs.tarball }}
