@@ -58,8 +58,6 @@ jobs:
         env:
           TSA_CONFIG: $(tsaConfig)
         displayName: Create TSA config
-      - script: type $(Build.SourcesDirectory)\tsa-config.json
-        displayName: Dump TSA config
       - task: CredScan@3
         continueOnError: true
         displayName: 'Run Credential Scanner'
@@ -73,5 +71,5 @@ jobs:
           Configuration: recommended
       - task: TSAUpload@2
         inputs:
-          GdnPublishTsaOnboard: false
+          GdnPublishTsaOnboard: true
           GdnPublishTsaConfigFile: '$(Build.SourcesDirectory)\tsa-config.json'
