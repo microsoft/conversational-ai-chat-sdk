@@ -64,12 +64,12 @@ jobs:
           echo version=$VERSION | tee --append $GITHUB_OUTPUT
       - name: Build workflow control file
         run: |
-          jq
-            --arg nextVersion "${{ steps.compute-next-prerelease-version.outputs.version }}"
-            --arg packageName "${{ inputs.package-name }}"
-            --arg packagePath "${{ steps.look-up-package-path.outputs.path }}"
-            --arg version "${{ steps.compute-production-version.outputs.version }}"
-            -nr
+          jq \
+            --arg nextVersion "${{ steps.compute-next-prerelease-version.outputs.version }}" \
+            --arg packageName "${{ inputs.package-name }}" \
+            --arg packagePath "${{ steps.look-up-package-path.outputs.path }}" \
+            --arg version "${{ steps.compute-production-version.outputs.version }}" \
+            -nr \
             '{ nextVersion: $nextVersion, packageName: $packageName, packagePath: $packagePath, version: $version }' | tee workflow.json
       - name: Print workflow control file
         uses: ./.github/actions/print-step-summary-from-file
@@ -256,14 +256,14 @@ jobs:
 
   create-release:
     environment:
-      name: pull-request
+      name: github-release
       url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.prepare.output.tag }}
     name: Create release
     needs:
       - build
       - publish
     permissions:
-      contents: write
+      contents: write # Required for creating release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
