@@ -459,6 +459,7 @@ jobs:
         uses: ./.github/actions/check-if-package-has-published
         with:
           name: ${{ matrix.package-name }}
+          registry-url: https://npm.pkg.github.com/
           token: ${{ github.token }}
           version: ${{ steps.prepare.outputs.version }}
       - env:

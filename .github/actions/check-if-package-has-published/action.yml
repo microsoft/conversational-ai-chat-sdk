@@ -4,6 +4,8 @@ inputs:
   name:
     description: Name of the package
     required: true
+  registry-url:
+    description: URL of the registry
   token:
     description: Registry auth token
   version:
@@ -18,7 +20,7 @@ runs:
     - env:
         NODE_AUTH_TOKEN: ${{ inputs.token }}
       id: check-publish-status
-      run: npm view ${{ inputs.name }}@${{ inputs.version }} --json 2>/dev/null | tee /tmp/output.json || true
+      run: npm view --json ${{ inputs.registry-url && format('--registry={0}', inputs.registry-url) }} ${{ inputs.name }}@${{ inputs.version }} 2>/dev/null | tee /tmp/output.json || true
       shell: bash
     - id: result
       run: |
