@@ -192,7 +192,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-      packages: ${{ matrix.registry-url == 'https://npm.pkg.github.com/' && 'write' || 'none' }}
+      packages: write
     runs-on: ubuntu-latest
     strategy:
       matrix:
