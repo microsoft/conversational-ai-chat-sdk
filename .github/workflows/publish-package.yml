@@ -184,7 +184,7 @@ jobs:
 
   publish:
     environment:
-      name: ${{ matrix.registry == '' && 'npm-publish' || '' }}
+      name: ${{ matrix.registry-url == 'https://registry.npmjs.org/' && 'npm-publish' || '' }}
       url: ${{ steps.result.outputs.url }}
     name: Publish
     needs:
@@ -195,7 +195,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        registry:
+        registry-url:
           - https://registry.npmjs.org/
           - https://npm.pkg.github.com/
     steps:
@@ -212,7 +212,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.node-version }}
-          registry-url: ${{ matrix.registry }}
+          registry-url: ${{ matrix.registry-url }}
       - id: prepare
         name: Prepare
         run: |
@@ -224,7 +224,7 @@ jobs:
 
           echo package-name=$PACKAGE_NAME | tee --append $GITHUB_OUTPUT
           echo tarball=$TARBALL | tee --append $GITHUB_OUTPUT
-          echo token=${{ matrix.registry == 'https://npm.pkg.github.com/' && github.token || secrets.NPM_TOKEN }} >> $GITHUB_OUTPUT
+          echo token=${{ matrix.registry-url == 'https://npm.pkg.github.com/' && github.token || secrets.NPM_TOKEN }} >> $GITHUB_OUTPUT
           echo url=$URL | tee --append $GITHUB_OUTPUT
           echo version=$VERSION | tee --append $GITHUB_OUTPUT
       - name: 'Sanity check: tarball exists'
@@ -246,10 +246,10 @@ jobs:
       - id: result
         name: Result
         run: |
-          if [[ "${{ matrix.registry }}" == "https://registry.npmjs.org/" ]]
+          if [[ "${{ matrix.registry-url }}" == "https://registry.npmjs.org/" ]]
           then
             echo url=https://npmjs.com/package/${{ steps.prepare.outputs.package-name }}/v/${{ steps.prepare.outputs.version }}
-          elif [[ "${{ matrix.registry }}" == "https://npm.pkg.github.com/" ]]
+          elif [[ "${{ matrix.registry-url }}" == "https://npm.pkg.github.com/" ]]
           then
             echo url=${{ github.server_url }}/${{ github.repository }}/pkgs/npm/${{ steps.prepare.outputs.package-name }}
           fi
