@@ -243,7 +243,8 @@ jobs:
           NODE_AUTH_TOKEN: ${{ steps.prepare.outputs.token }}
         if: ${{ steps.has-published.outputs.published == 'false' }}
         name: Publish ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }}
-        run: npm publish --access public --json --provenance ${{ steps.prepare.outputs.tarball }}
+        # TODO: Enable --provenance when in official repo.
+        run: npm publish --access public --json ${{ steps.prepare.outputs.tarball }}
       - id: result
         name: Result
         run: |
