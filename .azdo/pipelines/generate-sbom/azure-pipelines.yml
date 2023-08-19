@@ -56,7 +56,7 @@ jobs:
     steps:
       - script: echo %TSA_CONFIG% > $(Build.SourcesDirectory)\tsa-config.json
         env:
-          TSA_CONFIG: $(TSA_CONFIG)
+          TSA_CONFIG: $(tsaConfig)
         displayName: Create TSA config
       - script: type $(Build.SourcesDirectory)\tsa-config.json
         displayName: Dump TSA config
