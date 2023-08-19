@@ -65,3 +65,9 @@ jobs:
         displayName: 'Run ESLint'
         inputs:
           Configuration: recommended
+      - script: |
+          echo $(TSA_CONFIG) > $(Build.SourcesDirectory)/tsa-config.json
+      - task: TSAUpload@2
+        inputs:
+          GdnPublishTsaOnboard: true
+          GdnPublishTsaConfigFile: '$(Build.SourcesDirectory)/tsa-config.json'
