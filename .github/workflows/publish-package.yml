@@ -138,8 +138,8 @@ jobs:
         run: npm clean-install --ignore-scripts --strict-peer-deps # Prevents malicious scripts from stealing our token.
       - name: Build
         run: npm run build --if-present --workspaces=true
-      - id: pack-tarball
-        name: Pack tarball
+      - id: pack
+        name: Pack
         run: |
           npm pack --json --pack-destination=$PWD --workspace=${{ steps.prepare.outputs.package-name }} | tee /tmp/output.json
           TARBALL=`cat /tmp/output.json | jq -r '.[0].filename'` && true || exit 1
@@ -149,10 +149,10 @@ jobs:
         with:
           if-no-files-found: error
           name: package
-          path: ${{ steps.pack-tarball.outputs.tarball }}
+          path: ${{ steps.pack.outputs.tarball }}
       - name: Update workflow control file
         run: |
-          cat workflow.json | jq --arg tarball "${{ steps.pack-tarball.outputs.tarball }}" -r '. + { tarball: $tarball }' | tee /tmp/workflow.json
+          cat workflow.json | jq --arg tarball "${{ steps.pack.outputs.tarball }}" -r '. + { tarball: $tarball }' | tee /tmp/workflow.json
           mv /tmp/workflow.json workflow.json
       - name: Print workflow control file
         uses: ./.github/actions/print-step-summary-from-file
@@ -168,18 +168,18 @@ jobs:
           path: workflow.json
       - name: Prepare summary
         run: |
-          tar --extract --file=${{ steps.pack-tarball.outputs.tarball }} --to-stdout package/package.json | tee /tmp/extracted-package.json
-          tar --list --file=${{ steps.pack-tarball.outputs.tarball }} --verbose | tee /tmp/tarball-content.txt
-      - name: Print content of ${{ steps.pack-tarball.outputs.tarball }}
+          tar --extract --file=${{ steps.pack.outputs.tarball }} --to-stdout package/package.json | tee /tmp/extracted-package.json
+          tar --list --file=${{ steps.pack.outputs.tarball }} --verbose | tee /tmp/tarball-content.txt
+      - name: Print content of ${{ steps.pack.outputs.tarball }}
         uses: ./.github/actions/print-step-summary-from-file
         with:
           path: /tmp/tarball-content.txt
-          title: List of content of ${{ steps.pack-tarball.outputs.tarball }}
-      - name: Print ${{ steps.pack-tarball.outputs.tarball }}/package.json
+          title: List of content of ${{ steps.pack.outputs.tarball }}
+      - name: Print ${{ steps.pack.outputs.tarball }}/package.json
         uses: ./.github/actions/print-step-summary-from-file
         with:
           path: /tmp/extracted-package.json
-          title: Content of ${{ steps.pack-tarball.outputs.tarball }}/package.json
+          title: Content of ${{ steps.pack.outputs.tarball }}/package.json
           type: json
 
   publish:
@@ -289,12 +289,12 @@ jobs:
       - # We need to use "gh api" to create a tag/ref.
         # Otherwise, if last commit was modifying workflow, it will fail with permission issues.
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         id: push-tag
         name: Push tag
         run: gh api repos/${{ github.repository }}/git/refs --field ref=refs/tags/${{ steps.prepare.outputs.tag }} --field sha=${{ github.sha }}
       - env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         id: create-release
         name: Create release
         run: |
