@@ -238,12 +238,12 @@ jobs:
         with:
           name: ${{ steps.prepare.outputs.package-name }}
           token: ${{ steps.prepare.outputs.token }}
-          version: ${{ needs.prepare.outputs.version }}
+          version: ${{ steps.prepare.outputs.version }}
       - env:
           NODE_AUTH_TOKEN: ${{ steps.prepare.outputs.token }}
         if: ${{ steps.has-published.outputs.published == 'false' }}
         name: Publish ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }}
-        run: npm publish --access public --json --provenance ${{ needs.build.outputs.tarball }}
+        run: npm publish --access public --json --provenance ${{ steps.prepare.outputs.tarball }}
       - id: result
         name: Result
         run: |
