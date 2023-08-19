@@ -247,8 +247,8 @@ jobs:
         name: Result
         run: |
           if [[ "${{ matrix.registry }}" == "https://registry.npmjs.org/" ]]
-            echo url=https://npmjs.com/package/${{ steps.prepare.outputs.package-name }}/v/${{ steps.prepare.outputs.version }}
           then
+            echo url=https://npmjs.com/package/${{ steps.prepare.outputs.package-name }}/v/${{ steps.prepare.outputs.version }}
           elif [[ "${{ matrix.registry }}" == "https://npm.pkg.github.com/" ]]
           then
             echo url=${{ github.server_url }}/${{ github.repository }}/pkgs/npm/${{ steps.prepare.outputs.package-name }}
