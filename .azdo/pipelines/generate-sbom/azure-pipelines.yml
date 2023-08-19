@@ -54,9 +54,9 @@ jobs:
     pool:
       vmImage: windows-latest # PoliCheck requires Windows
     steps:
-      - bash: |
-          echo $SAMPLE > sample.json
-          cat sample.json
+      - script: |
+          echo %SAMPLE% > sample.json
+          type sample.json
         env:
           SAMPLE: $(SAMPLE)
       - task: CredScan@3
@@ -70,10 +70,10 @@ jobs:
         displayName: 'Run ESLint'
         inputs:
           Configuration: recommended
-      - bash: echo $TSA_CONFIG > $(Build.SourcesDirectory)/tsa-config.json
+      - script: echo %TSA_CONFIG% > $(Build.SourcesDirectory)\tsa-config.json
         env:
           TSA_CONFIG: $(TSA_CONFIG)
       - task: TSAUpload@2
         inputs:
           GdnPublishTsaOnboard: true
-          GdnPublishTsaConfigFile: '$(Build.SourcesDirectory)/tsa-config.json'
+          GdnPublishTsaConfigFile: '$(Build.SourcesDirectory)\tsa-config.json'
