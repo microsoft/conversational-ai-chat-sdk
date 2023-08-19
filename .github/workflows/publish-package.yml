@@ -248,10 +248,10 @@ jobs:
         run: |
           if [[ "${{ matrix.registry-url }}" == "https://registry.npmjs.org/" ]]
           then
-            echo url=https://npmjs.com/package/${{ steps.prepare.outputs.package-name }}/v/${{ steps.prepare.outputs.version }}
+            echo url=https://npmjs.com/package/${{ steps.prepare.outputs.package-name }}/v/${{ steps.prepare.outputs.version }} | tee --append $GITHUB_OUTPUT
           elif [[ "${{ matrix.registry-url }}" == "https://npm.pkg.github.com/" ]]
           then
-            echo url=${{ github.server_url }}/${{ github.repository }}/pkgs/npm/${{ steps.prepare.outputs.package-name }}
+            echo url=${{ github.server_url }}/${{ github.repository }}/pkgs/npm/${{ steps.prepare.outputs.package-name }} | tee --append $GITHUB_OUTPUT
           fi
 
   create-release:
