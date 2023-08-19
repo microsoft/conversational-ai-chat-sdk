@@ -428,6 +428,7 @@ jobs:
     strategy:
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix-public-only) }}
     steps:
+      - uses: actions/checkout
       - name: Download workflow control file
         uses: actions/download-artifact@v3
         with:
