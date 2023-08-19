@@ -192,12 +192,13 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      packages: ${{ matrix.registry-url == 'https://npm.pkg.github.com/' && 'write' || 'none' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
         registry-url:
           - https://registry.npmjs.org/
-          - https://npm.pkg.github.com/
+          # - https://npm.pkg.github.com/ # GitHub Packages requires scoped package.
     steps:
       - uses: actions/checkout@v3
       - name: Download workflow control file
@@ -240,7 +241,7 @@ jobs:
           version: ${{ needs.prepare.outputs.version }}
       - env:
           NODE_AUTH_TOKEN: ${{ steps.prepare.outputs.token }}
-        if: ${{ steps.has-published.outputs.published == 'false' && matrix.registry-url == 'https://npm.pkg.github.com/' }}
+        if: ${{ steps.has-published.outputs.published == 'false' }}
         name: Publish ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }}
         run: npm publish --access public --json --provenance ${{ needs.build.outputs.tarball }}
       - id: result
