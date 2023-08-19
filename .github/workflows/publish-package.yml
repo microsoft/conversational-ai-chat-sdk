@@ -259,7 +259,7 @@ jobs:
   create-release:
     environment:
       name: github-release
-      url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.prepare.output.tag }}
+      url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.prepare.outputs.tag }}
     name: Create release
     needs:
       - build
