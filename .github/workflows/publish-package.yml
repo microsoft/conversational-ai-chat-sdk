@@ -301,7 +301,7 @@ jobs:
         name: Create release
         run: |
           DATE=`date +%F`
-          gh release create ${{ steps.push-tag.outputs.tag }} ./*.tgz --repo ${{ github.repository }} --title "${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }} - $DATE"
+          gh release create ${{ steps.prepare.outputs.tag }} ./*.tgz --repo ${{ github.repository }} --title "${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }} - $DATE"
 
   pull-request-create-bump-version:
     environment:
