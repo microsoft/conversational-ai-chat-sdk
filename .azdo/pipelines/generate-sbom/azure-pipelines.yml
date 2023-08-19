@@ -54,7 +54,7 @@ jobs:
     pool:
       vmImage: windows-latest # PoliCheck requires Windows
     steps:
-      - script: |
+      - bash: |
           echo $SAMPLE > sample.json
           cat sample.json
         env:
@@ -70,7 +70,7 @@ jobs:
         displayName: 'Run ESLint'
         inputs:
           Configuration: recommended
-      - script: echo $TSA_CONFIG > $(Build.SourcesDirectory)/tsa-config.json
+      - bash: echo $TSA_CONFIG > $(Build.SourcesDirectory)/tsa-config.json
         env:
           TSA_CONFIG: $(TSA_CONFIG)
       - task: TSAUpload@2
