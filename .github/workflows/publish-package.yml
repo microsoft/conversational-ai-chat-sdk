@@ -240,9 +240,9 @@ jobs:
           version: ${{ needs.prepare.outputs.version }}
       - env:
           NODE_AUTH_TOKEN: ${{ steps.prepare.outputs.token }}
-        if: ${{ steps.has-published.outputs.published == 'false' }}
+        if: ${{ steps.has-published.outputs.published == 'false' && matrix.registry-url == 'https://npm.pkg.github.com/' }}
         name: Publish ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }}
-        run: echo npm publish --access public --json --provenance ${{ needs.build.outputs.tarball }}
+        run: npm publish --access public --json --provenance ${{ needs.build.outputs.tarball }}
       - id: result
         name: Result
         run: |
