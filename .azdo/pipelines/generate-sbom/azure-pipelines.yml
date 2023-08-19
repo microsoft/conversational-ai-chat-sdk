@@ -66,6 +66,7 @@ jobs:
         inputs:
           Configuration: recommended
       - script: |
+          echo $(SAMPLE)
           echo $(TSA_CONFIG) > $(Build.SourcesDirectory)/tsa-config.json
       - task: TSAUpload@2
         inputs:
