@@ -1,7 +1,7 @@
 {
-  "name": "power-virtual-agents-sdk",
+  "name": "conversational-ai-chat-sdk",
   "version": "0.0.0-0",
-  "description": "",
+  "description": "Chat SDKs for using Conversational AI platform in websites and web apps.",
   "private": "true",
   "author": "Microsoft Corporation",
   "license": "MIT",

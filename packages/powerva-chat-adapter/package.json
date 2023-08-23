@@ -3,7 +3,7 @@
   "version": "0.0.1-0",
   "description": "Chat adapter for using Power Virtual Agents chatbots.",
   "author": "Microsoft Corporation",
-  "homepage": "https://github.com/microsoft/power-virtual-agents-sdk/",
+  "homepage": "https://github.com/microsoft/conversational-ai-chat-sdk/",
   "license": "MIT",
   "files": [
     "/lib/"

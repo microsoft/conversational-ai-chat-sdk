@@ -449,7 +449,7 @@ jobs:
           echo tarball=$TARBALL | tee --append $GITHUB_OUTPUT
           echo version=$VERSION | tee --append $GITHUB_OUTPUT
 
-          # url=https://github.com/compulim/power-virtual-agents-sdk/pkgs/npm/powerva-chat-adapter
+          # url=https://github.com/microsoft/conversational-ai-chat-sdk/pkgs/npm/powerva-chat-adapter
           echo url=${{ github.server_url }}/${{ github.repository }}/pkgs/npm/${{ matrix.package-name }} | tee --append $GITHUB_OUTPUT
       - name: Set up Node.js ${{ inputs.node-version }}
         uses: actions/setup-node@v3
