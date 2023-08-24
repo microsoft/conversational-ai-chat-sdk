@@ -81,7 +81,7 @@ jobs:
       - name: Print matrix
         uses: ./.github/actions/print-step-summary-from-file
         with:
-          path: ./matrix.json
+          path: /tmp/matrix.json
           title: Matrix
           type: json
 
