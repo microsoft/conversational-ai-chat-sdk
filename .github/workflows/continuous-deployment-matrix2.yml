@@ -164,7 +164,7 @@ jobs:
 
           echo filenames=$filenames | tee --append $GITHUB_OUTPUT
           echo versions=$versions | tee --append $GITHUB_OUTPUT
-      - if: !matrix.scoped
+      - if: ${{ !matrix.scoped }}
         name: Upload package-lock.json
         uses: actions/upload-artifact@v3
         with:
