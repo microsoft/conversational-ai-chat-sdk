@@ -73,7 +73,7 @@ jobs:
             version=`cat ./$package_path/package.json | jq -r .version | xargs -L1 npm exec --offline -- semver --increment prerelease -n false --preid $branch.$committer_date.$short_commitish` && true || exit 1
 
             cat /tmp/matrix.json | jq --arg path ./$package_path/ --arg version $version --argfile packageJSON ./$package_path/package.json -r '. + [{ name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), version: $version }]' > /tmp/matrix.json.tmp && true || exit 1
-            mv /tmp/matrix.json.tmp /tmp/matrix.json.tmp && true || exit 1
+            mv /tmp/matrix.json.tmp /tmp/matrix.json && true || exit 1
           done
       - id: write-outputs
         name: Write to outputs
