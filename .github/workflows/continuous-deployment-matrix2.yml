@@ -173,8 +173,10 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.build.outputs.matrix) }}
     steps:
-      - name: Print matrix
-        run: echo ${{ toJSON(matrix) }}
+      - env:
+          MATRIX: ${{ toJSON(matrix) }}
+        name: Print matrix
+        run: echo $MATRIX
       - name: Download packages
         uses: actions/download-artifact@v3
         with:
