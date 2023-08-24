@@ -16,7 +16,7 @@
     "bump:dev": "if [ `cat package.json | jq -r '.devDependencies | length'` -ne 0 ]; then npm install $(cat package.json | jq -r '(.pinDependencies // {}) as $p | ((.devDependencies // {}) | keys) | map(. + \"@\" + ($p[.] // [\"latest\"])[0]) | .[]'); fi",
     "bump:prod": "if [ `cat package.json | jq -r '.dependencies | length'` -ne 0 ]; then npm install --save-exact $(cat package.json | jq -r '(.pinDependencies // {}) as $p | ((.dependencies // {}) | keys) | map(. + \"@\" + ($p[.] // [\"latest\"])[0]) | .[]'); fi",
     "eslint": "npm run precommit",
-    "postinstall": "npm run prepare:abort-controller-es5 && npm run prepare:markdown-it-attrs-es5 && npm run prepare:p-defer-es5",
+    "postinstall": "npm run postinstall:abort-controller-es5 && npm run postinstall:markdown-it-attrs-es5 && npm run postinstall:p-defer-es5",
     "postinstall:abort-controller-es5": "cd .. && cd .. && cd node_modules && cd abort-controller-es5 && npm run postinstall",
     "postinstall:markdown-it-attrs-es5": "cd .. && cd .. && cd node_modules && cd markdown-it-attrs-es5 && npm run postinstall",
     "postinstall:p-defer-es5": "cd .. && cd .. && cd node_modules && cd p-defer-es5 && npm run postinstall",
