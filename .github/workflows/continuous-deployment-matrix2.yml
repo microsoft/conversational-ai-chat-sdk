@@ -86,8 +86,6 @@ jobs:
           type: json
 
   build:
-    env:
-      matrix: ${{ needs.prepare.outputs.matrix }}
     name: Build (${{ matrix.scoped && 'scoped' || 'unscoped' }})
     needs: prepare
     outputs:
@@ -98,13 +96,10 @@ jobs:
         # We are rescoping packages so they can publish to contributor's GitHub Packages so they can consume it easily.
         scoped: [true, false]
     steps:
-      - name: Save matrix to file
-        run: |
-          echo << EOL | tee /tmp/matrix.json
-          ${{ needs.prepare.outputs.matrix }}
-          EOL
-
-          cat /tmp/matrix.json
+      - env:
+          matrix: ${{ needs.prepare.outputs.matrix }}
+        name: Save matrix to file
+        run: echo $matrix | jq -r | tee /tmp/matrix.json
       - uses: actions/checkout@v3
       - name: Set up Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
@@ -118,7 +113,7 @@ jobs:
       - # We cannot run "npm version" right after "npx semver". Otherwise, next run of "npx semver" will ignore "-n false".
         # "npm version" will update workspaces. During update, it will need to talk to NPM registry.
         name: Bump versions
-        run: echo $matrix | jq -cr 'map("--workspace=" + .name + " " + .version) | join("\n")' | xargs -L1 npm version
+        run: cat /tmp/matrix.json | jq -cr 'map("--workspace=" + .name + " " + .version) | join("\n")' | xargs -L1 npm version
       - run: npm clean-install --ignore-scripts --strict-peer-deps # CyberEO: Ignore scripts to prevent malicious scripts from stealing the token.
       - # We are cheating, we did not rescope package-lock.json, so we cannot run before npm clean-install.
         # TODO: Rescope package-lock.json
@@ -129,7 +124,7 @@ jobs:
           do
             echo ::group::$i/package.json
 
-            cat $i/package.json | jq --arg owner ${{ github.repository_owner }} --argjson matrix $matrix -r 'def rescope($entry): $entry | if ($matrix | map(select(.name == $entry.key)) | length > 0) then .value = "npm:@" + $owner + "/" + .key + "@" + .value else . end; . | (.name = "@" + $owner + "/" + .name) | (.dependencies |= (. | with_entries(rescope(.)))) | (.devDependencies |= (. | with_entries(rescope(.))))' | tee /tmp/package.json && true || exit 1
+            cat $i/package.json | jq --arg owner ${{ github.repository_owner }} --argfile matrix /tmp/matrix.json -r 'def rescope($entry): $entry | if ($matrix | map(select(.name == $entry.key)) | length > 0) then .value = "npm:@" + $owner + "/" + .key + "@" + .value else . end; . | (.name = "@" + $owner + "/" + .name) | (.dependencies |= (. | with_entries(rescope(.)))) | (.devDependencies |= (. | with_entries(rescope(.))))' | tee /tmp/package.json && true || exit 1
 
             mv /tmp/package.json $i/package.json && true || exit 1
 
@@ -145,7 +140,9 @@ jobs:
         if: ${{ !matrix.scoped }}
         name: Update matrix with tarball and version (unscoped only)
         run: |
-          echo $matrix | jq --argfile pack /tmp/pack-result.json -rS 'map(.name as $name | ($pack | .[] | select(.name == $name)) // {} as $packageResult | . + { tarball: $packageResult.filename, version: $packageResult.version })' | tee /tmp/matrix.json && true || exit 1
+          cat /tmp/matrix.json | jq --argfile pack /tmp/pack-result.json -rS 'map(.name as $name | (($pack | .[] | select(.name == $name)) // {}) as $packageResult | . + { tarball: $packageResult.filename, version: $packageResult.version })' | tee /tmp/matrix.json.tmp && true || exit 1
+
+          mv /tmp/matrix.json.tmp /tmp/matrix.json
       - if: ${{ !matrix.scoped }}
         name: 'Sanity check: Updated matrix should have same number of items'
         run: cat /tmp/matrix.json | jq --argjson matrix $matrix 'if (. | length) == ($matrix | length) then empty else halt_error(1) end'
