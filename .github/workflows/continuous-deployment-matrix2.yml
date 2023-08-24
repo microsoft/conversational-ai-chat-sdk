@@ -170,7 +170,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     strategy:
-      matrix: ${{ fromJSON(needs.build.outputs.matrix) }}
+      matrix:
+        include: ${{ fromJSON(needs.build.outputs.matrix) }}
     steps:
       - name: Print matrix
         run: echo ${{ toJSON(matrix) }}
