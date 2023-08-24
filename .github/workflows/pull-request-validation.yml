@@ -130,6 +130,8 @@ jobs:
         name: Prepare
         run: echo is-private=`cat package.json | jq -r '.private // false'` >> $GITHUB_OUTPUT
       - name: 'Sanity check: package name must not be scoped'
+        # This is because our rescoping step in continuous deployment will not work if the package is already scoped, it just do plain concat.
+        # We can support scoped package if we add that feature to our CD pipeline.
         run: cat package.json | jq '.name | if contains("@") then halt_error(1) else empty end'
       - if: ${{ !steps.prepare.outputs.is-private }}
         name: 'Sanity check: has LICENSE'
