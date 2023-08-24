@@ -91,7 +91,7 @@ jobs:
     name: Build (${{ matrix.scoped && 'scoped' || 'unscoped' }})
     needs: prepare
     outputs:
-      matrix: ${{ steps.update-matrix.outputs.matrix }}
+      matrix: ${{ steps.write-outputs.outputs.matrix }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -120,24 +120,26 @@ jobs:
           do
             cat $i/package.json | jq --arg owner ${{ github.repository_owner }} --argjson matrix $MATRIX -r 'def rescope($entry): $entry | if ($matrix | map(select(.name == $entry.key)) | length > 0) then .value = "npm:@" + $owner + "/" + .key + "@" + .value else . end; . | (.name = "@" + $owner + "/" + .name) | (.dependencies |= (. | with_entries(rescope(.)))) | (.devDependencies |= (. | with_entries(rescope(.))))' | tee /tmp/package.json && true || exit 1
 
-            mv /tmp/package.json $i/package.json
+            mv /tmp/package.json $i/package.json && true || exit 1
           done
       - name: Run whitelisted postinstall scripts
         run: npm run postinstall --workspaces=true
       - name: Build
         run: npm run build --if-present --workspaces=true
       - name: Pack tarballs
-        run: npm pack --json --pack-destination=$PWD --workspaces=true > /tmp/pack-result.json
+        run: npm pack --json --pack-destination=$PWD --workspaces=true | tee /tmp/pack-result.json
       - id: update-matrix
         name: Update matrix with tarball and version
-        run: |
-          echo $MATRIX | jq --argfile pack /tmp/pack-result.json -rS 'map(.name as $name | ($pack | .[] | select(.name == $name)) as $packageResult | . + { tarball: $packageResult.filename, version: $packageResult.version })' | tee /tmp/matrix.json && true || exit 1
-
-          echo matrix=`cat /tmp/matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
-      - env:
-          UPDATED_MATRIX: ${{ steps.update-matrix.outputs.matrix }}
-        name: 'Sanity check: Updated matrix should have same number of items'
-        run: echo $UPDATED_MATRIX | jq --argjson matrix $MATRIX 'if (. | length) == ($matrix | length) then empty else halt_error(1) end'
+        run: echo $MATRIX | jq --argfile pack /tmp/pack-result.json -rS 'map(.name as $name | ($pack | .[] | select(.name == $name)) // {} as $packageResult | . + { tarball: $packageResult.filename, version: $packageResult.version })' | tee /tmp/matrix.json && true || exit 1
+      - name: 'Sanity check: Updated matrix should have same number of items'
+        run: cat /tmp/matrix.json | jq --argjson matrix $MATRIX 'if (. | length) == ($matrix | length) then empty else halt_error(1) end'
+      - name: 'Sanity check: Updated matrix should have tarball'
+        run: cat /tmp/matrix.json | jq 'if (.[] | select(.tarball | not) | length > 0) then halt_error(1) else empty end'
+      - name: 'Sanity check: Updated matrix should have version'
+        run: cat /tmp/matrix.json | jq 'if (.[] | select(.version | not) | length > 0) then halt_error(1) else empty end'
+      - id: write-outputs
+        name: Write to outputs
+        run: echo matrix=`cat /tmp/matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
       - name: Print updated matrix
         uses: ./.github/actions/print-step-summary-from-file
         with:
