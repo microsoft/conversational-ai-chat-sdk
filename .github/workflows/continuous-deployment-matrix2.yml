@@ -41,6 +41,10 @@ jobs:
         run: npx https://aka.ms/EnableSecureFeed
         shell: bash
       - run: npm install --global --ignore-scripts semver@latest # Ignore scripts to prevent malicious scripts.
+
+      # We intentionally checkout after enable secure feed.
+      # This will speed up secure feed setup significantly.
+      # But we also need to be super careful we don't run any NPM commands that would fetch the registry. We are insecure here.
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0 # Infinite depth required for commitish
@@ -79,32 +83,119 @@ jobs:
           type: json
 
   build:
+    env:
+      MATRIX: ${{ needs.prepare.outputs.matrix }}
     name: Build
     needs: prepare
     outputs:
-      matrix-with-public: ${{ steps.build-matrix-with-public.outputs.matrix-with-public }}
+      matrix: ${{ steps.update-matrix.outputs.matrix }}
     runs-on: ubuntu-latest
     steps:
-      - env:
-          MATRIX: ${{ needs.prepare.outputs.matrix }}
-        id: build-matrix-with-public
-        name: Build matrix with public packages only
+      - uses: actions/checkout@v3
+      - name: Set up Node.js ${{ inputs.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          cache: npm
+          node-version: ${{ inputs.node-version }}
+      - if: ${{ inputs.use-secure-feed }}
+        name: Set up secure feed
+        run: npx https://aka.ms/EnableSecureFeed
+        shell: bash
+      - # We cannot run "npm version" right after "npx semver". Otherwise, next run of "npx semver" will ignore "-n false".
+        # "npm version" will update workspaces. During update, it will need to talk to NPM registry.
+        name: Bump versions
+        run: echo $MATRIX | jq -cr 'map("--workspace=" + .name + " " + .version) | join("\n")' | xargs -L1 npm version
+      - run: npm clean-install --ignore-scripts --strict-peer-deps # CyberEO: Ignore scripts to prevent malicious scripts from stealing the token.
+      - name: Build
+        run: npm run build --if-present --workspaces=true
+      - name: Pack tarballs
+        run: npm pack --json --pack-destination=$PWD --workspaces=true > /tmp/pack-result.json
+      - id: update-matrix
+        name: Update matrix with tarball and version
         run: |
-          MATRIX_WITH_PUBLIC=`echo $MATRIX | jq -r 'map(select(.private | not))'` && true || exit 1
+          echo $MATRIX | jq --argfile pack /tmp/pack-result.json -rS 'map(.name as $name | ($pack | .[] | select(.name == $name)) as $packageResult | . + { tarball: $packageResult.filename, version: $packageResult.version })' | tee /tmp/matrix.json && true || exit 1
 
-          echo matrix-with-public=$MATRIX_WITH_PUBLIC | tee --append $GITHUB_OUTPUT
+          echo matrix=`cat /tmp/matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
+      - env:
+          UPDATED_MATRIX: ${{ steps.update-matrix.outputs.matrix }}
+        name: 'Sanity check: Updated matrix should have same number of items'
+        run: echo $UPDATED_MATRIX | jq --argjson matrix $MATRIX 'if (. | length) == ($matrix | length) then empty else halt_error(1) end'
+      - name: Print updated matrix
+        uses: ./.github/actions/print-step-summary-from-file
+        with:
+          path: /tmp/matrix.json
+          title: Updated matrix
+          type: json
+      - name: Upload package-lock.json
+        uses: actions/upload-artifact@v3
+        with:
+          name: package-lock
+          path: ./package-lock.json
+      - name: Upload packages artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: packages
+          path: ./*.tgz
 
-  publish:
-    name: Publish
+  build-github-pages:
+    name: 'Build: GitHub Pages'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download packages artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: packages
+      - env:
+          MATRIX: ${{ steps.build.outputs.matrix }}
+        id: get-tarball-name
+        name: Get tarball name
+        run: |
+          TARBALL=`echo $MATRIX | jq -r '.[] | select(.name == "pages") | .tarball | if . then . else halt_error(1) end'` && true || exit 1
+
+          echo tarball=$TARBALL | tee --append $GITHUB_OUTPUT
+      - name: Make directory
+        run: mkdir ./_site/
+      - name: Extract ${{ steps.get-tarball-name.outputs.tarball }}
+        run: tar --directory=./_site/ --extract --file=`ls -1 ${{ steps.get-tarball-name.outputs.tarball }}` --strip-component=2 --verbose package/public
+      - name: List directory
+        run: ls -la ./_site/
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v2
+
+  build-github-packages:
+    env:
+      MATRIX: ${{ needs.build.outputs.matrix }}
+    name: 'Build: GitHub Packages (scoped)'
     needs: build
     runs-on: ubuntu-latest
     strategy:
-      matrix:
-        include: ${{ fromJSON(needs.build.outputs.matrix-with-public) }}
+      matrix: ${{ fromJSON(needs.build.outputs.matrix) }}
     steps:
-      - name: Display matrix
+      - name: Print matrix
+        run: echo ${{ toJSON(matrix) }}
+      - name: Download packages
+        uses: actions/download-artifact@v3
+        with:
+          name: packages
+      - name: List tarball
+        run: ls -l ${{ matrix.tarball }}
+      - name: Extract tarball
+        run: tar -xvf ${{ matrix.tarball }}
+      - name: Print package.json
+        run: cat package/package.json
+      - name: Rescope packages to @${{ github.repository_owner }}
         run: |
-          echo name=${{ matrix.name }}
-          echo version=${{ matrix.version }}
-          echo private=${{ matrix.private }}
-          echo path=${{ matrix.path }}
+          cat package.json | jq --argjson matrix $MATRIX -r '. | (.name = "@${{ github.repository_owner }}/" + .name) | (.dependencies |= (. | with_entries(key as $key | if ($matrix | .[] | .select(.name == $key)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end))) | (.devDependencies |= (. | with_entries(key as $key | if ($matrix | .[] | .select(.name == $key)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end)))' | tee /tmp/package.json
+          mv /tmp/package.json package.json
+        working-directory: ./package
+      - name: Pack
+        run: |
+          TARBALL=`npm pack --ignore-scripts --json | jq -r '.[0].filename'` && true || exit 1
+          mv $TARBALL ../${{ matrix.tarball }}
+        working-directory: ./package
+      - name: Upload scoped package
+        uses: actions/upload-artifact@v3
+        with:
+          name: scoped-packages
+          path: ${{ steps.prepare.outputs.tarball }}
