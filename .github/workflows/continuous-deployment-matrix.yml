@@ -31,13 +31,10 @@ env:
   publish-tag: release/vnext
 
 jobs:
-  # TODO: Add "prepare" job to prepare workspaces file
   prepare:
     name: Prepare
     outputs:
-      # TODO: Do we need all matrix? Looks like we are using public-only matrix.
-      matrix: ${{ steps.build-matrix.outputs.matrix }}
-      matrix-public-only: ${{ steps.build-matrix.outputs.matrix-public-only }}
+      matrix-public-packages: ${{ steps.build-matrix.outputs.matrix-public-packages }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -54,11 +51,11 @@ jobs:
         run: npx https://aka.ms/EnableSecureFeed
         shell: bash
       - run: npm install --global --ignore-scripts semver@latest # Skip scripts to prevent malicious scripts from stealing the token.
-      - name: Build workspaces file # This will become source of truth.
+      - name: Build workflow state # This will become source of truth.
         run: |
           BRANCH=`git branch --show-current`
 
-          echo {} > workspaces.json
+          echo {} > workflow-state.json
 
           for i in `cat package.json | jq -r '.workspaces | join("\n")'`
           do
@@ -78,43 +75,34 @@ jobs:
             # This version is not very accurate, after running `npm version`, it will remove leading zeroes in prerelease tags if that certain part is all numeric.
             # "main.20230815-110805.0bf2b81" -> "main.20230815-110805.0bf2b81"
             # "main.20230815-110805.0012345" -> "main.20230815-110805.12345"
-            # We will update the workspaces file again in build job.
+            # We will update the workflow state again in build job.
             VERSION=`cat ./$i/package.json | jq -r .version | xargs -L1 npm exec --offline -- semver --increment prerelease -n false --preid $BRANCH.$COMMITTER_DATE.$SHORT_COMMITISH`
 
-            cat ./workspaces.json | jq --arg branch $BRANCH --arg committerDateInISO8601 $COMMITTER_DATE_IN_ISO8601 --arg longCommitish $LONG_COMMITISH --arg shortCommitish $SHORT_COMMITISH --arg path ./$i/ --arg version $VERSION --argfile packageJSON ./$i/package.json -r '. + { ($packageJSON.name): { branch: $branch, committerDate: $committerDateInISO8601, longCommitish: $longCommitish, name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), shortCommitish: $shortCommitish, version: $version } }' > /tmp/workspaces.json && true || exit 1
-            mv /tmp/workspaces.json ./workspaces.json && true || exit 1
+            cat ./workflow-state.json | jq --arg branch $BRANCH --arg committerDateInISO8601 $COMMITTER_DATE_IN_ISO8601 --arg longCommitish $LONG_COMMITISH --arg shortCommitish $SHORT_COMMITISH --arg path ./$i/ --arg version $VERSION --argfile packageJSON ./$i/package.json -r '. + { ($packageJSON.name): { branch: $branch, committerDate: $committerDateInISO8601, longCommitish: $longCommitish, name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), shortCommitish: $shortCommitish, version: $version } }' > /tmp/workflow-state.json && true || exit 1
+            mv /tmp/workflow-state.json ./workflow-state.json && true || exit 1
           done
 
-          cat workspaces.json
-      - name: Upload workspaces file
+          cat workflow-state.json
+      - name: Upload workflow state
         uses: actions/upload-artifact@v3
         with:
-          name: workspaces
-          path: ./workspaces.json
+          name: workflow-state
+          path: ./workflow-state.json
       - id: build-matrix
         name: Build matrix
         run: |
-          cat workspaces.json | jq -r 'map(.name) | { "package-name": . }' > /tmp/matrix.json
-          echo matrix=`cat /tmp/matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
-
-          cat workspaces.json | jq -r 'map(select(.private | not)) | map(.name) | { "package-name": . }' > /tmp/matrix-public-only.json
-          echo matrix-public-only=`cat /tmp/matrix-public-only.json | jq -cr` | tee --append $GITHUB_OUTPUT
-      - name: Print workflow control file
+          cat workflow-state.json | jq -r 'map(select(.private | not)) | map(.name) | { "package-name": . }' > /tmp/matrix-public-packages.json
+          echo matrix-public-packages=`cat /tmp/matrix-public-packages.json | jq -cr` | tee --append $GITHUB_OUTPUT
+      - name: Print workflow state file
         uses: ./.github/actions/print-step-summary-from-file
         with:
-          path: ./workspaces.json
-          title: Workflow control file
-          type: json
-      - name: Print all packages
-        uses: ./.github/actions/print-step-summary-from-file
-        with:
-          path: /tmp/matrix.json
-          title: All packages
+          path: ./workflow-state.json
+          title: Workflow state
           type: json
       - name: Print public packages
         uses: ./.github/actions/print-step-summary-from-file
         with:
-          path: /tmp/matrix-public-only.json
+          path: /tmp/matrix-public-packages.json
           title: Public packages
           type: json
 
@@ -127,6 +115,10 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+      - name: Download workflow state
+        uses: actions/download-artifact@v3
+        with:
+          name: workflow-state
       - name: Set up Node.js ${{ inputs.node-version }}
         uses: actions/setup-node@v3
         with:
@@ -137,27 +129,29 @@ jobs:
         name: Set up secure feed
         run: npx https://aka.ms/EnableSecureFeed
         shell: bash
-      - name: Download workflow control file
-        uses: actions/download-artifact@v3
-        with:
-          name: workspaces
       - # We cannot run "npm version" right after "npx semver". Otherwise, next run of "npx semver" will ignore "-n false".
         # "npm version" will update workspaces. During update, it will need to talk to NPM registry.
         name: Bump versions
-        run: cat workspaces.json | jq -cr 'to_entries | map("--workspace=" + .key + " " + .value.version) | join("\n")' | xargs -L1 npm version
+        run: cat workflow-state.json | jq -cr 'to_entries | map("--workspace=" + .key + " " + .value.version) | join("\n")' | xargs -L1 npm version
       - run: npm clean-install --ignore-scripts --strict-peer-deps # CyberEO: Ignore scripts to prevent malicious scripts from stealing the token.
       - name: Build
         run: npm run build --if-present --workspaces=true
       - name: Pack tarballs
         run: npm pack --json --pack-destination=$PWD --workspaces=true > /tmp/pack-result.json
-      - name: Update workspaces file with tarball
+      - name: Update workflow state with tarball
         run: |
-          cat workspaces.json | jq --argfile pack /tmp/pack-result.json -rS 'with_entries(.key as $name | . + (.value += { tarball: $pack | map(select(.name == $name))[0].filename }))' | tee /tmp/workspaces.json
-          mv /tmp/workspaces.json workspaces.json
-      - name: Update workspaces file with version
+          cat workflow-state.json | jq --argfile pack /tmp/pack-result.json -rS 'with_entries(.key as $name | . + (.value += { tarball: $pack | map(select(.name == $name))[0].filename }))' | tee /tmp/workflow-state.json
+          mv /tmp/workflow-state.json workflow-state.json
+      - name: Update workflow state with version
         run: |
-          cat workspaces.json | jq --argfile pack /tmp/pack-result.json -rS 'with_entries(.key as $name | . + (.value += { version: $pack | map(select(.name == $name))[0].version }))' | tee /tmp/workspaces.json
-          mv /tmp/workspaces.json workspaces.json
+          cat workflow-state.json | jq --argfile pack /tmp/pack-result.json -rS 'with_entries(.key as $name | . + (.value += { version: $pack | map(select(.name == $name))[0].version }))' | tee /tmp/workflow-state.json
+          mv /tmp/workflow-state.json workflow-state.json
+      - name: Print workflow state
+        uses: ./.github/actions/print-step-summary-from-file
+        with:
+          path: ./workflow-state.json
+          title: Workflow state
+          type: json
       - name: Upload package-lock.json
         uses: actions/upload-artifact@v3
         with:
@@ -168,17 +162,11 @@ jobs:
         with:
           name: packages
           path: ./*.tgz
-      - name: Upload updated workspaces file
+      - name: Upload workflow state
         uses: actions/upload-artifact@v3
         with:
-          name: workspaces
-          path: ./workspaces.json
-      - name: Print workflow control file
-        uses: ./.github/actions/print-step-summary-from-file
-        with:
-          path: ./workspaces.json
-          title: Workflow control file
-          type: json
+          name: workflow-state
+          path: ./workflow-state.json
 
   build-github-pages:
     name: 'Build: GitHub Pages'
@@ -186,10 +174,10 @@ jobs:
       - build
     runs-on: ubuntu-latest
     steps:
-      - name: Download workflow control file
+      - name: Download workflow state
         uses: actions/download-artifact@v3
         with:
-          name: workspaces
+          name: workflow-state
       - name: Download packages artifact
         uses: actions/download-artifact@v3
         with:
@@ -197,51 +185,49 @@ jobs:
       - id: get-tarball-name
         name: Get tarball name
         run: |
-          TARBALL=`cat workspaces.json | jq -r '.pages.tarball | if . then . else halt_error(1) end'` && true || exit 1
+          TARBALL=`cat workflow-state.json | jq -r '.pages.tarball | if . then . else halt_error(1) end'` && true || exit 1
           echo tarball=$TARBALL | tee --append $GITHUB_OUTPUT
+      - name: Make directory
+        run: mkdir ./_site/
       - name: Extract ${{ steps.get-tarball-name.outputs.tarball }}
-        run: |
-          mkdir ./_site/
-          tar --directory=./_site/ --extract --file=`ls -1 ${{ steps.get-tarball-name.outputs.tarball }}` --strip-component=2 --verbose package/public
-          ls -la ./_site/
+        run: tar --directory=./_site/ --extract --file=`ls -1 ${{ steps.get-tarball-name.outputs.tarball }}` --strip-component=2 --verbose package/public
+      - name: List directory
+        run: ls -la ./_site/
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v2
 
   build-github-packages:
-    name: 'Build: GitHub Packages'
+    name: 'Build: GitHub Packages (scoped)'
     needs:
       - build
       - prepare
     runs-on: ubuntu-latest
     strategy:
-      matrix: ${{ fromJSON(needs.prepare.outputs.matrix-public-only) }}
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix-public-packages) }}
     steps:
-      - name: Download workflow control file
+      - name: Download workflow state
         uses: actions/download-artifact@v3
         with:
-          name: workspaces
+          name: workflow-state
       - name: Download packages
         uses: actions/download-artifact@v3
         with:
           name: packages
       - id: prepare
         name: Prepare
+        run: echo tarball=`cat workflow-state.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball'` | tee --append $GITHUB_OUTPUT
+      - name: List tarball
+        run: ls -l ${{ steps.prepare.outputs.tarball }}
+      - name: Extract tarball
+        run: tar -xvf ${{ steps.prepare.outputs.tarball }}
+      - name: Print package.json
+        run: cat package/package.json
+      - name: Rescope packages to @${{ github.repository_owner }}
         run: |
-          cat workspaces.json
-          echo tarball=`cat workspaces.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball'` | tee --append $GITHUB_OUTPUT
-      - name: Extract package
-        run: |
-          ls -l ${{ steps.prepare.outputs.tarball }}
-
-          tar -xvf ${{ steps.prepare.outputs.tarball }}
-          cat package/package.json
-      - id: rescope
-        name: Rescope
-        run: |
-          cat package.json | jq --argfile versions ../workspaces.json -r '. | (.name = "@${{ github.repository_owner }}/" + .name) | (.dependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end))) | (.devDependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end)))' | tee /tmp/package.json
+          cat package.json | jq --argfile versions ../workflow-state.json -r '. | (.name = "@${{ github.repository_owner }}/" + .name) | (.dependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end))) | (.devDependencies |= (. | with_entries(if ({ (.key): {} } | inside($versions)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end)))' | tee /tmp/package.json
           mv /tmp/package.json package.json
         working-directory: ./package
-      - name: Repack
+      - name: Pack
         run: |
           TARBALL=`npm pack --ignore-scripts --json | jq -r '.[0].filename'` && true || exit 1
           mv $TARBALL ../${{ steps.prepare.outputs.tarball }}
@@ -263,22 +249,22 @@ jobs:
       - name: Approved
         run: echo Approved.
 
-  release-upload-workspaces-json:
-    name: 'Release: Upload workspaces file'
+  release-upload-workflow-state:
+    name: 'Release: Upload workflow state'
     needs:
       - approval
     permissions:
       contents: write # "contents" is required for modifying releases.
     runs-on: ubuntu-latest
     steps:
-      - name: Download workflow control file
+      - name: Download workflow state
         uses: actions/download-artifact@v3
         with:
-          name: workspaces
+          name: workflow-state
       - env:
           GH_TOKEN: ${{ github.token }}
-        name: Upload workspaces file to GitHub "${{ env.publish-tag }}" release
-        run: gh release upload --clobber ${{ env.publish-tag }} workspaces.json --repo ${{ github.repository }}
+        name: Upload workflow state to GitHub "${{ env.publish-tag }}" release
+        run: gh release upload --clobber ${{ env.publish-tag }} workflow-state.json --repo ${{ github.repository }}
 
   release-upload-package:
     name: 'Release: Upload package'
@@ -289,19 +275,19 @@ jobs:
       contents: write # "contents" is required for modifying releases.
     runs-on: ubuntu-latest
     strategy:
-      matrix: ${{ fromJSON(needs.prepare.outputs.matrix-public-only) }}
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix-public-packages) }}
     steps:
-      - name: Download workflow control file
+      - name: Download workflow state
         uses: actions/download-artifact@v3
         with:
-          name: workspaces
+          name: workflow-state
       - name: Download packages
         uses: actions/download-artifact@v3
         with:
           name: packages
       - id: prepare
         name: Prepare
-        run: echo tarball=`cat workspaces.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball | ltrimstr("./")'` | tee --append $GITHUB_OUTPUT
+        run: echo tarball=`cat workflow-state.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball | ltrimstr("./")'` | tee --append $GITHUB_OUTPUT
       - env:
           GH_TOKEN: ${{ github.token }}
         name: Get current assets
@@ -363,7 +349,7 @@ jobs:
     needs:
       - release-upload-package
       - release-upload-pages
-      - release-upload-workspaces-json
+      - release-upload-workflow-state
     outputs:
       tag-url: ${{ steps.prepare.outputs.tag-url }}
       url: ${{ steps.prepare.outputs.url }}
@@ -426,13 +412,13 @@ jobs:
       packages: write
     runs-on: ubuntu-latest
     strategy:
-      matrix: ${{ fromJSON(needs.prepare.outputs.matrix-public-only) }}
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix-public-packages) }}
     steps:
       - uses: actions/checkout@v3
-      - name: Download workflow control file
+      - name: Download workflow state
         uses: actions/download-artifact@v3
         with:
-          name: workspaces
+          name: workflow-state
       - name: Download scoped packages
         uses: actions/download-artifact@v3
         with:
@@ -440,7 +426,7 @@ jobs:
       - id: prepare
         name: Prepare
         run: |
-          TARBALL=`cat workspaces.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball'`
+          TARBALL=`cat workflow-state.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball'`
 
           PACKAGE_NAME=`tar -xf $TARBALL --to-stdout package/package.json | jq -r '.name'`
           VERSION=`tar -xf $TARBALL --to-stdout package/package.json | jq -r '.version'`
