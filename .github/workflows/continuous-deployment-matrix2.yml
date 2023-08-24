@@ -189,7 +189,7 @@ jobs:
         run: cat package/package.json
       - name: Rescope packages to @${{ github.repository_owner }}
         run: |
-          cat package.json | jq --argjson matrix $MATRIX -r '. | (.name = "@${{ github.repository_owner }}/" + .name) | (.dependencies |= (. | with_entries(key as $key | if ($matrix | .[] | .select(.name == $key)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end))) | (.devDependencies |= (. | with_entries(key as $key | if ($matrix | .[] | .select(.name == $key)) then . | (.value = "npm:@${{ github.repository_owner }}/" + .key + "@" + .value) else . end)))' | tee /tmp/package.json && true || exit 1
+          cat package.json | jq --argjson matrix $MATRIX -r 'def rescope($entry): $entry | if ($matrix | map(select(.name == $entry.key)) | length > 0) then .value = "npm:@compulim/" + .key + "@" + .value else . end; . | (.name = "@compulim/" + .name) | (.dependencies |= (. | with_entries(rescope(.)))) | (.devDependencies |= (. | with_entries(rescope(.))))' | tee /tmp/package.json && true || exit 1
           mv /tmp/package.json package.json
         working-directory: ./package
       - name: Pack
