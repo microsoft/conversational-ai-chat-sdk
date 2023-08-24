@@ -111,7 +111,9 @@ jobs:
         # "npm version" will update workspaces. During update, it will need to talk to NPM registry.
         name: Bump versions
         run: echo $MATRIX | jq -cr 'map("--workspace=" + .name + " " + .version) | join("\n")' | xargs -L1 npm version
-      - if: ${{ matrix.scoped }}
+      - run: npm clean-install --ignore-scripts --strict-peer-deps # CyberEO: Ignore scripts to prevent malicious scripts from stealing the token.
+      - # We are cheating, we did not rescope package-lock.json, so we cannot run before npm clean-install.
+        if: ${{ matrix.scoped }}
         name: Rescope to @${{ github.repository_owner }}
         run: |
           for i in `cat package.json | jq -r '.workspaces | join("\n")'`
@@ -120,7 +122,6 @@ jobs:
 
             mv /tmp/package.json $i/package.json
           done
-      - run: npm clean-install --ignore-scripts --strict-peer-deps # CyberEO: Ignore scripts to prevent malicious scripts from stealing the token.
       - name: Run whitelisted postinstall scripts
         run: npm run postinstall --workspaces=true
       - name: Build
