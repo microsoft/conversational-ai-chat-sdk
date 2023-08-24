@@ -31,7 +31,7 @@ jobs:
   prepare:
     name: Prepare
     outputs:
-      matrix: ${{ steps.build-matrix.outputs.matrix }}
+      matrix: ${{ steps.write-outputs.outputs.matrix }}
     runs-on: ubuntu-latest
     steps:
       - name: Set up Node.js ${{ env.node-version }}
