@@ -130,7 +130,8 @@ jobs:
         run: npm pack --json --pack-destination=$PWD --workspaces=true | tee /tmp/pack-result.json
       - id: update-matrix
         name: Update matrix with tarball and version
-        run: echo $MATRIX | jq --argfile pack /tmp/pack-result.json -rS 'map(.name as $name | ($pack | .[] | select(.name == $name)) // {} as $packageResult | . + { tarball: $packageResult.filename, version: $packageResult.version })' | tee /tmp/matrix.json && true || exit 1
+        run: |
+          echo $MATRIX | jq --argfile pack /tmp/pack-result.json -rS 'map(.name as $name | ($pack | .[] | select(.name == $name)) // {} as $packageResult | . + { tarball: $packageResult.filename, version: $packageResult.version })' | tee /tmp/matrix.json && true || exit 1
       - name: 'Sanity check: Updated matrix should have same number of items'
         run: cat /tmp/matrix.json | jq --argjson matrix $MATRIX 'if (. | length) == ($matrix | length) then empty else halt_error(1) end'
       - name: 'Sanity check: Updated matrix should have tarball'
