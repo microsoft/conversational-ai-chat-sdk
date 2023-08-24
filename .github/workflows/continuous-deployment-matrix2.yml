@@ -78,12 +78,6 @@ jobs:
       - id: write-outputs
         name: Write to outputs
         run: echo matrix=`cat /tmp/matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
-      - name: Print matrix
-        uses: ./.github/actions/print-step-summary-from-file
-        with:
-          path: /tmp/matrix.json
-          title: Matrix
-          type: json
 
   build:
     name: Build (${{ matrix.scoped && 'scoped' || 'unscoped' }})
@@ -159,11 +153,11 @@ jobs:
         name: Write to outputs
         run: echo matrix=`cat /tmp/matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
       - if: ${{ !matrix.scoped }}
-        name: Print updated matrix
+        name: Print matrix
         uses: ./.github/actions/print-step-summary-from-file
         with:
           path: /tmp/matrix.json
-          title: Updated matrix
+          title: Matrix
           type: json
       - name: Upload package-lock.json
         uses: actions/upload-artifact@v3
@@ -201,3 +195,119 @@ jobs:
         run: ls -la ./_site/
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v2
+
+  approval:
+    name: Approval
+    needs:
+      - build
+      - build-github-pages
+    outputs:
+      matrix: ${{ steps.write-outputs.outputs.matrix }}
+      public-only-matrix: ${{ steps.write-outputs.outputs.public-only-matrix }}
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          matrix: ${{ needs.build.outputs.matrix }}
+        name: Save matrix to file
+        run: echo $matrix | jq -r | tee /tmp/matrix.json
+      - env:
+          matrix: ${{ needs.build.outputs.matrix }}
+        name: Save public-only matrix to file
+        run: cat /tmp/matrix.json | jq -r 'map(select(.private | not))' | tee /tmp/public-only-matrix.json
+      - id: write-outputs
+        name: Write matrix to outputs
+        run: |
+          echo matrix=`cat /tmp/matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
+          echo public-only-matrix=`cat /tmp/public-only-matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
+      - name: Print approved matrix
+        uses: ./.github/actions/print-step-summary-from-file
+        with:
+          path: /tmp/matrix.json
+          title: Approved matrix
+          type: json
+      - name: Print approved public-only matrix
+        uses: ./.github/actions/print-step-summary-from-file
+        with:
+          path: /tmp/public-only-matrix.json
+          title: Approved public-only matrix
+          type: json
+
+  release-upload-matrix:
+    name: 'Release: Upload matrix'
+    needs: approval
+    permissions:
+      contents: write # "contents" is required for modifying releases.
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          matrix: ${{ needs.approval.outputs.matrix }}
+        name: Save matrix to file
+        run: echo $matrix > /tmp/matrix.json
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        name: Upload workflow state to GitHub "${{ env.publish-tag }}" release
+        run: gh release upload --clobber ${{ env.publish-tag }} /tmp/matrix.json --repo ${{ github.repository }}
+
+  release-upload-package:
+    name: 'Release: Upload package'
+    needs: approval
+    permissions:
+      contents: write # "contents" is required for modifying releases.
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include: ${{ fromJSON(needs.approval.outputs.public-only-matrix) }}
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v3
+        with:
+          name: packages
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        name: Get current assets
+        run: gh release view ${{ env.publish-tag }} --json assets --repo ${{ github.repository }} | tee /tmp/assets.json
+      - id: check-existence
+        name: Check if asset already present
+        run: |
+          echo exist=`cat /tmp/assets.json | jq --arg name ${{ matrix.tarball }} '.assets | any(select(.name == $name))'` | tee --append $GITHUB_OUTPUT
+
+          if [[ exist == 'false' ]]
+          then
+            echo Asset does not exists, should upload.
+          else
+            echo Asset already exists, should not overwrite.
+          fi
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        if: ${{ steps.check-existence.outputs.exist == 'false' }}
+        name: Upload new asset
+        run: gh release upload ${{ env.publish-tag }} ${{ matrix.tarball }} --repo ${{ github.repository }}
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        if: ${{ steps.check-existence.outputs.exist == 'false' }}
+        name: Delete obsoleted assets
+        run: |
+          for asset_name in `cat /tmp/assets.json | jq -r --arg name ${{ matrix.package-name }} '.assets | map(select(.name | test($name + "-[0-9]"))) | map(.name) | join("\n")'`
+          do
+            # Continue if failed to delete asset. It is not fatal and could be fixed in next run.
+            gh release delete-asset ${{ env.publish-tag }} $asset_name --repo ${{ github.repository }} || true
+            echo "Deleted \`$asset_name\`"
+          done
+
+  release-upload-pages:
+    name: 'Release: Upload pages'
+    needs: approval
+    permissions:
+      contents: write # "contents" is required for modifying releases.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download pages
+        uses: actions/download-artifact@v3
+        with:
+          name: github-pages
+      - name: Rename to github-pages.tar
+        run: mv artifact.tar github-pages.tar
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        name: Upload pages to GitHub "${{ env.publish-tag }}" release
+        run: gh release upload --clobber ${{ env.publish-tag }} github-pages.tar --repo ${{ github.repository }}
