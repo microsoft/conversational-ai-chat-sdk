@@ -11,8 +11,7 @@ on:
       - '.github/**'
   workflow_dispatch:
     inputs:
-      # TODO: Rename to "disable-secure-feed"
-      #       This is because "push" event will always have it falsy.
+      # TODO: Find a way to set it to true for "push".
       use-secure-feed:
         default: true
         description: Use secure feed (required for production)
@@ -35,10 +34,10 @@ jobs:
       matrix: ${{ steps.build-matrix.outputs.matrix }}
     runs-on: ubuntu-latest
     steps:
-      - name: Set up Node.js ${{ inputs.node-version }}
+      - name: Set up Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
-          node-version: ${{ inputs.node-version }}
+          node-version: ${{ env.node-version }}
       - if: ${{ inputs.use-secure-feed }}
         name: Set up secure feed
         run: npx https://aka.ms/EnableSecureFeed
@@ -54,30 +53,31 @@ jobs:
       - id: build-matrix
         name: Build matrix
         run: |
-          BRANCH=`git branch --show-current` && true || exit 1
+          branch=`git branch --show-current` && true || exit 1
 
-          echo [] > ./matrix.json
+          echo [] > /tmp/matrix.json
 
-          for PACKAGE_PATH in `cat ./package.json | jq -r '.workspaces | join("\n")'`
+          for package_path in `cat ./package.json | jq -r '.workspaces | join("\n")'`
           do
-            # COMMITTER_DATE=20230815-110805
-            COMMITTER_DATE=`git log --date=format:%Y%m%d-%H%M%S --pretty=format:'%cd' -1 ./$PACKAGE_PATH/` && true || exit 1
+            # committer_date=20230815-110805
+            committer_date=`git log --date=format:%Y%m%d-%H%M%S --pretty=format:'%cd' -1 ./$package_path/` && true || exit 1
 
-            # SHORT_COMMITISH=0bf2b81
-            SHORT_COMMITISH=`git log --pretty=format:'%h' -1 ./$PACKAGE_PATH/` && true || exit 1
+            # short_commitish=0bf2b81
+            short_commitish=`git log --pretty=format:'%h' -1 ./$package_path/` && true || exit 1
 
-            # VERSION=main.20230815-110805.0bf2b81
+            # version=main.20230815-110805.0bf2b81
             # This version is not very accurate, after running `npm version`, it will remove leading zeroes in prerelease tags if that certain part is all numeric. This does not repro in semver.
             # "main.20230815-110805.0bf2b81" -> "main.20230815-110805.0bf2b81"
             # "main.20230815-110805.0012345" -> "main.20230815-110805.12345"
             # We will update the matrix again in build job.
-            VERSION=`cat ./$PACKAGE_PATH/package.json | jq -r .version | xargs -L1 npm exec --offline -- semver --increment prerelease -n false --preid $BRANCH.$COMMITTER_DATE.$SHORT_COMMITISH` && true || exit 1
+            version=`cat ./$package_path/package.json | jq -r .version | xargs -L1 npm exec --offline -- semver --increment prerelease -n false --preid $branch.$committer_date.$short_commitish` && true || exit 1
 
-            cat ./matrix.json | jq --arg path ./$PACKAGE_PATH/ --arg version $VERSION --argfile packageJSON ./$PACKAGE_PATH/package.json -r '. + [{ name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), version: $version }]' > /tmp/matrix.json && true || exit 1
-            mv /tmp/matrix.json ./matrix.json && true || exit 1
+            cat /tmp/matrix.json | jq --arg path ./$package_path/ --arg version $version --argfile packageJSON ./$package_path/package.json -r '. + [{ name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), version: $version }]' > /tmp/matrix.json.tmp && true || exit 1
+            mv /tmp/matrix.json.tmp /tmp/matrix.json.tmp && true || exit 1
           done
-
-          echo matrix=`cat matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
+      - id: write-outputs
+        name: Write to outputs
+        run: echo matrix=`cat /tmp/matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
       - name: Print matrix
         uses: ./.github/actions/print-step-summary-from-file
         with:
@@ -87,7 +87,7 @@ jobs:
 
   build:
     env:
-      MATRIX: ${{ needs.prepare.outputs.matrix }}
+      matrix: ${{ needs.prepare.outputs.matrix }}
     name: Build (${{ matrix.scoped && 'scoped' || 'unscoped' }})
     needs: prepare
     outputs:
@@ -99,13 +99,18 @@ jobs:
         scoped: [true, false]
     steps:
       - name: Save matrix to file
-        run: echo $MATRIX | jq -r | tee /tmp/matrix.json
+        run: |
+          echo << EOL | tee /tmp/matrix.json
+          ${{ needs.prepare.outputs.matrix }}
+          EOL
+
+          cat /tmp/matrix.json
       - uses: actions/checkout@v3
-      - name: Set up Node.js ${{ inputs.node-version }}
+      - name: Set up Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
           cache: npm
-          node-version: ${{ inputs.node-version }}
+          node-version: ${{ env.node-version }}
       - if: ${{ inputs.use-secure-feed }}
         name: Set up secure feed
         run: npx https://aka.ms/EnableSecureFeed
@@ -113,7 +118,7 @@ jobs:
       - # We cannot run "npm version" right after "npx semver". Otherwise, next run of "npx semver" will ignore "-n false".
         # "npm version" will update workspaces. During update, it will need to talk to NPM registry.
         name: Bump versions
-        run: echo $MATRIX | jq -cr 'map("--workspace=" + .name + " " + .version) | join("\n")' | xargs -L1 npm version
+        run: echo $matrix | jq -cr 'map("--workspace=" + .name + " " + .version) | join("\n")' | xargs -L1 npm version
       - run: npm clean-install --ignore-scripts --strict-peer-deps # CyberEO: Ignore scripts to prevent malicious scripts from stealing the token.
       - # We are cheating, we did not rescope package-lock.json, so we cannot run before npm clean-install.
         # TODO: Rescope package-lock.json
@@ -124,7 +129,7 @@ jobs:
           do
             echo ::group::$i/package.json
 
-            cat $i/package.json | jq --arg owner ${{ github.repository_owner }} --argjson matrix $MATRIX -r 'def rescope($entry): $entry | if ($matrix | map(select(.name == $entry.key)) | length > 0) then .value = "npm:@" + $owner + "/" + .key + "@" + .value else . end; . | (.name = "@" + $owner + "/" + .name) | (.dependencies |= (. | with_entries(rescope(.)))) | (.devDependencies |= (. | with_entries(rescope(.))))' | tee /tmp/package.json && true || exit 1
+            cat $i/package.json | jq --arg owner ${{ github.repository_owner }} --argjson matrix $matrix -r 'def rescope($entry): $entry | if ($matrix | map(select(.name == $entry.key)) | length > 0) then .value = "npm:@" + $owner + "/" + .key + "@" + .value else . end; . | (.name = "@" + $owner + "/" + .name) | (.dependencies |= (. | with_entries(rescope(.)))) | (.devDependencies |= (. | with_entries(rescope(.))))' | tee /tmp/package.json && true || exit 1
 
             mv /tmp/package.json $i/package.json && true || exit 1
 
@@ -140,10 +145,10 @@ jobs:
         if: ${{ !matrix.scoped }}
         name: Update matrix with tarball and version (unscoped only)
         run: |
-          echo $MATRIX | jq --argfile pack /tmp/pack-result.json -rS 'map(.name as $name | ($pack | .[] | select(.name == $name)) // {} as $packageResult | . + { tarball: $packageResult.filename, version: $packageResult.version })' | tee /tmp/matrix.json && true || exit 1
+          echo $matrix | jq --argfile pack /tmp/pack-result.json -rS 'map(.name as $name | ($pack | .[] | select(.name == $name)) // {} as $packageResult | . + { tarball: $packageResult.filename, version: $packageResult.version })' | tee /tmp/matrix.json && true || exit 1
       - if: ${{ !matrix.scoped }}
         name: 'Sanity check: Updated matrix should have same number of items'
-        run: cat /tmp/matrix.json | jq --argjson matrix $MATRIX 'if (. | length) == ($matrix | length) then empty else halt_error(1) end'
+        run: cat /tmp/matrix.json | jq --argjson matrix $matrix 'if (. | length) == ($matrix | length) then empty else halt_error(1) end'
       - if: ${{ !matrix.scoped }}
         name: 'Sanity check: Updated matrix should have tarball'
         run: cat /tmp/matrix.json | jq 'if (.[] | select(.tarball | not) | length > 0) then halt_error(1) else empty end'
@@ -174,7 +179,7 @@ jobs:
 
   build-github-pages:
     env:
-      MATRIX: ${{ needs.build.outputs.matrix }}
+      matrix: ${{ needs.build.outputs.matrix }}
     name: 'Build: GitHub Pages'
     needs: build
     runs-on: ubuntu-latest
@@ -186,7 +191,7 @@ jobs:
       - id: get-tarball-name
         name: Get tarball name
         run: |
-          TARBALL=`echo $MATRIX | jq -r '.[] | select(.name == "pages") | .tarball | if . then . else halt_error(1) end'` && true || exit 1
+          TARBALL=`echo $matrix | jq -r '.[] | select(.name == "pages") | .tarball | if . then . else halt_error(1) end'` && true || exit 1
 
           echo tarball=$TARBALL | tee --append $GITHUB_OUTPUT
       - name: Make directory
