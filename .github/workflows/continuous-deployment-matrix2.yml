@@ -138,6 +138,8 @@ jobs:
           path: ./*.tgz
 
   build-github-pages:
+    env:
+      MATRIX: ${{ needs.build.outputs.matrix }}
     name: 'Build: GitHub Pages'
     needs: build
     runs-on: ubuntu-latest
@@ -146,9 +148,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: packages
-      - env:
-          MATRIX: ${{ steps.build.outputs.matrix }}
-        id: get-tarball-name
+      - id: get-tarball-name
         name: Get tarball name
         run: |
           TARBALL=`echo $MATRIX | jq -r '.[] | select(.name == "pages") | .tarball | if . then . else halt_error(1) end'` && true || exit 1
