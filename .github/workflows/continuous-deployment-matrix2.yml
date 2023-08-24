@@ -45,7 +45,7 @@ jobs:
       - run: npm install --global --ignore-scripts semver@latest # Ignore scripts to prevent malicious scripts.
 
       # We intentionally checkout after enable secure feed.
-      # This will speed up secure feed setup significantly.
+      # This will speed up secure feed setup significantly as it don't need to patch package-lock.json.
       # But we also need to be super careful we don't run any NPM commands that would fetch the registry. We are insecure here.
       - uses: actions/checkout@v3
         with:
@@ -206,6 +206,7 @@ jobs:
       public-only-matrix: ${{ steps.write-outputs.outputs.public-only-matrix }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
       - env:
           matrix: ${{ needs.build.outputs.matrix }}
         name: Save matrix to file
@@ -311,3 +312,127 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         name: Upload pages to GitHub "${{ env.publish-tag }}" release
         run: gh release upload --clobber ${{ env.publish-tag }} github-pages.tar --repo ${{ github.repository }}
+
+  # Update release after re-pushing a new tag.
+  release-publish:
+    environment:
+      name: github-release
+      url: ${{ steps.write-outputs.outputs.url }}
+    name: 'Release: Publish'
+    needs:
+      - release-upload-matrix
+      - release-upload-package
+      - release-upload-pages
+    outputs:
+      tag-url: ${{ steps.write-outputs.outputs.tag-url }}
+      url: ${{ steps.write-outputs.outputs.url }}
+    permissions:
+      contents: write # "contents" is required for modifying releases.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Fetch all tags.
+      - continue-on-error: true
+        name: Delete existing tag
+        run: git tag -d ${{ env.publish-tag }}
+      - name: Create new tag
+        run: git tag ${{ env.publish-tag }}
+      - continue-on-error: true
+        name: Delete server tag
+        run: git push origin :${{ env.publish-tag }}
+      - name: Push tag
+        run: git push origin ${{ env.publish-tag }}
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        name: Publish release
+        run: gh release edit --draft=false --prerelease ${{ env.publish-tag }} --repo ${{ github.repository }}
+      - id: write-outputs
+        name: Write to outputs
+        run: |
+          echo tag-url=${{ github.server_url }}/${{ github.repository }}/tree/${{ env.publish-tag }} | tee --append $GITHUB_OUTPUT
+          echo url=${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.publish-tag }} | tee --append $GITHUB_OUTPUT
+
+  github-pages-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      url: ${{ steps.deployment.outputs.page_url }}
+    name: 'GitHub Pages: Deploy'
+    needs: approval
+    permissions:
+      id-token: write
+      pages: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
+
+  # github-packages-publish:
+  #   environment:
+  #     name: github-packages
+  #     url: ${{ github.server_url }}/${{ github.repository_owner }}?tab=packages\&repo_name=${{ github.event.repository.name }}
+  #   name: 'GitHub Packages: Publish'
+  #   needs: approval
+  #   permissions:
+  #     packages: write
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix: ${{ fromJSON(needs.approval.outputs.matrix-public-only) }}
+  #   steps:
+  #     - name: Download scoped packages
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: scoped-packages
+  #     # - id: prepare
+  #     #   name: Prepare
+  #     #   run: |
+  #     #     TARBALL=`cat workflow-state.json | jq --arg name ${{ matrix.package-name }} -r '.[$name] | .tarball'`
+
+  #     #     PACKAGE_NAME=`tar -xf $TARBALL --to-stdout package/package.json | jq -r '.name'`
+  #     #     VERSION=`tar -xf $TARBALL --to-stdout package/package.json | jq -r '.version'`
+
+  #     #     echo package-name=$PACKAGE_NAME | tee --append $GITHUB_OUTPUT
+  #     #     echo tarball=$TARBALL | tee --append $GITHUB_OUTPUT
+  #     #     echo version=$VERSION | tee --append $GITHUB_OUTPUT
+
+  #     #     # url=https://github.com/microsoft/conversational-ai-chat-sdk/pkgs/npm/powerva-chat-adapter
+  #     #     echo url=${{ github.server_url }}/${{ github.repository }}/pkgs/npm/${{ matrix.package-name }} | tee --append $GITHUB_OUTPUT
+  #     - name: Set up Node.js ${{ env.node-version }}
+  #       uses: actions/setup-node@v3
+  #       with:
+  #         node-version: ${{ env.node-version }}
+  #         registry-url: https://npm.pkg.github.com/
+  #     - id: has-published
+  #       name: Checks if ${{ matrix.name }}@${{ matrix.version }} is already published
+  #       uses: ./.github/actions/check-if-package-has-published
+  #       with:
+  #         name: ${{ matrix.name }}
+  #         registry-url: https://npm.pkg.github.com/
+  #         token: ${{ github.token }}
+  #         version: ${{ matrix.version }}
+  #     - env:
+  #         NODE_AUTH_TOKEN: ${{ github.token }}
+  #       if: ${{ steps.has-published.outputs.published == 'false' }}
+  #       name: Publish ${{ matrix.name }}@${{ matrix.version }}
+  #       run: |
+  #         ls -l ${{ matrix.tarball }}
+  #         npm publish --json ${{ matrix.tarball }}
+
+  # summary:
+  #   if: ${{ always() }}
+  #   name: Summary
+  #   needs:
+  #     - github-packages-publish
+  #     - github-pages-deploy
+  #     - release-publish
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Post deployment
+  #       run: |
+  #         echo - [GitHub Packages]\(${{ github.server_url }}/${{ github.repository_owner }}?tab=packages\&repo_name=${{ github.event.repository.name }}\) >> $GITHUB_STEP_SUMMARY
+  #         echo - [Pages]\(${{ needs.github-pages-deploy.outputs.url }}\) >> $GITHUB_STEP_SUMMARY
+  #         echo - [Release]\(${{ needs.release-publish.outputs.url }}\) >> $GITHUB_STEP_SUMMARY
+  #         echo - [Source code \(tagged\)]\(${{ needs.release-publish.outputs.tag-url }}\) >> $GITHUB_STEP_SUMMARY
