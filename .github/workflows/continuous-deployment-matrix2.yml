@@ -1,0 +1,95 @@
+name: Continuous deployment (matrix as workflow state)
+run-name: "${{ github.event_name != 'push' && format('Continuous deployment: {0} on {1}', github.event_name, github.ref_name) || null }}"
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '.azdo/**'
+      - '.devcontainer/**'
+      - '.github/**'
+  workflow_dispatch:
+    inputs:
+      use-secure-feed:
+        default: true
+        description: Use secure feed (required for production)
+        required: true
+        type: boolean
+
+# Do not cancel current run. This is because we are using ${{ github.sha }} to determine what to publish.
+# If current run is cancelled, we will not publish packages for the current run.
+concurrency: continuous-deployment
+
+env:
+  node-version: lts/Hydrogen
+  publish-tag: release/vnext
+
+jobs:
+  prepare:
+    name: Prepare
+    outputs:
+      matrix: ${{ steps.build-matrix.outputs.matrix }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Infinite depth required for commitish
+      - name: Set up Node.js ${{ inputs.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          cache: npm
+          node-version: ${{ inputs.node-version }}
+          registry-url: https://npm.pkg.github.com/
+      - if: ${{ inputs.use-secure-feed }}
+        name: Set up secure feed
+        run: npx https://aka.ms/EnableSecureFeed
+        shell: bash
+      - run: npm install --global --ignore-scripts semver@latest # Skip scripts to prevent malicious scripts from stealing the token.
+      - id: build-matrix
+        name: Build matrix
+        run: |
+          BRANCH=`git branch --show-current` && true || exit 1
+
+          echo {} > matrix.json
+
+          for i in `cat package.json | jq -r '.workspaces | join("\n")'`
+          do
+            # COMMITTER_DATE=20230815-110805
+            COMMITTER_DATE=`git log --date=format:%Y%m%d-%H%M%S --pretty=format:'%cd' -1 ./$i/` && true || exit 1
+
+            # SHORT_COMMITISH=0bf2b81
+            SHORT_COMMITISH=`git log --pretty=format:'%h' -1 ./$i/` && true || exit 1
+
+            # VERSION=main.20230815-110805.0bf2b81
+            # This version is not very accurate, after running `npm version`, it will remove leading zeroes in prerelease tags if that certain part is all numeric. This does not repro in semver.
+            # "main.20230815-110805.0bf2b81" -> "main.20230815-110805.0bf2b81"
+            # "main.20230815-110805.0012345" -> "main.20230815-110805.12345"
+            # We will update the matrix again in build job.
+            VERSION=`cat ./$i/package.json | jq -r .version | xargs -L1 npm exec --offline -- semver --increment prerelease -n false --preid $BRANCH.$COMMITTER_DATE.$SHORT_COMMITISH` && true || exit 1
+
+            cat ./matrix.json | jq --arg path ./$i/ --arg version $VERSION --argfile packageJSON ./$i/package.json -r '.include = (.include // []) + [{ name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), version: $version }]' > /tmp/matrix.json && true || exit 1
+            mv /tmp/matrix.json ./matrix.json && true || exit 1
+          done
+
+          echo matrix=`cat matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
+      - name: Print matrix
+        uses: ./.github/actions/print-step-summary-from-file
+        with:
+          path: ./matrix.json
+          title: Matrix
+          type: json
+
+  build:
+    name: Build
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Display matrix
+        run: |
+          echo name=${{ matrix.name }}
+          echo version=${{ matrix.version }}
+          echo private=${{ matrix.private }}
+          echo path=${{ matrix.path }}
