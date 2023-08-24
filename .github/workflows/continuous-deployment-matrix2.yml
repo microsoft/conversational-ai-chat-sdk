@@ -32,19 +32,18 @@ jobs:
       matrix: ${{ steps.build-matrix.outputs.matrix }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0 # Infinite depth required for commitish
       - name: Set up Node.js ${{ inputs.node-version }}
         uses: actions/setup-node@v3
         with:
-          cache: npm
           node-version: ${{ inputs.node-version }}
       - if: ${{ inputs.use-secure-feed }}
         name: Set up secure feed
         run: npx https://aka.ms/EnableSecureFeed
         shell: bash
-      - run: npm install --global --ignore-scripts semver@latest # Skip scripts to prevent malicious scripts from stealing the token.
+      - run: npm install --global --ignore-scripts semver@latest # Ignore scripts to prevent malicious scripts.
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Infinite depth required for commitish
       - id: build-matrix
         name: Build matrix
         run: |
