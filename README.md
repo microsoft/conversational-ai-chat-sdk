@@ -1,14 +1,10 @@
-# Project
+# Conversational AI Chat SDKs
 
-> This repo has been populated by an initial template to help get you started. Please
-> make sure to update the content to build a great experience for community-building.
+This repository contains chat SDKs for using Conversational AI platform in your websites and web apps.
 
-As the maintainer of this project, please make a few updates:
+## Power Virtual Agents chat adapter
 
-- Improving this README.MD file to provide a great experience
-- Updating SUPPORT.MD with content about this project's support experience
-- Understanding the security reporting process in SECURITY.MD
-- Remove this section from the README
+This is a chat adapter for using Power Virtual Agents chatbot with [Bot Framework Web Chat](https://github.com/microsoft/BotFramework-WebChat/).
 
 ## Contributing
 
