@@ -139,17 +139,23 @@ jobs:
           npm pack --json --pack-destination=/tmp/tarball/ --workspaces=true | tee /tmp/pack-result.json
       - name: 'Sanity check: Pack result should be match package.json/workspaces'
         run: |
+          cat /tmp/pack-result.json | jq 'map(del(.files))'
+
           count=`cat package.json | jq -r '.workspaces | length - 1'` && true || exit 1
 
           for index in `seq 0 $count`
           do
+            filename=`cat /tmp/pack-result.json | jq --argjson index $index -r '.[$index].filename'` && true || exit 1
             package_path=`cat package.json | jq --argjson index $index -r '.workspaces[$index]'` && true || exit 1
-            tarball=`cat pack-result.json | jq --argjson index $index -r '.[$index].filename'` && true || exit 1
+
+            echo ::group::$package_path
 
             package_name=`cat $package_path/package.json | jq -r .name` && true || exit 1
-            tarball_package_name=`tar -xf $tarball --to-stdout package/package.json | jq -r .name` && true || exit 1
+            tarball_package_name=`tar -xf $filename --to-stdout package/package.json | jq -r .name` && true || exit 1
 
             echo Checks if $package_name == $tarball_package_name.
+
+            echo ::endgroup::
 
             if [[ "$package_name" != "$tarball_package_name" ]]
             then
