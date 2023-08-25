@@ -84,20 +84,22 @@ jobs:
           echo matrix=$matrix | tee --append $GITHUB_OUTPUT
 
   build:
-    name: Build (${{ matrix.scoped && 'scoped' || 'unscoped' }})
+    name: Build (${{ matrix.rescoped && 'rescoped' || 'as-is' }})
     needs: prepare
     outputs:
       # filenames: ['package-a-1.2.3-0.tgz', 'package-b-7.8.9-0.tgz']
       filenames: ${{ !matrix.scoped && steps.write-outputs.outputs.filenames || null }}
       # scoped-filenames: ['compulim-package-a-1.2.3-0.tgz', 'compulim-package-b-7.8.9-0.tgz']
       scoped-filenames: ${{ matrix.scoped && steps.write-outputs.outputs.filenames || null }}
+      # scoped-names: ['@compulim/package-a', '@compulim/package-b']
+      scoped-names: ${{ matrix.scoped && steps.write-outputs.outputs.scoped-names || null }}
       # versions: ['1.2.3-0', '7.8.9-0']
       versions: ${{ !matrix.scoped && steps.write-outputs.outputs.versions || null }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
         # We are rescoping packages so they can publish to contributor's GitHub Packages so they can consume it easily.
-        scoped: [true, false]
+        rescoped: [true, false]
     steps:
       - env:
           matrix: ${{ needs.prepare.outputs.matrix }}
@@ -116,13 +118,10 @@ jobs:
         # "npm version" will update workspaces. During update, it will need to talk to NPM registry.
         name: Bump versions
         run: cat /tmp/matrix.json | jq -cr 'map("--workspace=" + .name + " " + .version) | join("\n")' | xargs -L1 npm version
-      - run: npm clean-install --ignore-scripts --strict-peer-deps # CyberEO: Ignore scripts to prevent malicious scripts from stealing the token.
-      - # We are cheating, we did not rescope package-lock.json, so we cannot run before npm clean-install.
-        # TODO: Rescope package-lock.json
-        if: ${{ matrix.scoped }}
-        name: Rescope to @${{ github.repository_owner }}
+      - if: ${{ matrix.rescoped }}
+        name: Rescope packages to @${{ github.repository_owner }}
         run: |
-          for i in `cat package.json | jq -r '.workspaces | join("\n")'`
+          for i in `cat ./package.json | jq -r '.workspaces | join("\n")'`
           do
             echo ::group::$i/package.json
 
@@ -132,6 +131,22 @@ jobs:
 
             echo ::endgroup::
           done
+      - name: Rescope package-lock.json
+        run: |
+          # We only know how to deal with lockfile v3.
+          jq 'if .lockfileVersion == 3 then empty else empty | halt_error(1) end' ./package-lock.json
+
+          for path in `cat ./package.json | jq -r '.workspaces | join("\n")'`
+          do
+            echo ::group::$path/package.json
+
+            jq --arg path $path --argfile package $path/package.json -r '.packages[$path] += { dependencies: $package.dependencies, devDependencies: $package.devDependencies, optionalDependencies: ($package.optionalDependencies // {}), peerDependencies: ($package.peerDependencies // {}) }' ./package-lock.json > /tmp/package-lock.tmp.json && true || exit 1
+
+            mv /tmp/package-lock.tmp.json ./package.json && true || exit 1
+
+            echo ::endgroup::
+          done
+      - run: npm clean-install --ignore-scripts --strict-peer-deps # CyberEO: Ignore scripts to prevent malicious scripts from stealing the token.
       - name: Run whitelisted postinstall scripts
         run: npm run postinstall --if-present --workspaces=true
       - name: Build
@@ -171,11 +186,13 @@ jobs:
           compgen -G /tmp/pack-result.json && true || exit 1
 
           filenames=`cat /tmp/pack-result.json | jq -cr 'map(.filename)'`
+          scoped_names=`cat /tmp/pack-result.json | jq -cr 'map(.name)'`
           versions=`cat /tmp/pack-result.json | jq -cr 'map(.version)'`
 
           echo filenames=$filenames | tee --append $GITHUB_OUTPUT
+          echo scoped-names=$scoped_names | tee --append $GITHUB_OUTPUT
           echo versions=$versions | tee --append $GITHUB_OUTPUT
-      - if: ${{ !matrix.scoped }}
+      - if: ${{ !matrix.rescoped }}
         name: Upload package-lock.json
         uses: actions/upload-artifact@v3
         with:
@@ -186,7 +203,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error
-          name: ${{ matrix.scoped && 'scoped-packages' || 'packages' }}
+          name: ${{ matrix.rescoped && 'scoped-packages' || 'packages' }}
           path: /tmp/tarball/
 
   build-merge-matrix:
@@ -218,6 +235,15 @@ jobs:
           echo $scoped_filenames | jq -r | tee /tmp/scoped-filenames.json
 
           cat /tmp/matrix.json | jq --argfile scopedFilenames /tmp/scoped-filenames.json -r 'to_entries | map(.value + { "scoped-filename": $scopedFilenames[.key] })' | tee /tmp/matrix.json.tmp
+
+          mv /tmp/matrix.json.tmp /tmp/matrix.json
+      - env:
+          scoped_names: ${{ needs.build.outputs.scoped-names }}
+        name: Add scoped names to matrix
+        run: |
+          echo $scoped_names | jq -r | tee /tmp/scoped-names.json
+
+          cat /tmp/matrix.json | jq --argfile scopedNames /tmp/scoped-names.json -r 'to_entries | map(.value + { "scoped-name": $scopedNames[.key] })' | tee /tmp/matrix.json.tmp
 
           mv /tmp/matrix.json.tmp /tmp/matrix.json
       - env:
@@ -478,12 +504,12 @@ jobs:
         run: |
           name=`jq -r '.name' /tmp/package.json`
           echo $name
-          [[ "$name" != "${{ matrix.name }}" ]] || exit 1
+          [[ "$name" != "${{ matrix.name }}" ]] && exit 1
       - name: 'Sanity check: make sure "version" field match'
         run: |
           version=`jq -r '.version' /tmp/package.json`
           echo $version
-          [[ "$version" != "${{ matrix.version }}" ]] || exit 1
+          [[ "$version" != "${{ matrix.version }}" ]] && exit 1
       - id: has-published
         name: Checks if ${{ matrix.name }}@${{ matrix.version }} is already published
         uses: ./.github/actions/check-if-package-has-published
