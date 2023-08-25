@@ -84,7 +84,7 @@ jobs:
           echo matrix=$matrix | tee --append $GITHUB_OUTPUT
 
   build:
-    name: Build (${{ matrix.rescoped && '@${{ github.repository_owner }}' || 'as-is' }})
+    name: Build (${{ matrix.rescoped && format('@{0}', github.repository_owner) || 'as-is' }})
     needs: prepare
     outputs:
       # filenames: ['package-a-1.2.3-0.tgz', 'package-b-7.8.9-0.tgz']
