@@ -548,7 +548,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ github.token }}
         if: ${{ steps.has-published.outputs.published == 'false' }}
         name: Publish ${{ matrix.name }}@${{ matrix.version }}
-        run: echo npm publish --json /tmp/tarball/${{ matrix.scoped-filename }}
+        run: npm publish --json /tmp/tarball/${{ matrix.scoped-filename }}
 
   summary:
     if: ${{ always() }}
