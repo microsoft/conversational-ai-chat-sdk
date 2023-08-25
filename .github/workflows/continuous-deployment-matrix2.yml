@@ -247,8 +247,8 @@ jobs:
         name: Write to outputs
         run: echo matrix=`cat /tmp/matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
 
-  build-github-pages:
-    name: 'Build: GitHub Pages'
+  upload-github-pages:
+    name: 'Upload: GitHub Pages'
     needs:
       - build-merge-matrix
     runs-on: ubuntu-latest
@@ -277,8 +277,8 @@ jobs:
   approval:
     name: Approval
     needs:
-      - build-github-pages
       - build-merge-matrix
+      - upload-github-pages
     outputs:
       matrix: ${{ steps.write-outputs.outputs.matrix }}
       public-only-matrix: ${{ steps.write-outputs.outputs.public-only-matrix }}
@@ -461,19 +461,21 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.approval.outputs.public-only-matrix) }}
     steps:
+      - uses: actions/checkout@v3
       - name: Download packages
         uses: actions/download-artifact@v3
         with:
           name: scoped-packages
+          path: /tmp/tarball/
       - name: Set up Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.node-version }}
           registry-url: https://npm.pkg.github.com/
       - name: List package
-        run: ls -l ${{ matrix.scoped-filename }}
+        run: ls -l /tmp/tarball/${{ matrix.scoped-filename }}
       - name: Extract package.json
-        run: tar -xf ${{ matrix.scoped-filename }} --to-stdout package/package.json | tee /tmp/package.json
+        run: tar -xf /tmp/tarball/${{ matrix.scoped-filename }} --to-stdout package/package.json | tee /tmp/package.json
       - name: 'Sanity check: make sure "name" field match'
         run: |
           [[ "`cat /tmp/package.json | jq -r '.name'`" != "${{ matrix.name }}" ]] || exit 1
@@ -492,7 +494,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ github.token }}
         if: ${{ steps.has-published.outputs.published == 'false' }}
         name: Publish ${{ matrix.name }}@${{ matrix.version }}
-        run: echo npm publish --json ${{ matrix.scoped-filename }}
+        run: echo npm publish --json /tmp/tarball/${{ matrix.scoped-filename }}
 
   summary:
     if: ${{ always() }}
