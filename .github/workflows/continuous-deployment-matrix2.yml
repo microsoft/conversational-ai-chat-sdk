@@ -169,8 +169,8 @@ jobs:
         run: |
           compgen -G /tmp/pack-result.json && true || exit 1
 
-          filenames=`cat /tmp/pack-result.json | jq -cr .filename`
-          versions=`cat /tmp/pack-result.json | jq -cr .version`
+          filenames=`cat /tmp/pack-result.json | jq -cr 'map(.filename)'`
+          versions=`cat /tmp/pack-result.json | jq -cr 'map(.version)'`
 
           echo filenames=$filenames | tee --append $GITHUB_OUTPUT
           echo versions=$versions | tee --append $GITHUB_OUTPUT
