@@ -142,7 +142,7 @@ jobs:
 
             mv /tmp/package-lock.tmp.json ./package-lock.json && true || exit 1
 
-            cat package-lock.json | jq -r '.packages[$path]'
+            cat package-lock.json | jq --arg path $path -r '.packages[$path]'
 
             echo ::endgroup::
           done
