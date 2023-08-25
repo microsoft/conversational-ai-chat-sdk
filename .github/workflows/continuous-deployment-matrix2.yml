@@ -138,11 +138,15 @@ jobs:
           do
             echo ::group::$path/package.json
 
-            jq --arg path $path --argfile package $path/package.json -r '.packages[$path] += { dependencies: $package.dependencies, devDependencies: $package.devDependencies, optionalDependencies: ($package.optionalDependencies // {}), peerDependencies: ($package.peerDependencies // {}) }' ./package-lock.json > /tmp/package-lock.tmp.json && true || exit 1
+            jq --arg path $path --argfile package $path/package.json -r '.packages[$path] += { dependencies: $package.dependencies, devDependencies: $package.devDependencies, name: $package.name, optionalDependencies: ($package.optionalDependencies // {}), peerDependencies: ($package.peerDependencies // {}) }' ./package-lock.json > /tmp/package-lock.json.tmp && true || exit 1
 
-            mv /tmp/package-lock.tmp.json ./package-lock.json && true || exit 1
+            mv /tmp/package-lock.json.tmp ./package-lock.json && true || exit 1
 
-            cat package-lock.json | jq --arg path $path -r '.packages[$path]'
+            jq --arg path $path --argfile package $path/package.json -r '.packages |= with_entries(if .value.resolved == $path then .key = "node_modules/" + $package.name else . end)' ./package-lock.json > /tmp/package-lock.json.tmp
+
+            mv /tmp/package-lock.json.tmp ./package-lock.json && true || exit 1
+
+            cat package-lock.json | jq --arg path $path -r '.packages | with_entries(select(.key == $path // .value.resolved == $path))'
 
             echo ::endgroup::
           done
