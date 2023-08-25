@@ -76,8 +76,8 @@ jobs:
 
             mv /tmp/matrix.json.tmp /tmp/matrix.json && true || exit 1
           done
-      - name: 'Sanity check: matrix must have at least one entry'
-        run: jq --argfile matrix /tmp/matrix.json -n 'if ($matrix | length) > 0 then empty else halt_error(1) end'
+      - name: 'Sanity check: matrix must have all workspaces'
+        run: jq --argfile matrix /tmp/matrix.json --argfile packageJSON ./package.json -n 'if ($matrix | length) == ($packageJSON | .workspaces | length) then empty else halt_error(1) end'
       - id: write-outputs
         name: Write to outputs
         run: |
@@ -219,7 +219,7 @@ jobs:
         run: |
           echo $scoped_filenames | jq -r | tee /tmp/scoped-filenames.json
 
-          cat /tmp/matrix.json | jq --argfile scopedFilenames /tmp/scoped-filenames.json -r 'to_entries | map(.value + { scopedFilename: $scopedFilenames[.key] })' | tee /tmp/matrix.json.tmp
+          cat /tmp/matrix.json | jq --argfile scopedFilenames /tmp/scoped-filenames.json -r 'to_entries | map(.value + { "scoped-filename": $scopedFilenames[.key] })' | tee /tmp/matrix.json.tmp
 
           mv /tmp/matrix.json.tmp /tmp/matrix.json
       - env:
@@ -247,8 +247,8 @@ jobs:
         name: Write to outputs
         run: echo matrix=`cat /tmp/matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
 
-  upload-github-pages:
-    name: 'Upload: GitHub Pages'
+  prepare-github-pages:
+    name: 'Prepare: GitHub Pages'
     needs:
       - build-merge-matrix
     runs-on: ubuntu-latest
@@ -278,7 +278,7 @@ jobs:
     name: Approval
     needs:
       - build-merge-matrix
-      - upload-github-pages
+      - prepare-github-pages
     outputs:
       matrix: ${{ steps.write-outputs.outputs.matrix }}
       public-only-matrix: ${{ steps.write-outputs.outputs.public-only-matrix }}
