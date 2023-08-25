@@ -13,7 +13,7 @@ on:
     inputs:
       # TODO: Find a way to set it to true for "push".
       use-secure-feed:
-        default: true
+        default: false
         description: Use secure feed (required for production)
         required: true
         type: boolean
@@ -155,14 +155,14 @@ jobs:
 
             echo ::group::$package_path
 
-            package_name=`cat $package_path/package.json | jq -r .name`
-            tarball_package_name=`tar -xf /tmp/tarball/$filename --to-stdout package/package.json | jq -r .name`
+            package_name_in_path=`cat $package_path/package.json | jq -r .name`
+            package_name_in_tarball=`tar -xf /tmp/tarball/$filename --to-stdout package/package.json | jq -r .name`
 
-            echo "$package_name" should be same as "$tarball_package_name".
+            echo "$package_name_in_path" should be same as "$package_name_in_tarball".
 
             echo ::endgroup::
 
-            if [[ "$package_name" != "$tarball_package_name" ]]
+            if [[ "$package_name_in_path" != "$package_name_in_tarball" ]]
             then
               exit 1
             fi
@@ -262,13 +262,13 @@ jobs:
         id: get-tarball-name
         name: Get tarball name
         run: |
-          tarball=`echo $matrix | jq -r '.[] | select(.name == "pages") | .tarball | if . then . else halt_error(1) end'` && true || exit 1
+          filename=`echo $matrix | jq -r '.[] | select(.name == "pages") | .filename | if . then . else halt_error(1) end'` && true || exit 1
 
-          echo tarball=$tarball | tee --append $GITHUB_OUTPUT
+          echo filename=$filename | tee --append $GITHUB_OUTPUT
       - name: Make directory
         run: mkdir ./_site/
-      - name: Extract ${{ steps.get-tarball-name.outputs.tarball }}
-        run: tar --directory=./_site/ --extract --file=`ls -1 ${{ steps.get-tarball-name.outputs.tarball }}` --strip-component=2 --verbose package/public
+      - name: Extract ${{ steps.get-tarball-name.outputs.filename }}
+        run: tar --directory=./_site/ --extract --file=`ls -1 ${{ steps.get-tarball-name.outputs.filename }}` --strip-component=2 --verbose package/public
       - name: List directory
         run: ls -la ./_site/
       - name: Upload pages artifact
