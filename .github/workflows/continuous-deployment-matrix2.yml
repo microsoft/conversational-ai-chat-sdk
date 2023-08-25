@@ -80,7 +80,7 @@ jobs:
         run: jq --argfile matrix /tmp/matrix.json -n 'if ($matrix | length) > 0 then empty else halt_error(1) end'
       - id: write-outputs
         name: Write to outputs
-        run:
+        run: |
           matrix=`jq -cr /tmp/matrix.json` && true || exit 1
           echo matrix=$matrix | tee --append $GITHUB_OUTPUT
 
@@ -210,7 +210,7 @@ jobs:
         run: |
           echo $filenames | jq -r | tee /tmp/filenames.json
 
-          cat /tmp/matrix.json | jq --argfile filenames /tmp/filenames.json -r 'to_entries | map(.value + { filename: $filenames[.key] })' > /tmp/matrix.json.tmp && true || exit 1
+          cat /tmp/matrix.json | jq --argfile filenames /tmp/filenames.json -r 'to_entries | map(.value + { filename: $filenames[.key] })' | tee /tmp/matrix.json.tmp
 
           mv /tmp/matrix.json.tmp /tmp/matrix.json
       - env:
@@ -219,7 +219,7 @@ jobs:
         run: |
           echo $scoped_filenames | jq -r | tee /tmp/scoped-filenames.json
 
-          cat /tmp/matrix.json | jq --argfile scopedFilenames /tmp/scoped-filenames.json -r 'to_entries | map(.value + { scopedFilename: $scopedFilenames[.key] })' > /tmp/matrix.json.tmp && true || exit 1
+          cat /tmp/matrix.json | jq --argfile scopedFilenames /tmp/scoped-filenames.json -r 'to_entries | map(.value + { scopedFilename: $scopedFilenames[.key] })' | tee /tmp/matrix.json.tmp
 
           mv /tmp/matrix.json.tmp /tmp/matrix.json
       - env:
@@ -228,7 +228,7 @@ jobs:
         run: |
           echo $versions | jq -r | tee /tmp/versions.json
 
-          cat /tmp/matrix.json | jq --argfile versions /tmp/versions.json -r 'to_entries | map(.value + { version: $versions[.key] })' > /tmp/matrix.json.tmp && true || exit 1
+          cat /tmp/matrix.json | jq --argfile versions /tmp/versions.json -r 'to_entries | map(.value + { version: $versions[.key] })' | tee /tmp/matrix.json.tmp
 
           mv /tmp/matrix.json.tmp /tmp/matrix.json
       - name: Print updated matrix
