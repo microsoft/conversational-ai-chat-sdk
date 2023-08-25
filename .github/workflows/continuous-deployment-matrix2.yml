@@ -41,7 +41,6 @@ jobs:
       - if: ${{ inputs.use-secure-feed }}
         name: Set up secure feed
         run: npx https://aka.ms/EnableSecureFeed
-        shell: bash
       - run: npm install --global --ignore-scripts semver@latest # Ignore scripts to prevent malicious scripts.
 
       # We intentionally checkout after enable secure feed.
@@ -113,7 +112,6 @@ jobs:
       - if: ${{ inputs.use-secure-feed }}
         name: Set up secure feed
         run: npx https://aka.ms/EnableSecureFeed
-        shell: bash
       - # We cannot run "npm version" right after "npx semver". Otherwise, next run of "npx semver" will ignore "-n false".
         # "npm version" will update workspaces. During update, it will need to talk to NPM registry.
         name: Bump versions
@@ -239,8 +237,8 @@ jobs:
         run: jq --argfile updated /tmp/matrix.json --argjson matrix $matrix -n 'if ($updated | length) == ($matrix | length) then empty else halt_error(1) end'
       - name: 'Sanity check: matrix must have "filename" field'
         run: cat /tmp/matrix.json | jq 'if (.[] | select(.filename | not) | length > 0) then halt_error(1) else empty end'
-      - name: 'Sanity check: matrix must have "scopedFilename" field'
-        run: cat /tmp/matrix.json | jq 'if (.[] | select(.scopedFilename | not) | length > 0) then halt_error(1) else empty end'
+      - name: 'Sanity check: matrix must have "scoped-filename" field'
+        run: cat /tmp/matrix.json | jq 'if (.[] | select(.["scoped-filename"] | not) | length > 0) then halt_error(1) else empty end'
       - name: 'Sanity check: matrix must have "version" field'
         run: cat /tmp/matrix.json | jq 'if (.[] | select(.version | not) | length > 0) then halt_error(1) else empty end'
       - id: write-outputs
