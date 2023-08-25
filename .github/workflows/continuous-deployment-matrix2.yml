@@ -517,10 +517,10 @@ jobs:
           echo version=$version | tee --append $GITHUB_OUTPUT
       - name: 'Sanity check: make sure "name" field match'
         run: |
-          [[ "${{ steps.read-package-json.outputs.name }}" != "${{ matrix.scoped-name }}" ]] && exit 1
+          [[ "${{ steps.read-package-json.outputs.name }}" == "${{ matrix.scoped-name }}" ]] && true || exit 1
       - name: 'Sanity check: make sure "version" field match'
         run: |
-          [[ "${{ steps.read-package-json.outputs.version }}" != "${{ matrix.version }}" ]] && exit 1
+          [[ "${{ steps.read-package-json.outputs.version }}" == "${{ matrix.version }}" ]] && true || exit 1
       - id: has-published
         name: Checks if ${{ matrix.name }}@${{ matrix.version }} is already published
         uses: ./.github/actions/check-if-package-has-published
