@@ -81,7 +81,7 @@ jobs:
       - id: write-outputs
         name: Write to outputs
         run: |
-          matrix=`jq -cr /tmp/matrix.json` && true || exit 1
+          matrix=`jq -cr '.' /tmp/matrix.json` && true || exit 1
           echo matrix=$matrix | tee --append $GITHUB_OUTPUT
 
   build:
