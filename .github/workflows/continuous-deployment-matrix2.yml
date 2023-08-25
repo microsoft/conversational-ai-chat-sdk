@@ -452,7 +452,7 @@ jobs:
     environment:
       name: github-packages
       url: ${{ github.server_url }}/${{ github.repository_owner }}?tab=packages\&repo_name=${{ github.event.repository.name }}
-    name: 'GitHub Packages: Publish'
+    name: 'GitHub Packages: Publish (${{ matrix.name }}@${{ matrix.version }})'
     needs: approval
     permissions:
       packages: write
@@ -470,7 +470,16 @@ jobs:
         with:
           node-version: ${{ env.node-version }}
           registry-url: https://npm.pkg.github.com/
-      - run: ls -l ${{ matrix.filename }}
+      - name: List package
+        run: ls -l ${{ matrix.scoped-filename }}
+      - name: Extract package.json
+        run: tar -xf ${{ matrix.scoped-filename }} --to-stdout package/package.json | tee /tmp/package.json
+      - name: 'Sanity check: make sure "name" field match'
+        run: |
+          [[ "`cat /tmp/package.json | jq -r '.name'`" != "${{ matrix.name }}" ]] || exit 1
+      - name: 'Sanity check: make sure "version" field match'
+        run: |
+          [[ "`cat /tmp/package.json | jq -r '.version'`" != "${{ matrix.version }}" ]] || exit 1
       - id: has-published
         name: Checks if ${{ matrix.name }}@${{ matrix.version }} is already published
         uses: ./.github/actions/check-if-package-has-published
@@ -483,7 +492,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ github.token }}
         if: ${{ steps.has-published.outputs.published == 'false' }}
         name: Publish ${{ matrix.name }}@${{ matrix.version }}
-        run: echo npm publish --json ${{ matrix.filename }}
+        run: echo npm publish --json ${{ matrix.scoped-filename }}
 
   summary:
     if: ${{ always() }}
