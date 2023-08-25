@@ -118,13 +118,13 @@ jobs:
       - if: ${{ matrix.rescoped }}
         name: Rescope packages to @${{ github.repository_owner }}
         run: |
-          for i in `cat ./package.json | jq -r '.workspaces | join("\n")'`
+          for path in `cat ./package.json | jq -r '.workspaces | join("\n")'`
           do
-            echo ::group::$i/package.json
+            echo ::group::$path/package.json
 
-            cat $i/package.json | jq --arg owner ${{ github.repository_owner }} --argfile matrix /tmp/matrix.json -r 'def rescope($entry): $entry | if ($matrix | map(select(.name == $entry.key)) | length > 0) then .value = "npm:@" + $owner + "/" + .key + "@" + .value else . end; . | (.name = "@" + $owner + "/" + .name) | (.dependencies |= (. | with_entries(rescope(.)))) | (.devDependencies |= (. | with_entries(rescope(.))))' | tee /tmp/package.json && true || exit 1
+            cat $path/package.json | jq --arg owner ${{ github.repository_owner }} --argfile matrix /tmp/matrix.json -r 'def rescope($entry): $entry | if ($matrix | map(select(.name == $entry.key)) | length > 0) then .value = "npm:@" + $owner + "/" + .key + "@" + .value else . end; . | (.name = "@" + $owner + "/" + .name) | (.dependencies |= (. | with_entries(rescope(.)))) | (.devDependencies |= (. | with_entries(rescope(.))))' | tee /tmp/package.json && true || exit 1
 
-            mv /tmp/package.json $i/package.json && true || exit 1
+            mv /tmp/package.json $path/package.json && true || exit 1
 
             echo ::endgroup::
           done
@@ -140,7 +140,9 @@ jobs:
 
             jq --arg path $path --argfile package $path/package.json -r '.packages[$path] += { dependencies: $package.dependencies, devDependencies: $package.devDependencies, optionalDependencies: ($package.optionalDependencies // {}), peerDependencies: ($package.peerDependencies // {}) }' ./package-lock.json > /tmp/package-lock.tmp.json && true || exit 1
 
-            mv /tmp/package-lock.tmp.json ./package.json && true || exit 1
+            mv /tmp/package-lock.tmp.json ./package-lock.json && true || exit 1
+
+            cat package-lock.json | jq -r '.packages[$path]'
 
             echo ::endgroup::
           done
