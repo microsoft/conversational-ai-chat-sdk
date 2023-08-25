@@ -188,37 +188,10 @@ jobs:
           name: ${{ matrix.scoped && 'scoped-packages' || 'packages' }}
           path: /tmp/tarball/
 
-  build-github-pages:
-    name: 'Build: GitHub Pages'
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download packages artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: packages
-      - env:
-          matrix: ${{ needs.build.outputs.matrix }}
-        id: get-tarball-name
-        name: Get tarball name
-        run: |
-          tarball=`echo $matrix | jq -r '.[] | select(.name == "pages") | .tarball | if . then . else halt_error(1) end'` && true || exit 1
-
-          echo tarball=$tarball | tee --append $GITHUB_OUTPUT
-      - name: Make directory
-        run: mkdir ./_site/
-      - name: Extract ${{ steps.get-tarball-name.outputs.tarball }}
-        run: tar --directory=./_site/ --extract --file=`ls -1 ${{ steps.get-tarball-name.outputs.tarball }}` --strip-component=2 --verbose package/public
-      - name: List directory
-        run: ls -la ./_site/
-      - name: Upload pages artifact
-        uses: actions/upload-pages-artifact@v2
-
-  pre-approval:
-    name: Pre-approval
+  build-merge-matrix:
+    name: 'Build: Merge matrix'
     needs:
       - build
-      - build-github-pages
       - prepare
     outputs:
       matrix: ${{ steps.write-outputs.outputs.matrix }}
@@ -271,9 +244,38 @@ jobs:
         name: Write to outputs
         run: echo matrix=`cat /tmp/matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
 
+  build-github-pages:
+    name: 'Build: GitHub Pages'
+    needs:
+      - build-merge-matrix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download packages artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: packages
+      - env:
+          matrix: ${{ needs.build-merge-matrix.outputs.matrix }}
+        id: get-tarball-name
+        name: Get tarball name
+        run: |
+          tarball=`echo $matrix | jq -r '.[] | select(.name == "pages") | .tarball | if . then . else halt_error(1) end'` && true || exit 1
+
+          echo tarball=$tarball | tee --append $GITHUB_OUTPUT
+      - name: Make directory
+        run: mkdir ./_site/
+      - name: Extract ${{ steps.get-tarball-name.outputs.tarball }}
+        run: tar --directory=./_site/ --extract --file=`ls -1 ${{ steps.get-tarball-name.outputs.tarball }}` --strip-component=2 --verbose package/public
+      - name: List directory
+        run: ls -la ./_site/
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v2
+
   approval:
     name: Approval
-    needs: pre-approval
+    needs:
+      - build-github-pages
+      - build-merge-matrix
     outputs:
       matrix: ${{ steps.write-outputs.outputs.matrix }}
       public-only-matrix: ${{ steps.write-outputs.outputs.public-only-matrix }}
@@ -281,11 +283,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - env:
-          matrix: ${{ needs.pre-approval.outputs.matrix }}
+          matrix: ${{ needs.build-merge-matrix.outputs.matrix }}
         name: Save matrix to file
         run: echo $matrix | jq -r | tee /tmp/matrix.json
       - env:
-          matrix: ${{ needs.pre-approval.outputs.matrix }}
+          matrix: ${{ needs.build-merge-matrix.outputs.matrix }}
         name: Save public-only matrix to file
         run: cat /tmp/matrix.json | jq -r 'map(select(.private | not))' | tee /tmp/public-only-matrix.json
       - id: write-outputs
