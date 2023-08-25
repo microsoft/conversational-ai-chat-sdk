@@ -55,7 +55,7 @@ jobs:
         run: |
           branch=`git branch --show-current` && true || exit 1
 
-          echo [] > /tmp/matrix.json
+          echo [] > ~/matrix.json
 
           for package_path in `cat ./package.json | jq -r '.workspaces | join("\n")'`
           do
@@ -72,12 +72,12 @@ jobs:
             # We will update the matrix again in build job.
             version=`cat ./$package_path/package.json | jq -r .version | xargs -L1 npm exec --offline -- semver --increment prerelease -n false --preid $branch.$committer_date.$short_commitish` && true || exit 1
 
-            cat /tmp/matrix.json | jq --arg path ./$package_path/ --arg version $version --argfile packageJSON ./$package_path/package.json -r '. + [{ name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), version: $version }]' > /tmp/matrix.json.tmp && true || exit 1
-            mv /tmp/matrix.json.tmp /tmp/matrix.json && true || exit 1
+            cat ~/matrix.json | jq --arg path ./$package_path/ --arg version $version --argfile packageJSON ./$package_path/package.json -r '. + [{ name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), version: $version }]' > ~/matrix.json.tmp && true || exit 1
+            mv ~/matrix.json.tmp ~/matrix.json && true || exit 1
           done
       - id: write-outputs
         name: Write to outputs
-        run: echo matrix=`cat /tmp/matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
+        run: echo matrix=`cat ~/matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
 
   build:
     name: Build (${{ matrix.scoped && 'scoped' || 'unscoped' }})
@@ -98,7 +98,7 @@ jobs:
       - env:
           matrix: ${{ needs.prepare.outputs.matrix }}
         name: Save matrix to file
-        run: echo $matrix | jq -r | tee /tmp/matrix.json
+        run: echo $matrix | jq -r | tee ~/matrix.json
       - uses: actions/checkout@v3
       - name: Set up Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
@@ -112,7 +112,7 @@ jobs:
       - # We cannot run "npm version" right after "npx semver". Otherwise, next run of "npx semver" will ignore "-n false".
         # "npm version" will update workspaces. During update, it will need to talk to NPM registry.
         name: Bump versions
-        run: cat /tmp/matrix.json | jq -cr 'map("--workspace=" + .name + " " + .version) | join("\n")' | xargs -L1 npm version
+        run: cat ~/matrix.json | jq -cr 'map("--workspace=" + .name + " " + .version) | join("\n")' | xargs -L1 npm version
       - run: npm clean-install --ignore-scripts --strict-peer-deps # CyberEO: Ignore scripts to prevent malicious scripts from stealing the token.
       - # We are cheating, we did not rescope package-lock.json, so we cannot run before npm clean-install.
         # TODO: Rescope package-lock.json
@@ -123,9 +123,9 @@ jobs:
           do
             echo ::group::$i/package.json
 
-            cat $i/package.json | jq --arg owner ${{ github.repository_owner }} --argfile matrix /tmp/matrix.json -r 'def rescope($entry): $entry | if ($matrix | map(select(.name == $entry.key)) | length > 0) then .value = "npm:@" + $owner + "/" + .key + "@" + .value else . end; . | (.name = "@" + $owner + "/" + .name) | (.dependencies |= (. | with_entries(rescope(.)))) | (.devDependencies |= (. | with_entries(rescope(.))))' | tee /tmp/package.json && true || exit 1
+            cat $i/package.json | jq --arg owner ${{ github.repository_owner }} --argfile matrix ~/matrix.json -r 'def rescope($entry): $entry | if ($matrix | map(select(.name == $entry.key)) | length > 0) then .value = "npm:@" + $owner + "/" + .key + "@" + .value else . end; . | (.name = "@" + $owner + "/" + .name) | (.dependencies |= (. | with_entries(rescope(.)))) | (.devDependencies |= (. | with_entries(rescope(.))))' | tee ~/package.json && true || exit 1
 
-            mv /tmp/package.json $i/package.json && true || exit 1
+            mv ~/package.json $i/package.json && true || exit 1
 
             echo ::endgroup::
           done
@@ -135,23 +135,23 @@ jobs:
         run: npm run build --if-present --workspaces=true
       - name: Pack tarballs
         run: |
-          mkdir /tmp/tarball/ && true || exit 1
-          npm pack --json --pack-destination=/tmp/tarball/ --workspaces=true | tee /tmp/pack-result.json
+          mkdir ~/tarball/ && true || exit 1
+          npm pack --json --pack-destination=~/tarball/ --workspaces=true | tee ~/pack-result.json
       - name: 'Sanity check: Pack result should be match package.json/workspaces'
         run: |
-          cat /tmp/pack-result.json | jq 'map(del(.files))'
+          cat ~/pack-result.json | jq 'map(del(.files))'
 
           count=`cat package.json | jq -r '.workspaces | length - 1'` && true || exit 1
 
           for index in `seq 0 $count`
           do
-            filename=`cat /tmp/pack-result.json | jq --argjson index $index -r '.[$index].filename'` && true || exit 1
+            filename=`cat ~/pack-result.json | jq --argjson index $index -r '.[$index].filename'` && true || exit 1
             package_path=`cat package.json | jq --argjson index $index -r '.workspaces[$index]'` && true || exit 1
 
             echo ::group::$package_path
 
             package_name=`cat $package_path/package.json | jq -r .name` && true || exit 1
-            tarball_package_name=`tar -xf $filename --to-stdout package/package.json | jq -r .name` && true || exit 1
+            tarball_package_name=`tar -xf ~/tarball/$filename --to-stdout package/package.json | jq -r .name` && true || exit 1
 
             echo Checks if $package_name == $tarball_package_name.
 
@@ -174,13 +174,15 @@ jobs:
         name: Upload package-lock.json
         uses: actions/upload-artifact@v3
         with:
+          if-no-files-found: error
           name: package-lock
           path: ./package-lock.json
       - name: Upload packages artifact
         uses: actions/upload-artifact@v3
         with:
+          if-no-files-found: error
           name: ${{ matrix.scoped && 'scoped-packages' || 'packages' }}
-          path: /tmp/tarball/
+          path: ~/tarball/
 
   build-github-pages:
     name: 'Build: GitHub Pages'
@@ -220,49 +222,49 @@ jobs:
       - env:
           matrix: ${{ needs.prepare.outputs.matrix }}
         name: Save matrix to file
-        run: echo $matrix | jq -r | tee /tmp/matrix.json
+        run: echo $matrix | jq -r | tee ~/matrix.json
       - env:
           filenames: ${{ needs.build.outputs.filenames }}
         name: Add filename to matrix
         run: |
-          echo $filenames | jq -r | tee /tmp/filenames.json
+          echo $filenames | jq -r | tee ~/filenames.json
 
-          cat /tmp/matrix.json | jq --argfile filenames /tmp/filenames.json -r '. | with_entries(.value += { filename: $filenames[.key] })' | tee /tmp/matrix.json.tmp && true || exit 1
+          cat ~/matrix.json | jq --argfile filenames ~/filenames.json -r '. | with_entries(.value += { filename: $filenames[.key] })' | tee ~/matrix.json.tmp && true || exit 1
 
-          mv /tmp/matrix.json.tmp /tmp/matrix.json
+          mv ~/matrix.json.tmp ~/matrix.json
       - env:
           scoped_filenames: ${{ needs.build.outputs.scoped-filenames }}
         name: Add scoped filenames to matrix
         run: |
-          echo $scoped_filenames | jq -r | tee /tmp/scoped-filenames.json
+          echo $scoped_filenames | jq -r | tee ~/scoped-filenames.json
 
-          cat /tmp/matrix.json | jq --argfile scopedFilenames /tmp/scoped-filenames.json -r '. | with_entries(.value += { filename: $scopedFilenames[.key] })' | tee /tmp/matrix.json.tmp && true || exit 1
+          cat ~/matrix.json | jq --argfile scopedFilenames ~/scoped-filenames.json -r '. | with_entries(.value += { filename: $scopedFilenames[.key] })' | tee ~/matrix.json.tmp && true || exit 1
 
-          mv /tmp/matrix.json.tmp /tmp/matrix.json
+          mv ~/matrix.json.tmp ~/matrix.json
       - env:
           versions: ${{ needs.build.outputs.versions }}
         name: Add versions to matrix
         run: |
-          echo $versions | jq -r | tee /tmp/versions.json
+          echo $versions | jq -r | tee ~/versions.json
 
-          cat /tmp/matrix.json | jq --argfile versions /tmp/versions.json -r '. | with_entries(.value += { filename: $versions[.key] })' | tee /tmp/matrix.json.tmp && true || exit 1
+          cat ~/matrix.json | jq --argfile versions ~/versions.json -r '. | with_entries(.value += { filename: $versions[.key] })' | tee ~/matrix.json.tmp && true || exit 1
 
-          mv /tmp/matrix.json.tmp /tmp/matrix.json
+          mv ~/matrix.json.tmp ~/matrix.json
       - env:
           matrix: ${{ needs.prepare.outputs.matrix }}
         name: 'Sanity check: updated matrix must have same number of items'
-        run: cat /tmp/matrix.json | jq --argjson matrix $matrix 'if (. | length) == ($matrix | length) then empty else halt_error(1) end'
+        run: cat ~/matrix.json | jq --argjson matrix $matrix 'if (. | length) == ($matrix | length) then empty else halt_error(1) end'
       - name: 'Sanity check: matrix must have "filename" field'
-        run: cat /tmp/matrix.json | jq 'if (.[] | select(.filename | not) | length > 0) then halt_error(1) else empty end'
+        run: cat ~/matrix.json | jq 'if (.[] | select(.filename | not) | length > 0) then halt_error(1) else empty end'
       - name: 'Sanity check: matrix must have "scopedFilename" field'
-        run: cat /tmp/matrix.json | jq 'if (.[] | select(.scopedFilename | not) | length > 0) then halt_error(1) else empty end'
+        run: cat ~/matrix.json | jq 'if (.[] | select(.scopedFilename | not) | length > 0) then halt_error(1) else empty end'
       - name: 'Sanity check: matrix must have "version" field'
-        run: cat /tmp/matrix.json | jq 'if (.[] | select(.version | not) | length > 0) then halt_error(1) else empty end'
+        run: cat ~/matrix.json | jq 'if (.[] | select(.version | not) | length > 0) then halt_error(1) else empty end'
       - name: Print updated matrix
-        run: cat /tmp/matrix.json
+        run: cat ~/matrix.json
       - id: write-outputs
         name: Write to outputs
-        run: echo matrix=`cat /tmp/matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
+        run: echo matrix=`cat ~/matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
 
   approval:
     name: Approval
@@ -277,26 +279,26 @@ jobs:
       - env:
           matrix: ${{ needs.pre-approval.outputs.matrix }}
         name: Save matrix to file
-        run: echo $matrix | jq -r | tee /tmp/matrix.json
+        run: echo $matrix | jq -r | tee ~/matrix.json
       - env:
           matrix: ${{ needs.pre-approval.outputs.matrix }}
         name: Save public-only matrix to file
-        run: cat /tmp/matrix.json | jq -r 'map(select(.private | not))' | tee /tmp/public-only-matrix.json
+        run: cat ~/matrix.json | jq -r 'map(select(.private | not))' | tee ~/public-only-matrix.json
       - id: write-outputs
         name: Write matrix to outputs
         run: |
-          echo matrix=`cat /tmp/matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
-          echo public-only-matrix=`cat /tmp/public-only-matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
+          echo matrix=`cat ~/matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
+          echo public-only-matrix=`cat ~/public-only-matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
       - name: Print approved matrix
         uses: ./.github/actions/print-step-summary-from-file
         with:
-          path: /tmp/matrix.json
+          path: ~/matrix.json
           title: Approved matrix
           type: json
       - name: Print approved public-only matrix
         uses: ./.github/actions/print-step-summary-from-file
         with:
-          path: /tmp/public-only-matrix.json
+          path: ~/public-only-matrix.json
           title: Approved public-only matrix
           type: json
 
@@ -310,11 +312,11 @@ jobs:
   #     - env:
   #         matrix: ${{ needs.approval.outputs.matrix }}
   #       name: Save matrix to file
-  #       run: echo $matrix > /tmp/matrix.json
+  #       run: echo $matrix > ~/matrix.json
   #     - env:
   #         GH_TOKEN: ${{ github.token }}
   #       name: Upload workflow state to GitHub "${{ env.publish-tag }}" release
-  #       run: gh release upload --clobber ${{ env.publish-tag }} /tmp/matrix.json --repo ${{ github.repository }}
+  #       run: gh release upload --clobber ${{ env.publish-tag }} ~/matrix.json --repo ${{ github.repository }}
 
   # release-upload-package:
   #   name: 'Release: Upload package'
@@ -333,11 +335,11 @@ jobs:
   #     - env:
   #         GH_TOKEN: ${{ github.token }}
   #       name: Get current assets
-  #       run: gh release view ${{ env.publish-tag }} --json assets --repo ${{ github.repository }} | tee /tmp/assets.json
+  #       run: gh release view ${{ env.publish-tag }} --json assets --repo ${{ github.repository }} | tee ~/assets.json
   #     - id: check-existence
   #       name: Check if asset already present
   #       run: |
-  #         echo exist=`cat /tmp/assets.json | jq --arg name ${{ matrix.filename }} '.assets | any(select(.name == $name))'` | tee --append $GITHUB_OUTPUT
+  #         echo exist=`cat ~/assets.json | jq --arg name ${{ matrix.filename }} '.assets | any(select(.name == $name))'` | tee --append $GITHUB_OUTPUT
 
   #         if [[ exist == 'false' ]]
   #         then
@@ -355,7 +357,7 @@ jobs:
   #       if: ${{ steps.check-existence.outputs.exist == 'false' }}
   #       name: Delete obsoleted assets
   #       run: |
-  #         for asset_name in `cat /tmp/assets.json | jq -r --arg name ${{ matrix.package-name }} '.assets | map(select(.name | test($name + "-[0-9]"))) | map(.name) | join("\n")'`
+  #         for asset_name in `cat ~/assets.json | jq -r --arg name ${{ matrix.package-name }} '.assets | map(select(.name | test($name + "-[0-9]"))) | map(.name) | join("\n")'`
   #         do
   #           # Continue if failed to delete asset. It is not fatal and could be fixed in next run.
   #           gh release delete-asset ${{ env.publish-tag }} $asset_name --repo ${{ github.repository }} || true
