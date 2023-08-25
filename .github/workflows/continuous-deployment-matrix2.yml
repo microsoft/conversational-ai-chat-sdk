@@ -331,6 +331,8 @@ jobs:
         run: tar --directory=./_site/ --extract --file=`ls -1 ${{ steps.get-tarball-name.outputs.filename }}` --strip-component=2 --verbose package/public
       - name: List directory
         run: ls -la ./_site/
+      - name: 'Sanity check: must have index.html'
+        run: compgen -G ./_site/index.html
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v2
 

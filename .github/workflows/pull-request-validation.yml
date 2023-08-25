@@ -15,12 +15,14 @@ jobs:
       - uses: actions/checkout@v3
       - name: 'Sanity check: package path must match their package name'
         run: |
-          for i in `cat package.json | jq -r '.workspaces | join("\n")'`
+          for path in `cat package.json | jq -r '.workspaces | join("\n")'`
           do
-            cat $i/package.json | jq --arg packagePath "$i" -r '.name == ($packagePath | ltrimstr("packages/")) | if . then empty else halt_error(1) end'
+            cat ./$path/package.json | jq --arg packagePath "$path" -r '.name == ($packagePath | ltrimstr("packages/")) | if . then empty else halt_error(1) end'
           done
       - name: 'Sanity check: package.json/workspaces must match folders under /packages'
-        run: cat package.json | jq --args -r '.workspaces | sort == ($ARGS.positional | map("packages/" + .) | sort) | if . then empty else halt_error(1) end' `ls ./packages/ -1`
+        run: cat ./package.json | jq --args -r '.workspaces | sort == ($ARGS.positional | map("packages/" + .) | sort) | if . then empty else halt_error(1) end' `ls ./packages/ -1`
+      - name: 'Sanity check: package-lock.json must be version 3'
+        run: jq 'if .lockfileVersion == 3 then empty else empty | halt_error(1) end' ./package-lock.json
 
   build:
     name: Build
