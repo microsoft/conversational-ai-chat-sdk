@@ -57,7 +57,7 @@ jobs:
 
           echo [] > /tmp/matrix.json
 
-          for package_path in `cat ./package.json | jq -r '.workspaces | join("\n")'`
+          for package_path in `jq -r '.workspaces | join("\n")' ./package.json`
           do
             # committer_date=20230815-110805
             committer_date=`git log --date=format:%Y%m%d-%H%M%S --pretty=format:'%cd' -1 ./$package_path/` && true || exit 1
@@ -70,16 +70,19 @@ jobs:
             # "main.20230815-110805.0bf2b81" -> "main.20230815-110805.0bf2b81"
             # "main.20230815-110805.0012345" -> "main.20230815-110805.12345"
             # We will update the matrix again in build job.
-            version=`cat ./$package_path/package.json | jq -r .version | xargs -L1 npm exec --offline -- semver --increment prerelease -n false --preid $branch.$committer_date.$short_commitish`
+            version=`jq -r '.version' ./$package_path/package.json | xargs -L1 npm exec --offline -- semver --increment prerelease -n false --preid $branch.$committer_date.$short_commitish`
 
-            cat /tmp/matrix.json | jq --arg path ./$package_path/ --arg version $version --argfile packageJSON ./$package_path/package.json -r '. + [{ name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), version: $version }]' > /tmp/matrix.json.tmp
-            mv /tmp/matrix.json.tmp /tmp/matrix.json
+            jq --arg path ./$package_path/ --arg version $version --argfile packageJSON ./$package_path/package.json -r '. + [{ name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), version: $version }]' /tmp/matrix.json > /tmp/matrix.json.tmp && true || exit 1
+
+            mv /tmp/matrix.json.tmp /tmp/matrix.json && true || exit 1
           done
       - name: 'Sanity check: matrix must have at least one entry'
         run: jq --argfile matrix /tmp/matrix.json -n 'if ($matrix | length) > 0 then empty else halt_error(1) end'
       - id: write-outputs
         name: Write to outputs
-        run: echo matrix=`cat /tmp/matrix.json | jq -cr` | tee --append $GITHUB_OUTPUT
+        run:
+          matrix=`jq -cr /tmp/matrix.json` && true || exit 1
+          echo matrix=$matrix | tee --append $GITHUB_OUTPUT
 
   build:
     name: Build (${{ matrix.scoped && 'scoped' || 'unscoped' }})
@@ -207,7 +210,7 @@ jobs:
         run: |
           echo $filenames | jq -r | tee /tmp/filenames.json
 
-          cat /tmp/matrix.json | jq --argfile filenames /tmp/filenames.json -r '. | with_entries(.value += { filename: $filenames[.key] })' > /tmp/matrix.json.tmp && true || exit 1
+          cat /tmp/matrix.json | jq --argfile filenames /tmp/filenames.json -r 'to_entries | map(.value + { filename: $filenames[.key] })' > /tmp/matrix.json.tmp && true || exit 1
 
           mv /tmp/matrix.json.tmp /tmp/matrix.json
       - env:
@@ -216,7 +219,7 @@ jobs:
         run: |
           echo $scoped_filenames | jq -r | tee /tmp/scoped-filenames.json
 
-          cat /tmp/matrix.json | jq --argfile scopedFilenames /tmp/scoped-filenames.json -r '. | with_entries(.value += { filename: $scopedFilenames[.key] })' > /tmp/matrix.json.tmp && true || exit 1
+          cat /tmp/matrix.json | jq --argfile scopedFilenames /tmp/scoped-filenames.json -r 'to_entries | map(.value + { scopedFilename: $scopedFilenames[.key] })' > /tmp/matrix.json.tmp && true || exit 1
 
           mv /tmp/matrix.json.tmp /tmp/matrix.json
       - env:
@@ -225,7 +228,7 @@ jobs:
         run: |
           echo $versions | jq -r | tee /tmp/versions.json
 
-          cat /tmp/matrix.json | jq --argfile versions /tmp/versions.json -r '. | with_entries(.value += { filename: $versions[.key] })' > /tmp/matrix.json.tmp && true || exit 1
+          cat /tmp/matrix.json | jq --argfile versions /tmp/versions.json -r 'to_entries | map(.value + { version: $versions[.key] })' > /tmp/matrix.json.tmp && true || exit 1
 
           mv /tmp/matrix.json.tmp /tmp/matrix.json
       - name: Print updated matrix
