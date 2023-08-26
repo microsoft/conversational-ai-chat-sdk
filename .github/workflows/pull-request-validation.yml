@@ -115,8 +115,8 @@ jobs:
 
           for index in $(seq 0 $last_index)
           do
-            filename=$(cat /tmp/package-matrix.json | jq --arg index $index -r '.[$index].filename')
-            name=$(cat /tmp/package-matrix.json | jq --arg index $index -r '.[$index].name')
+            filename=$(cat /tmp/package-matrix.json | jq --argjson index $index -r '.[$index].filename')
+            name=$(cat /tmp/package-matrix.json | jq --argjson index $index -r '.[$index].name')
 
             tar -xvf $filename --directory=packages/$name --strip-component=1
           done
