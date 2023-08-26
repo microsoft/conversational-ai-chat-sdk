@@ -117,7 +117,9 @@ jobs:
       - env:
           matrix: ${{ needs.prepare.outputs.matrix }}
         name: Save matrix
-        run: echo $matrix | jq -r | tee .tmp/matrix.json
+        run: |
+          md .tmp/
+          echo $matrix | jq -r | tee .tmp/matrix.json
       - uses: actions/checkout@v3
       - name: Set up Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
@@ -372,7 +374,7 @@ jobs:
       name: github-packages
       # https://github.com/microsoft/conversational-ai-chat-sdk/pkgs/npm/powerva-chat-adapter
       url: ${{ github.server_url }}/${{ github.repository }}/pkgs/npm/${{ matrix.name }}
-    name: 'GitHub Packages: Publish (${{ matrix.name }}@${{ matrix.version }})'
+    name: 'GitHub Packages: Publish (${{ matrix.scoped-name }}@${{ matrix.version }})'
     needs: approval
     permissions:
       packages: write
