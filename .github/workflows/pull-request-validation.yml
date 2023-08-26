@@ -30,7 +30,7 @@ jobs:
         run: set -euo pipefail && cat ./package-lock.json | jq 'if .lockfileVersion == 3 then empty else empty | halt_error(1) end'
 
       - name: 'Sanity check: registry must be https://registry.npmjs.org/'
-        run: set -euo pipefail && cat ./package-lock.json | jq '.dependencies + .packages | to_entries | map(.value.resolved // "" | select((. == "" or startswith("https://registry.npmjs.org/")) | not)) | if length > 0 then halt_error(1) else empty end'
+        run: set -euo pipefail && cat ./package-lock.json | jq '.packages | with_entries(select(.value.link | not)) | with_entries(select(.value.resolved != null)) | with_entries(select(.value.resolved | startswith("https://registry.npmjs.org/") | not)) | if length > 0 then halt_error(1) else empty end'
 
   build:
     name: Build
