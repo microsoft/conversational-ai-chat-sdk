@@ -31,6 +31,15 @@ jobs:
           echo $matrix2 | jq -cr > /tmp/matrix2.json
           echo matrix2=$(< /tmp/matrix2.json) | tee --append $GIT_OUTPUT
 
+  build0:
+    name: Build 0
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo ${{ needs.prepare.outputs.matrix1 }}
+          echo ${{ needs.prepare.outputs.matrix2 }}
+
   build1:
     name: Build 1
     needs: prepare
