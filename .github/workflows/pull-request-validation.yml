@@ -6,10 +6,6 @@ on:
       - main
   workflow_dispatch: {} # Run on-demand for testing workflow functionality.
 
-env:
-  node-version-matrix: '["lts/Hydrogen"]' # This is JSON.
-  os-matrix: '["ubuntu-latest", "windows-latest"]' # This is JSON.
-
 jobs:
   sanity-check-root:
     name: 'Sanity check: root package'
@@ -41,8 +37,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        node-version: ${{ fromJSON(env.node-version-matrix) }}
-        os: ${{ fromJSON(env.os-matrix) }}
+        node-version:
+          - lts/Hydrogen
+        os:
+          - ubuntu-latest
+          - windows-latest
     steps:
       - uses: actions/checkout@v3
       - name: Use Node.js ${{ matrix.node-version }}
