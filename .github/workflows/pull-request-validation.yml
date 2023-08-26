@@ -50,6 +50,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
       - run: npm clean-install --ignore-scripts --strict-peer-deps # Prevents malicious scripts from stealing our token.
+      - run: npm run postinstall --if-present --workspaces=true # Run whitelisted postinstall scripts.
       - name: Run static code analysis
         run: npm run precommit --workspaces=true
       - name: Build
