@@ -26,8 +26,8 @@ jobs:
         name: Set outputs
         run: |
           echo $matrix1 | jq -cr > /tmp/matrix1.json
-          echo matrix1=$(< /tmp/matrix1.json) | tee --append $GIT_OUTPUT
-          echo matrix2=$matrix2 >> $GIT_OUTPUT
+          echo matrix1=$(< /tmp/matrix1.json) | tee --append $GITHUB_OUTPUT
+          echo matrix2=$matrix2 | tee --append $GITHUB_OUTPUT
       - name: Print outputs
         run: |
           echo ${{ steps.set-outputs.outputs.matrix1 }}
