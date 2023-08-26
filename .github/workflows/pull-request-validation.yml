@@ -55,11 +55,9 @@ jobs:
         run: npm run precommit --workspaces=true
       - name: Build
         run: npm run build --if-present --workspaces=true
-      - name: Test
-        run: npm test --if-present --workspaces=true
       - if: ${{ matrix.os == 'ubuntu-latest' }}
         name: Pack tarballs
-        run:
+        run: |
           set -euo pipefail
 
           mkdir /tmp/tarball
@@ -74,6 +72,42 @@ jobs:
         name: Write to outputs
         run: |
           set -euo pipefail && echo matrix=`cat /tmp/pack-result.json | jq -cr '{ filename: .filename, name: .name }'` | tee --append $GITHUB_OUTPUT
+
+  test:
+    env:
+      matrix: needs.build.outputs.matrix
+    name: Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include: ${{ fromJSON(needs.build.outputs.matrix) }}
+        node-version:
+          - lts/Hydrogen
+        os:
+          - ubuntu-latest
+          - windows-latest
+    steps:
+      - name: Write matrix to file
+        run: echo $matrix | tee /tmp/matrix.json
+      - uses: actions/checkout@v3
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      - run: npm clean-install --ignore-scripts --strict-peer-deps # Prevents malicious scripts from stealing our token.
+      - run: npm run postinstall --if-present --workspaces=true # Run whitelisted postinstall scripts.
+      - uses: actions/download-artifact@v3
+        with:
+          name: tarball
+          path: /tmp/tarball/
+      - name: Extract tarballs
+        run: |
+          set -euo pipefail
+
+          cat matrix.json | jq -r 'map("--directory=packages/" + .name + " --file=" + .filename) | join("\n")' | xargs -L1 echo tar --extract --strip-component=1 --verbose
+      - name: Test
+        run: npm test --if-present --workspace=${{ matrix.name }}
 
   sanity-check-package:
     env:
