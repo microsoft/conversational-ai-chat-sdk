@@ -23,5 +23,5 @@ runs:
       run: npm view --json ${{ inputs.registry-url && format('--registry={0}', inputs.registry-url) }} ${{ inputs.name }}@${{ inputs.version }} 2>/dev/null | tee /tmp/output.json || true
       shell: bash
     - id: result
-      run: echo published=`cat /tmp/output.json | jq -r 'if .error then if .error.code == "E404" then false else halt_error(1) end else true end'` | tee --append $GITHUB_OUTPUT
+      run: echo published=$(cat /tmp/output.json | jq -r 'if .error then if .error.code == "E404" then false else halt_error(1) end else true end') | tee --append $GITHUB_OUTPUT
       shell: bash
