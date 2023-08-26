@@ -8,7 +8,7 @@ on:
 
 env:
   node-version: lts/Hydrogen
-  os-matrix: ${{ toJSON(['ubuntu-latest', 'windows-latest']) }}
+  os-matrix: '["ubuntu-latest", "windows-latest"]' # This is JSON.
 
 jobs:
   sanity-check-root:
