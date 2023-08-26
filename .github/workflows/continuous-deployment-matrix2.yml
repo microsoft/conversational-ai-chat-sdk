@@ -294,7 +294,7 @@ jobs:
       - name: Make directory
         run: mkdir ./_site/
       - name: Extract ${{ steps.get-tarball-name.outputs.filename }}
-        run: tar --directory=./_site/ --extract --file=$(ls -1 ${{ steps.get-tarball-name.outputs.filename }}) --strip-component=2 --verbose package/public
+        run: tar --directory=./_site/ --extract --file=$(ls -1 ${{ steps.get-tarball-name.outputs.filename }}) --strip-components=2 --verbose package/public
       - name: List directory
         run: ls -la ./_site/
       - name: 'Sanity check: must have index.html'
