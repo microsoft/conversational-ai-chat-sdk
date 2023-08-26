@@ -109,7 +109,7 @@ jobs:
         run: |
           set -x
 
-          echo $package_matrix /tmp/package-matrix.json
+          echo $package_matrix | jq -r | tee /tmp/package-matrix.json
 
           count=$(cat /tmp/package-matrix.json | jq -r '.workspaces | length - 1')
 
@@ -132,10 +132,6 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.build.outputs.package-matrix) }}
     steps:
-      - env:
-          package_matrix: ${{ needs.build.outputs.package-matrix }}
-        name: Save package matrix
-        run: echo $package_matrix | tee /tmp/package-matrix.json
       - name: Download tarball artifact
         uses: actions/download-artifact@v3
         with:
@@ -174,8 +170,12 @@ jobs:
       - if: ${{ steps.prepare.outputs.is-private != 'true' }}
         name: 'Sanity check: no lib/**/*.test.*'
         run: '! compgen -G lib/**/*.test.*'
-      - name: 'Sanity check: no production dependencies are pre-release except local peers'
+      - env:
+          package_matrix: ${{ needs.build.outputs.package-matrix }}
+        name: 'Sanity check: no production dependencies are pre-release except local peers'
         run: |
+          echo $package_matrix | jq -r | tee /tmp/package-matrix.json
+
           cat ./package.json | jq --argfile matrix /tmp/package-matrix.json '.dependencies + ($matrix | map({ key: .name }) | from_entries) | with_entries(select(.value // "" | contains("-"))) | if length > 0 then halt_error(1) else empty end'
       - name: 'Sanity check: version must be prerelease'
         run: cat ./package.json | jq '.version | if contains("-") then empty else halt_error(1) end'
