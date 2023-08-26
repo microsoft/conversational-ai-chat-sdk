@@ -30,10 +30,11 @@ jobs:
 
   build1:
     name: Build 1
+    needs: prepare
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include: ${{ fromJSON(env.matrix1) }}
+        include: ${{ fromJSON(needs.prepare.outputs.matrix1) }}
         os:
           - ubuntu-latest
           - window-latest
@@ -47,10 +48,11 @@ jobs:
 
   build2:
     name: Build 2
+    needs: prepare
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include: ${{ fromJSON(env.matrix2) }}
+        include: ${{ fromJSON(needs.prepare.outputs.matrix2) }}
         os:
           - ubuntu-latest
           - window-latest
