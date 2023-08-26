@@ -481,10 +481,8 @@ jobs:
       - name: Create new tag
         run: git tag ${{ env.publish-tag }}
       - continue-on-error: true
-        name: Delete server tag
-        run: git push origin :${{ env.publish-tag }}
-      - name: Push tag
-        run: git push origin ${{ env.publish-tag }}
+        name: Push tag
+        run: git push origin ${{ env.publish-tag }} -f
       - env:
           GH_TOKEN: ${{ github.token }}
         name: Publish release
