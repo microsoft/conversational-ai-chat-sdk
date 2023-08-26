@@ -106,6 +106,7 @@ jobs:
           package_matrix: ${{ needs.build.outputs.package-matrix }}
         name: Extract tarballs
         run: |
+          set -x
           echo $package_matrix | jq -r 'map("--directory=packages/" + .name + " --extract --file=/tmp/tarball/" + .filename + " --strip-component=1 --verbose") | join("\u0000")' | xargs -0 -L1 echo
           echo $package_matrix | jq -r 'map("--directory=packages/" + .name + " --extract --file=/tmp/tarball/" + .filename + " --strip-component=1 --verbose") | join("\u0000")' | xargs -0 -L1 tar
       - name: Test
