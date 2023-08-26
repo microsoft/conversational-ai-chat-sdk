@@ -25,8 +25,7 @@ jobs:
       - id: set-outputs
         name: Set outputs
         run: |
-          echo $matrix1 | jq -cr > /tmp/matrix1.json
-          echo matrix1=$(< /tmp/matrix1.json) | tee --append $GITHUB_OUTPUT
+          echo matrix1=$matrix1 | tee --append $GITHUB_OUTPUT
           echo matrix2=$matrix2 | tee --append $GITHUB_OUTPUT
       - name: Print outputs
         run: |
@@ -54,9 +53,10 @@ jobs:
           - window-latest
     steps:
       - run: |
-          echo ${{ matrix.name }} ${{ matrix.os }}
+          echo '${{ matrix.name }}'
+          echo '${{ matrix.os }}'
       - run: |
-          echo << EOL
+          cat << EOL
           ${{ toJSON(matrix) }}
           EOL
 
@@ -72,8 +72,30 @@ jobs:
           - window-latest
     steps:
       - run: |
-          echo ${{ matrix.name }} ${{ matrix.os }}
+          echo '${{ matrix.name }}'
+          echo '${{ matrix.os }}'
       - run: |
-          echo << EOL
+          cat << EOL
+          ${{ toJSON(matrix) }}
+          EOL
+
+  build3:
+    name: Build 3
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - file: package-a
+          - file: package-b
+        os:
+          - ubuntu-latest
+          - window-latest
+    steps:
+      - run: |
+          echo '${{ matrix.name }}'
+          echo '${{ matrix.os }}'
+      - run: |
+          cat << EOL
           ${{ toJSON(matrix) }}
           EOL
