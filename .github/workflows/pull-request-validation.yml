@@ -105,7 +105,7 @@ jobs:
       - env:
           package_matrix: ${{ needs.build.outputs.package-matrix }}
         name: Extract tarballs
-        run: echo $package_matrix | jq --binary -r 'map("--directory=packages/" + .name + " --file=/tmp/tarball/" + .filename) | join("\n")' | xargs -L1 tar --extract --strip-component=1 --verbose
+        run: echo $package_matrix | jq ${{ runner.os == 'Windows' && '--binary' || '' }} -r 'map("--directory=packages/" + .name + " --file=/tmp/tarball/" + .filename) | join("\n")' | xargs -L1 tar --extract --strip-component=1 --verbose
       - name: Test
         run: npm test --if-present --workspace=${{ matrix.name }}
 
