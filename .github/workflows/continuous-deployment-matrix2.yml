@@ -186,53 +186,6 @@ jobs:
             cat /tmp/pack-result.json | jq -r '.[0].name' | tee --append /tmp/names.txt
             cat /tmp/pack-result.json | jq -r '.[0].version' | tee --append /tmp/versions.txt
           done
-      # - name: 'Sanity check: pack-result.json should match package.json/workspaces with correct order'
-      #   run: |
-      #     cat /tmp/pack-result.json | jq 'map(del(.files))'
-
-      #     count=$(cat package.json | jq -r '.workspaces | length - 1')
-
-      #     for index in $(seq 0 $count)
-      #     do
-      #       filename=$(cat /tmp/pack-result.json | jq --argjson index $index -r '.[$index].filename')
-      #       package_path=$(cat package.json | jq --argjson index $index -r '.workspaces[$index]')
-
-      #       echo ::group::$package_path
-
-      #       package_name_in_path=$(cat $package_path/package.json | jq -r .name)
-      #       package_name_in_tarball=$(tar -xf /tmp/tarball/$filename --to-stdout package/package.json | jq -r .name)
-
-      #       echo "$package_name_in_path" should be same as "$package_name_in_tarball".
-
-      #       [[ "$package_name_in_path" == "$package_name_in_tarball" ]]
-
-      #       echo ::endgroup::
-      #     done
-      # - name: 'Sanity check: tarball package name and version must match its /packages/*/package.json'
-      #   run: |
-      #     count=$(cat package.json | jq -r '.workspaces | length - 1')
-
-      #     for index in $(seq 0 $count)
-      #     do
-      #       filename=$(cat /tmp/pack-result.json | jq --argjson index $index -r '.[$index].filename')
-      #       package_path=$(cat package.json | jq --argjson index $index -r '.workspaces[$index]')
-
-      #       echo ::group::package_path
-
-      #       name_in_tarball=$(tar -xf /tmp/tarball/$filename --to-stdout package/package.json | jq -r '.name')
-      #       version_in_tarball=$(tar -xf /tmp/tarball/$filename --to-stdout package/package.json | jq -r '.version')
-
-      #       name_in_package_json=$(jq -r '.name' $package_path/package.json)
-      #       version_in_package_json=$(jq -r '.version' $package_path/package.json)
-
-      #       echo "$name_in_tarball" should be same as "$name_in_package_json".
-      #       [[ "$name_in_tarball" == "$name_in_package_json" ]]
-
-      #       echo "$version_in_tarball" should be same as "$version_in_package_json".
-      #       [[ "$version_in_tarball" == "$version_in_package_json" ]]
-
-      #       echo ::endgroup::
-      #     done
       - id: set-outputs
         name: Set outputs
         run: |
@@ -244,18 +197,6 @@ jobs:
 
           cat /tmp/versions.txt
           echo versions=$(cat /tmp/versions.txt | jq -cnR 'reduce inputs as $i ([]; . + [$i])') | tee --append $GITHUB_OUTPUT
-      # - id: set-outputs
-      #   name: Set outputs
-      #   run: |
-      #     [[ -f /tmp/pack-result.json ]]
-
-      #     filenames=$(cat /tmp/pack-result.json | jq -cr 'map(.filename)')
-      #     names=$(cat /tmp/pack-result.json | jq -cr 'map(.name)')
-      #     versions=$(cat /tmp/pack-result.json | jq -cr 'map(.version)')
-
-      #     echo filenames=$filenames | tee --append $GITHUB_OUTPUT
-      #     echo names=$names | tee --append $GITHUB_OUTPUT
-      #     echo versions=$versions | tee --append $GITHUB_OUTPUT
       - if: ${{ !matrix.rescope }}
         name: Upload package-lock.json
         uses: actions/upload-artifact@v3
