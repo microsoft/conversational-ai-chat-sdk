@@ -124,6 +124,9 @@ jobs:
         with:
           cache: npm
           node-version: ${{ env.node-version }}
+      - if: ${{ !inputs.skip-secure-feed }}
+        name: Set up secure feed
+        run: npx https://aka.ms/EnableSecureFeed
       - # We cannot run "npm version" right after "npx semver". Otherwise, next run of "npx semver" will ignore "-n false".
         # "npm version" will update workspaces. During update, it will need to talk to NPM registry.
         name: Bump versions
@@ -165,9 +168,6 @@ jobs:
 
             echo ::endgroup::
           done
-      - if: ${{ !inputs.skip-secure-feed }}
-        name: Set up secure feed
-        run: npx https://aka.ms/EnableSecureFeed
       - run: npm clean-install --ignore-scripts --strict-peer-deps # Prevent malicious scripts from running.
       - name: Run whitelisted install scripts
         run: npm run postinstall --if-present --workspaces=true
