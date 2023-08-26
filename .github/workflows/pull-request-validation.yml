@@ -111,9 +111,9 @@ jobs:
 
           echo $package_matrix | jq -r | tee /tmp/package-matrix.json
 
-          count=$(cat /tmp/package-matrix.json | jq -r '.workspaces | length - 1')
+          last_index=$(cat /tmp/package-matrix.json | jq -r 'length - 1')
 
-          for index in $(seq 0 $count)
+          for index in $(seq 0 $last_index)
           do
             filename=$(cat /tmp/package-matrix.json | jq --arg index $index -r '.[$index].filename')
             name=$(cat /tmp/package-matrix.json | jq --arg index $index -r '.[$index].name')
