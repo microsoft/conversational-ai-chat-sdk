@@ -118,7 +118,7 @@ jobs:
             filename=$(cat /tmp/package-matrix.json | jq --argjson index $index -r '.[$index].filename')
             name=$(cat /tmp/package-matrix.json | jq --argjson index $index -r '.[$index].name')
 
-            tar -xvf $filename --directory=packages/$name --strip-component=1
+            tar -xvf /tmp/tarball/$filename --directory=packages/$name --strip-component=1
           done
       - name: Test
         run: npm test --if-present --workspace=${{ matrix.name }}
