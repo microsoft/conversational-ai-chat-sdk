@@ -66,10 +66,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        os:
-          - ubuntu-latest
-          - window-latest
         include: ${{ fromJSON(needs.prepare.outputs.matrix2) }}
+        os: [ubuntu-latest, window-latest]
     steps:
       - run: |
           echo '${{ matrix.name }}'
@@ -85,9 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        os:
-          - ubuntu-latest
-          - window-latest
+        os: [ubuntu-latest, window-latest]
         include:
           - file: package-a
           - file: package-b
