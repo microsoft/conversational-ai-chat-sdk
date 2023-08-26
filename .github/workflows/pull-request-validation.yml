@@ -48,7 +48,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: npm
       - run: npm clean-install --ignore-scripts --strict-peer-deps # Prevents malicious scripts from stealing our token.
       - run: npm run postinstall --if-present --workspaces=true # Run whitelisted postinstall scripts.
       - name: Run static code analysis
@@ -62,6 +62,8 @@ jobs:
 
           mkdir /tmp/tarball
           npm pack --json --pack-destination=/tmp/tarball --workspaces=true > /tmp/pack-result.json
+      - name: Print pack result
+        run: set -euo pipefail && cat /tmp/pack-result.json | jq -r 'map(del(.files))'
       - if: ${{ matrix.os == 'ubuntu-latest' }}
         name: Upload tarball artifact
         uses: actions/upload-artifact@v3.1.1
@@ -72,7 +74,7 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' }}
         name: Write to outputs
         run: |
-          set -euo pipefail && echo matrix=`cat /tmp/pack-result.json | jq -cr '{ filename: .filename, name: .name }'` | tee --append $GITHUB_OUTPUT
+          set -euo pipefail && echo matrix=`cat /tmp/pack-result.json | jq -cr 'map({ filename: .filename, name: .name })'` | tee --append $GITHUB_OUTPUT
 
   test:
     env:
