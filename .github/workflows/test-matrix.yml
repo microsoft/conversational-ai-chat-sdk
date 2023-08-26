@@ -18,33 +18,31 @@ jobs:
   build1:
     name: Build 1
     strategy:
-      env:
       matrix:
         include: ${{ fromJSON(env.matrix1) }}
         os:
           - ubuntu-latest
           - window-latest
-      steps:
-        - run: |
-            echo ${{ matrix.name }} ${{ matrix.os }}
-        - run: |
-            echo << EOL
-            ${{ toJSON(matrix) }}
-            EOL
+    steps:
+      - run: |
+          echo ${{ matrix.name }} ${{ matrix.os }}
+      - run: |
+          echo << EOL
+          ${{ toJSON(matrix) }}
+          EOL
 
   build2:
     name: Build 2
     strategy:
-      env:
       matrix:
         include: ${{ fromJSON(env.matrix2) }}
         os:
           - ubuntu-latest
           - window-latest
-      steps:
-        - run: |
-            echo ${{ matrix.name }} ${{ matrix.os }}
-        - run: |
-            echo << EOL
-            ${{ toJSON(matrix) }}
-            EOL
+    steps:
+      - run: |
+          echo ${{ matrix.name }} ${{ matrix.os }}
+      - run: |
+          echo << EOL
+          ${{ toJSON(matrix) }}
+          EOL
