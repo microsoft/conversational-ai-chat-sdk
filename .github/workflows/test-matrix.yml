@@ -23,13 +23,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: write-outputs
-        name: Write to outputs
+        name: Set outputs
         run: |
           echo $matrix1 | jq -cr > /tmp/matrix1.json
           echo matrix1=$(< /tmp/matrix1.json) | tee --append $GIT_OUTPUT
 
           echo $matrix2 | jq -cr > /tmp/matrix2.json
           echo matrix2=$(< /tmp/matrix2.json) | tee --append $GIT_OUTPUT
+      - name: Print outputs
+        run: |
+          echo ${{ steps.write-outputs.outputs.matrix1 }}
+          echo ${{ steps.write-outputs.outputs.matrix2 }}
 
   build0:
     name: Build 0
