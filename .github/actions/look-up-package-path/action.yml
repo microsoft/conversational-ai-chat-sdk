@@ -14,20 +14,22 @@ runs:
       run: compgen -G package.json
       shell: bash
     - name: 'Sanity check: root package.json is a workspace'
-      run: cat package.json | jq -r 'if .workspaces | length > 0 then empty else halt_error(1) end'
+      run: set -euo pipefail && cat package.json | jq -r 'if .workspaces | length > 0 then empty else halt_error(1) end'
       shell: bash
     - id: look-up-package-path
       name: Get package path
       run: |
-        # We cannot use "npm ls" because this could run before "npm ci".
-        for i in `cat package.json | jq -r '.workspaces | join("\n")'`
-        do
-          if [[ "`cat $i/package.json | jq -r '.name'`" == "${{ inputs.name }}" ]]
-          then
-            echo Found package "${{ inputs.name }}" at $i/package.json.
-            cat $i/package.json
+        set -euo pipefail
 
-            echo path=$i >> $GITHUB_OUTPUT
+        # We cannot use "npm ls" because this could run before "npm ci".
+        for path in `cat package.json | jq -r '.workspaces | join("\n")'`
+        do
+          if [[ "`cat $path/package.json | jq -r '.name'`" == "${{ inputs.name }}" ]]
+          then
+            echo Found package "${{ inputs.name }}" at $path/package.json.
+            cat $path/package.json
+
+            echo path=$path | tee --append $GITHUB_OUTPUT
             exit 0
           fi
         done
@@ -36,9 +38,11 @@ runs:
       shell: bash
     - name: 'Sanity check: path contains the specific package'
       run: |
-        PACKAGE_NAME=`cat ${{ steps.look-up-package-path.outputs.path }}/package.json | jq -r '.name'`
+        set -euo pipefail
 
-        if [[ "$PACKAGE_NAME" != "${{ inputs.name }}" ]]
+        name=`cat ${{ steps.look-up-package-path.outputs.path }}/package.json | jq -r '.name'`
+
+        if [[ "$name" != "${{ inputs.name }}" ]]
         then
           exit 1
         fi

@@ -9,10 +9,12 @@ runs:
   using: composite
   steps:
     - run: |
-        echo \<details\>\<summary\>${{ inputs.title || format('Content of {0}', inputs.path) }}\</code\>\</summary\> >> $GITHUB_STEP_SUMMARY
-        echo >> $GITHUB_STEP_SUMMARY
-        echo \`\`\`${{ inputs.type }} >> $GITHUB_STEP_SUMMARY
-        cat ${{ inputs.path }} >> $GITHUB_STEP_SUMMARY && true || exit 1
-        echo \`\`\` >> $GITHUB_STEP_SUMMARY
-        echo \</details\> >> $GITHUB_STEP_SUMMARY
+        set -euo pipefail
+
+        echo \<details\>\<summary\>${{ inputs.title || format('Content of {0}', inputs.path) }}\</code\>\</summary\> | tee --append $GITHUB_STEP_SUMMARY
+        echo | tee --append $GITHUB_STEP_SUMMARY
+        echo \`\`\`${{ inputs.type }} | tee --append $GITHUB_STEP_SUMMARY
+        cat ${{ inputs.path }} | tee --append $GITHUB_STEP_SUMMARY && true || exit 1
+        echo \`\`\` | tee --append $GITHUB_STEP_SUMMARY
+        echo \</details\> | tee --append $GITHUB_STEP_SUMMARY
       shell: bash

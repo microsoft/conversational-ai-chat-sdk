@@ -6,37 +6,43 @@ on:
       - main
   workflow_dispatch: {} # Run on-demand for testing workflow functionality.
 
-jobs:
-  root-package-sanity-check:
-    name: Root package sanity check
-    runs-on: ubuntu-latest
+env:
+  node-version: lts/Hydrogen
+  os-matrix: ${{ toJSON(['ubuntu-latest', 'windows-latest']) }}
 
+jobs:
+  sanity-check-root:
+    name: 'Sanity check: root package'
+    outputs:
+      package-name-matrix: ${{ steps.write-outputs.outputs.package-name-matrix }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
+      # This is based on assumptions in our toolchain.
       - name: 'Sanity check: package path must match their package name'
         run: |
+          set -euo pipefail
+
           for path in `cat package.json | jq -r '.workspaces | join("\n")'`
           do
-            cat ./$path/package.json | jq --arg packagePath "$path" -r '.name == ($packagePath | ltrimstr("packages/")) | if . then empty else halt_error(1) end'
+            cat ./$path/package.json | jq --arg packagePath "$path" -r 'if ("packages/" + .name) == $packagePath then empty else halt_error(1) end'
           done
-      - name: 'Sanity check: package.json/workspaces must match folders under /packages'
-        run: cat ./package.json | jq --args -r '.workspaces | sort == ($ARGS.positional | map("packages/" + .) | sort) | if . then empty else halt_error(1) end' `ls ./packages/ -1`
+
+      # This is based on assumptions in our toolchain.
       - name: 'Sanity check: package-lock.json must be version 3'
-        run: jq 'if .lockfileVersion == 3 then empty else empty | halt_error(1) end' ./package-lock.json
+        run: set -euo pipefail && cat ./package-lock.json | jq 'if .lockfileVersion == 3 then empty else empty | halt_error(1) end'
+
+      - name: 'Sanity check: registry must be https://registry.npmjs.org/'
+        run: set -euo pipefail && cat ./package-lock.json | jq '.dependencies + .packages | to_entries | map(.value.resolved // "" | select((. == "" or startswith("https://registry.npmjs.org/")) | not)) | if length > 0 then halt_error(1) else empty end'
 
   build:
     name: Build
-    needs:
-      - root-package-sanity-check
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        node-version:
-          - lts/Hydrogen
-        os:
-          - ubuntu-latest
-          - windows-latest
-
+        node-version: ${{ env.node-version }}
+        os: ${{ fromJSON(env.os-matrix) }}
     steps:
       - uses: actions/checkout@v3
       - name: Use Node.js ${{ matrix.node-version }}
@@ -49,107 +55,65 @@ jobs:
         run: npm run precommit --workspaces=true
       - name: Build
         run: npm run build --if-present --workspaces=true
+      - name: Test
+        run: npm test --if-present --workspaces=true
       - if: ${{ matrix.os == 'ubuntu-latest' }}
         name: Pack tarballs
-        run: npm pack --pack-destination=$PWD --workspaces=true
-      - if: ${{ matrix.os == 'ubuntu-latest' }}
-        name: Generate package names list
-        run: |
-          for i in `ls -1 ./*.tgz`
-          do
-            tar --extract --file=$i --to-stdout package/package.json | jq -r '.name' >> package-names.txt
-          done
-          cat package-names.txt | jq -Rs '. | rtrimstr("\n") | split("\n")' > package-names.json
-          cat package-names.json
+        run:
+          set -euo pipefail
+
+          mkdir /tmp/tarball
+          npm pack --json --pack-destination=/tmp/tarball --workspaces=true > /tmp/pack-result.json
       - if: ${{ matrix.os == 'ubuntu-latest' }}
         name: Upload tarball artifact
         uses: actions/upload-artifact@v3.1.1
         with:
           name: tarball
-          path: |
-            ./*.tgz
-            ./package-names.json
+          path: /tmp/tarball/*.tgz
+      - id: write-outputs
+        name: Write to outputs
+        run: set -euo pipefail && echo matrix=`cat /tmp/pack-result.json | jq -cr '{ filename: .filename, name: .name }'` | tee --append $GITHUB_OUTPUT
 
-  test:
-    name: Test
-    runs-on: ${{ matrix.os }}
-    needs: build
-    strategy:
-      matrix:
-        node-version:
-          - lts/Hydrogen
-        package-name:
-          # TODO: We should consider generating this matrix, instead of hardcoding it.
-          - powerva-chat-adapter
-          - powerva-turn-based-chat-adapter-framework
-        os:
-          - ubuntu-latest
-          - windows-latest
-
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v3
-        with:
-          name: tarball
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
-      - run: npm clean-install --ignore-scripts
-      - name: Extract tarballs
-        run: |
-          for i in `ls -1 ./*.tgz`
-          do
-            tar --extract --file=$i --directory=./packages/`tar --extract --to-stdout --file=$i package/package.json | jq -r '.name'` --strip-components=1 --verbose
-          done
-        shell: bash
-      - name: Run tests
-        run: |
-          cd packages/${{ matrix.package-name }}
-          npm test --workspaces=true
-        shell: bash
-
-  per-package-sanity-check:
-    name: Per-package sanity check
+  sanity-check-package:
+    env:
+      matrix: ${{ needs.build.outputs.matrix }}
+    name: 'Sanity check: ${{ matrix.name }}'
     needs: build
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package-name:
-          - powerva-chat-adapter
-          - powerva-chat-adapter-test-util
-          - powerva-turn-based-chat-adapter-framework
-
+        include: ${{ fromJSON(needs.build.outputs.matrix) }}
     steps:
+      - name: Write matrix to file
+        run: set -euo pipefail && echo $matrix | append /tmp/matrix.json
       - name: Download tarball artifact
         uses: actions/download-artifact@v3
         with:
           name: tarball
       - name: Extract tarball to root
-        run: tar --extract --file=`ls -1 ./${{ matrix.package-name }}-[0-9]*.tgz` --strip-components=1 --verbose
+        run: tar --extract --file=${{ matrix.filename }} --strip-components=1 --verbose
       - id: prepare
         name: Prepare
-        run: echo is-private=`cat package.json | jq -r '.private // false'` >> $GITHUB_OUTPUT
+        run: echo is-private=`cat ./package.json | jq -r '.private // false'` | tee --append $GITHUB_OUTPUT
       - name: 'Sanity check: package name must not be scoped'
         # This is because our rescoping step in continuous deployment will not work if the package is already scoped, it just do plain concat.
         # We can support scoped package if we add that feature to our CD pipeline.
-        run: cat package.json | jq '.name | if contains("@") then halt_error(1) else empty end'
+        run: set -euo pipefail && cat ./package.json | jq 'if .name | contains("@") then halt_error(1) else empty end'
       - if: ${{ !steps.prepare.outputs.is-private }}
         name: 'Sanity check: has LICENSE'
-        run: compgen -G LICENSE
+        run: [[ -f ./LICENSE ]]
       - if: ${{ !steps.prepare.outputs.is-private }}
         name: 'Sanity check: has README.md'
-        run: compgen -G README.md
+        run: [[ -f ./README.md ]]
       - if: ${{ !steps.prepare.outputs.is-private }}
         name: 'Sanity check: at least one exports'
-        run: cat package.json | jq '.exports | to_entries | if length == 0 then halt_error(1) else empty end'
+        run: set -euo pipefail && cat ./package.json | jq '.exports | to_entries | if length == 0 then halt_error(1) else empty end'
       - if: ${{ !steps.prepare.outputs.is-private }}
         name: 'Sanity check: all exports exists'
-        run: cat package.json | jq '.exports | map(flatten) | flatten | .[]' | xargs -L1 test -f $1
+        run: set -euo pipefail && cat ./package.json | jq '.exports | map(flatten) | flatten | .[]' | xargs -L1 test -f $1
       - if: ${{ !steps.prepare.outputs.is-private }}
         name: 'Sanity check: all exports has "types" condition'
-        run: cat package.json | jq '.exports | map(select(.types == null)) | if length > 0 then halt_error(1) else empty end'
+        run: set -euo pipefail && cat ./package.json | jq '.exports | map(select(.types == null)) | if length > 0 then halt_error(1) else empty end'
       - if: ${{ !steps.prepare.outputs.is-private }}
         name: 'Sanity check: has source maps'
         # TODO: Check if abc.js has abc.js.map, instead of just *.js.map.
@@ -161,15 +125,15 @@ jobs:
         name: 'Sanity check: no lib/**/*.test.*'
         run: '! compgen -G lib/**/*.test.*'
       - name: 'Sanity check: no production dependencies are pre-release except local peers'
-        run: cat package.json | jq --argfile packageNames package-names.json '.dependencies + ($packageNames | with_entries(.key = .value | .value = "")) | to_entries | .[] | select(.value | contains("-")) | if length > 0 then halt_error(1) else empty end'
-      - name: 'Sanity check: must from https://registry.npmjs.org/'
-        run: cat package-lock.json | jq '.dependencies + .packages | to_entries | map(.value.resolved // "" | select((. == "" or startswith("https://registry.npmjs.org/")) | not)) | if length > 0 then halt_error(1) else empty end'
+        run: |
+          set -euo pipefail
+
+          cat ./package.json | jq --argfile matrix /tmp/matrix.json '.dependencies + ($matrix | map({ key: .name }) | from_entries) | with_entries(select(.value // "" | contains("-"))) | if length > 0 then halt_error(1) else empty end'
       - name: 'Sanity check: version must be prerelease'
-        run: cat package.json | jq '.version | contains("-") | if . then empty else halt_error(1) end'
+        run: set -euo pipefail && cat ./package.json | jq '.version | if contains("-") then empty else halt_error(1) end'
       - if: ${{ !steps.prepare.outputs.is-private }}
         name: 'Sanity check: package.json/files must contains at least one item'
-        run: cat package.json | jq '.files // [] | if length == 0 then halt_error(1) else empty end'
-      # TODO: No package name should ends with "-[0-9]" because it would interfere with CI/CD scripts
+        run: set -euo pipefail && cat ./package.json | jq '.files // [] | if length == 0 then halt_error(1) else empty end'
       # TODO: Must contains changes in CHANGELOG.md if it modified *.ts
       # TODO: In CHANGELOG.md, if breaking changes is modified, must bump major
       # TODO: In CHANGELOG.md, if features are removed, must bump major
