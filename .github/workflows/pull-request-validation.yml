@@ -149,7 +149,7 @@ jobs:
         run: set -euo pipefail && cat ./package.json | jq '.exports | to_entries | if length == 0 then halt_error(1) else empty end'
       - if: ${{ steps.prepare.outputs.is-private != 'true' }}
         name: 'Sanity check: all exports exists'
-        run: set -euo pipefail && cat ./package.json | jq '.exports | map(flatten) | flatten | .[]' | xargs -L1 test -f $1
+        run: set -euo pipefail && cat ./package.json | jq '.exports | map(flatten) | flatten | .[]' | xargs -L1 test -f
       - if: ${{ steps.prepare.outputs.is-private != 'true' }}
         name: 'Sanity check: all exports has "types" condition'
         run: set -euo pipefail && cat ./package.json | jq '.exports | map(select(.types == null)) | if length > 0 then halt_error(1) else empty end'
