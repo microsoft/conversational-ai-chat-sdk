@@ -69,6 +69,7 @@ jobs:
           name: tarball
           path: /tmp/tarball/*.tgz
       - id: write-outputs
+        if: ${{ matrix.os == 'ubuntu-latest' }}
         name: Write to outputs
         run: |
           set -euo pipefail && echo matrix=`cat /tmp/pack-result.json | jq -cr '{ filename: .filename, name: .name }'` | tee --append $GITHUB_OUTPUT
