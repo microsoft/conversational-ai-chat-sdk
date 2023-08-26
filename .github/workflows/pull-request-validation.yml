@@ -80,7 +80,7 @@ jobs:
           cat /tmp/pack-result.json | jq -cr 'map({ filename: .filename, name: .name })' | tee --append /tmp/package-matrix.json
 
           echo package-matrix=$(< /tmp/package-matrix.json) | tee --append $GITHUB_OUTPUT
-          echo test-matrix=$(cat /tmp/package-matrix.json | jq -cr 'reduce ([., [{ os: "ubuntu-latest" }, { os: "windows-latest" }]] | combinations) as $i ([]; . + [$i])') | tee --append $GITHUB_OUTPUT
+          echo test-matrix=$(cat /tmp/package-matrix.json | jq -r 'reduce (([., [{ os: "ubuntu-latest" }, { os: "windows-latest" }]] | combinations) | reduce .[] as $i ({}; . * $i)) as $i ([]; . + [$i])') | tee --append $GITHUB_OUTPUT
 
   test:
     env:
