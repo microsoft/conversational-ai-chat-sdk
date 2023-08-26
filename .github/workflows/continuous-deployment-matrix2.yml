@@ -61,6 +61,7 @@ jobs:
           # short_commitish=0bf2b81
           short_commitish=$(git log --pretty=format:'%h' -1)
 
+          mkdir ./.tmp/
           echo [] > ./.tmp/matrix.json
 
           for package_path in $(jq -r '.workspaces | join("\n")' ./package.json)
@@ -130,6 +131,8 @@ jobs:
       - if: ${{ matrix.rescope }}
         name: Rescope packages to @${{ github.repository_owner }}
         run: |
+          mkdir ./.tmp/
+
           for path in $(cat ./package.json | jq -r '.workspaces | join("\n")')
           do
             echo ::group::$path/package.json
@@ -227,7 +230,9 @@ jobs:
       - env:
           matrix: ${{ needs.prepare.outputs.matrix }}
         name: Save matrix
-        run: echo $matrix | jq -r | tee ./.tmp/matrix.json
+        run: |
+          mkdir ./.tmp/
+          echo $matrix | jq -r | tee ./.tmp/matrix.json
       - env:
           filenames: ${{ needs.build.outputs.filenames }}
         name: Add filename to matrix
@@ -320,7 +325,9 @@ jobs:
       - env:
           matrix: ${{ needs.build-merge-matrix.outputs.matrix }}
         name: Save matrix
-        run: echo $matrix | jq -r | tee ./.tmp/matrix.json
+        run: |
+          mkdir ./.tmp/
+          echo $matrix | jq -r | tee ./.tmp/matrix.json
       - env:
           matrix: ${{ needs.build-merge-matrix.outputs.matrix }}
         name: Save public-only matrix
