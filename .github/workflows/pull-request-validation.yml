@@ -92,7 +92,7 @@ jobs:
           # - windows-latest
     steps:
       - name: Write matrix to file
-        run: echo $matrix | tee /tmp/matrix.json
+        run: set -euo pipefail && echo $matrix | tee /tmp/matrix.json
       - uses: actions/checkout@v3
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
@@ -124,7 +124,7 @@ jobs:
         include: ${{ fromJSON(needs.build.outputs.matrix) }}
     steps:
       - name: Write matrix to file
-        run: set -euo pipefail && echo $matrix | append /tmp/matrix.json
+        run: set -euo pipefail && echo $matrix | tee /tmp/matrix.json
       - name: Download tarball artifact
         uses: actions/download-artifact@v3
         with:
