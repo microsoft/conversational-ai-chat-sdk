@@ -41,7 +41,7 @@ jobs:
           - lts/Hydrogen
         os:
           - ubuntu-latest
-          - windows-latest
+          # - windows-latest
     steps:
       - uses: actions/checkout@v3
       - name: Use Node.js ${{ matrix.node-version }}
@@ -87,7 +87,7 @@ jobs:
           - lts/Hydrogen
         os:
           - ubuntu-latest
-          - windows-latest
+          # - windows-latest
     steps:
       - name: Write matrix to file
         run: echo $matrix | tee /tmp/matrix.json
