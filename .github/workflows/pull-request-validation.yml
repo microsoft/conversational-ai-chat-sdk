@@ -62,7 +62,7 @@ jobs:
       - if: ${{ strategy.job-index == 0 }}
         name: Pack tarballs
         run: |
-          mkdir ./.tmp/tarball
+          mkdir -p ./.tmp/tarball
           npm pack --json --pack-destination=./.tmp/tarball --workspaces=true > ./.tmp/pack-result.json
       - if: ${{ strategy.job-index == 0 }}
         name: Print pack result
