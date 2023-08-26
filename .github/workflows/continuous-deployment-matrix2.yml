@@ -118,7 +118,7 @@ jobs:
           matrix: ${{ needs.prepare.outputs.matrix }}
         name: Save matrix
         run: |
-          md .tmp/
+          mkdir .tmp/
           echo $matrix | jq -r | tee .tmp/matrix.json
       - uses: actions/checkout@v3
       - name: Set up Node.js ${{ env.node-version }}
