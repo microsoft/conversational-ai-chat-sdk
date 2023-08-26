@@ -41,7 +41,7 @@ jobs:
           - lts/Hydrogen
         os:
           - ubuntu-latest
-          # - windows-latest
+          - windows-latest
     steps:
       - uses: actions/checkout@v3
       - name: Use Node.js ${{ matrix.node-version }}
@@ -81,17 +81,17 @@ jobs:
       matrix: ${{ needs.build.outputs.matrix }}
     name: Test
     needs: build
-    # runs-on: ${{ matrix.os }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    # runs-on: ubuntu-latest
     strategy:
       matrix:
         include: ${{ fromJSON(needs.build.outputs.matrix) }}
         # TODO: Enable matrix with include
         # node-version:
         #   - lts/Hydrogen
-        # os:
-        #   - ubuntu-latest
-        #   # - windows-latest
+        os:
+          - ubuntu-latest
+          - windows-latest
     steps:
       - name: Write matrix to file
         run: set -euo pipefail && echo $matrix | tee /tmp/matrix.json
