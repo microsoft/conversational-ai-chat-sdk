@@ -370,7 +370,8 @@ jobs:
   github-packages-publish:
     environment:
       name: github-packages
-      url: ${{ github.server_url }}/${{ github.repository_owner }}?tab=packages\&repo_name=${{ github.event.repository.name }}
+      # https://github.com/microsoft/conversational-ai-chat-sdk/pkgs/npm/powerva-chat-adapter
+      url: ${{ github.server_url }}/${{ github.repository }}/pkgs/npm/${{ matrix.name }}
     name: 'GitHub Packages: Publish (${{ matrix.name }}@${{ matrix.version }})'
     needs: approval
     permissions:
@@ -409,13 +410,54 @@ jobs:
         name: Publish ${{ matrix.name }}@${{ matrix.version }}
         run: npm publish --json .tmp/tarball/${{ matrix.scoped-filename }}
 
+  npm-publish:
+    environment:
+      name: npm-publish
+      # https://npmjs.com/packages/powerva-chat-adapter/v/0.0.0-0
+      url: https://npmjs.com/packages/${{ matrix.name }}/v/${{ matrix.version }}
+    if: ${{ secrets.NPM_TOKENxxx }}
+    name: 'NPM: Publish (${{ matrix.name }}@${{ matrix.version }})'
+    needs: approval
+    permissions:
+      packages: write
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include: ${{ fromJSON(needs.approval.outputs.public-only-matrix) }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download packages
+        uses: actions/download-artifact@v3
+        with:
+          name: packages
+          path: .tmp/tarball/
+      - name: Set up Node.js ${{ env.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.node-version }}
+      - name: List package
+        run: ls -l .tmp/tarball/${{ matrix.filename }}
+      - name: Print package.json
+        run: tar -xf .tmp/tarball/${{ matrix.filename }} --to-stdout package/package.json
+      - id: has-published
+        name: Checks if ${{ matrix.name }}@${{ matrix.version }} is already published
+        uses: ./.github/actions/check-if-package-has-published
+        with:
+          name: ${{ matrix.name }}
+          version: ${{ matrix.version }}
+      - env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        if: ${{ steps.has-published.outputs.published == 'false' }}
+        name: Publish ${{ matrix.name }}@${{ matrix.version }}
+        run: npm publish --json .tmp/tarball/${{ matrix.filename }}
+
   summary:
     if: ${{ always() }}
     name: Summary
     needs:
       - github-packages-publish
       - github-pages-deploy
-      # - release-publish
+      - npm-publish
     runs-on: ubuntu-latest
     steps:
       - name: Post deployment
