@@ -82,6 +82,7 @@ jobs:
           echo package-matrix=$(< /tmp/package-matrix.json) | tee --append $GITHUB_OUTPUT
           echo test-matrix=$(cat /tmp/package-matrix.json | jq -r 'reduce (([., [{ os: "ubuntu-latest" }, { os: "windows-latest" }]] | combinations) | reduce .[] as $i ({}; . * $i)) as $i ([]; . + [$i])') | tee --append $GITHUB_OUTPUT
 
+  # We separated "test" so we can fan it out.
   test:
     name: Test (${{ matrix.name }}, ${{ matrix.os }})
     needs: build
@@ -108,12 +109,14 @@ jobs:
         run: |
           set -x
 
-          count=$(cat package.json | jq -r '.workspaces | length - 1')
+          echo $package_matrix /tmp/package-matrix.json
+
+          count=$(cat /tmp/package-matrix.json | jq -r '.workspaces | length - 1')
 
           for index in $(seq 0 $count)
           do
-            filename=$(cat package.json | jq --arg index $index -r '.[$index].filename')
-            name=$(cat package.json | jq --arg index $index -r '.[$index].name')
+            filename=$(cat /tmp/package-matrix.json | jq --arg index $index -r '.[$index].filename')
+            name=$(cat /tmp/package-matrix.json | jq --arg index $index -r '.[$index].name')
 
             tar -xvf $filename --directory=packages/$name --strip-component=1
           done
