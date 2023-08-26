@@ -14,13 +14,11 @@ runs:
       run: compgen -G package.json
       shell: bash
     - name: 'Sanity check: root package.json is a workspace'
-      run: set -euo pipefail && cat package.json | jq -r 'if .workspaces | length > 0 then empty else halt_error(1) end'
+      run: cat package.json | jq -r 'if .workspaces | length > 0 then empty else halt_error(1) end'
       shell: bash
     - id: look-up-package-path
       name: Get package path
       run: |
-        set -euo pipefail
-
         # We cannot use "npm ls" because this could run before "npm ci".
         for path in `cat package.json | jq -r '.workspaces | join("\n")'`
         do
@@ -38,8 +36,6 @@ runs:
       shell: bash
     - name: 'Sanity check: path contains the specific package'
       run: |
-        set -euo pipefail
-
         name=`cat ${{ steps.look-up-package-path.outputs.path }}/package.json | jq -r '.name'`
 
         if [[ "$name" != "${{ inputs.name }}" ]]

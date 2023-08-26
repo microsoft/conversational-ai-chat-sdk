@@ -9,8 +9,6 @@ runs:
   using: composite
   steps:
     - run: |
-        set -euo pipefail
-
         echo \<details\>\<summary\>${{ inputs.title || format('Content of {0}', inputs.path) }}\</code\>\</summary\> | tee --append $GITHUB_STEP_SUMMARY
         echo | tee --append $GITHUB_STEP_SUMMARY
         echo \`\`\`${{ inputs.type }} | tee --append $GITHUB_STEP_SUMMARY
