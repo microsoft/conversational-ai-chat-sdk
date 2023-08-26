@@ -72,7 +72,8 @@ jobs:
           path: /tmp/tarball/*.tgz
       - id: write-outputs
         name: Write to outputs
-        run: set -euo pipefail && echo matrix=`cat /tmp/pack-result.json | jq -cr '{ filename: .filename, name: .name }'` | tee --append $GITHUB_OUTPUT
+        run: |
+          set -euo pipefail && echo matrix=`cat /tmp/pack-result.json | jq -cr '{ filename: .filename, name: .name }'` | tee --append $GITHUB_OUTPUT
 
   sanity-check-package:
     env:
