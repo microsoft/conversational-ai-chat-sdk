@@ -20,6 +20,7 @@ jobs:
     outputs:
       matrix1: ${{ steps.write-outputs.outputs.matrix1 }}
       matrix2: ${{ steps.write-outputs.outputs.matrix2 }}
+    runs-on: ubuntu-latest
     steps:
       - id: write-outputs
         name: Write to outputs
@@ -29,6 +30,7 @@ jobs:
 
   build1:
     name: Build 1
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         include: ${{ fromJSON(env.matrix1) }}
@@ -45,6 +47,7 @@ jobs:
 
   build2:
     name: Build 2
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         include: ${{ fromJSON(env.matrix2) }}
