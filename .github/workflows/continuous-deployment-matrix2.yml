@@ -415,7 +415,8 @@ jobs:
       name: npm-publish
       # https://npmjs.com/packages/powerva-chat-adapter/v/0.0.0-0
       url: https://npmjs.com/packages/${{ matrix.name }}/v/${{ matrix.version }}
-    if: ${{ secrets.NPM_TOKENxxx }}
+    # Skip publishing to NPM on forks.
+    if: ${{ github.repository_owner == 'microsoft' }}
     name: 'NPM: Publish (${{ matrix.name }}@${{ matrix.version }})'
     needs: approval
     permissions:
