@@ -15,6 +15,18 @@ env:
   matrix2: '[{"name":"package-a"},{"name":"package-b"}]'
 
 jobs:
+  prepare:
+    name: Prepare
+    outputs:
+      matrix1: ${{ steps.write-outputs.outputs.matrix1 }}
+      matrix2: ${{ steps.write-outputs.outputs.matrix2 }}
+    steps:
+      - id: write-outputs
+        name: Write to outputs
+        run: |
+          echo matrix1=${{ env.matrix1 }} | tee --append $GIT_OUTPUT
+          echo matrix2=${{ env.matrix2 }} | tee --append $GIT_OUTPUT
+
   build1:
     name: Build 1
     strategy:
