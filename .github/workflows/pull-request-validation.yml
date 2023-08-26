@@ -9,8 +9,6 @@ on:
 jobs:
   sanity-check-root:
     name: 'Sanity check: root package'
-    outputs:
-      package-name-matrix: ${{ steps.write-outputs.outputs.package-name-matrix }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -34,6 +32,8 @@ jobs:
 
   build:
     name: Build
+    outputs:
+      matrix: ${{ steps.write-outputs.outputs.matrix }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
