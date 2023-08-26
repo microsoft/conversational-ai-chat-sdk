@@ -83,8 +83,6 @@ jobs:
           echo test-matrix=$(cat /tmp/package-matrix.json | jq -r 'reduce (([., [{ os: "ubuntu-latest" }, { os: "windows-latest" }]] | combinations) | reduce .[] as $i ({}; . * $i)) as $i ([]; . + [$i])') | tee --append $GITHUB_OUTPUT
 
   test:
-    env:
-      package_matrix: ${{ needs.build.outputs.package-matrix }}
     name: Test (${{ matrix.name }}, ${{ matrix.os }})
     needs: build
     runs-on: ${{ matrix.os }}
@@ -92,8 +90,6 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.build.outputs.test-matrix) }}
     steps:
-      - name: Save env
-        run: echo $package_matrix | tee /tmp/package-matrix.json
       - uses: actions/checkout@v3
       - name: Use Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
@@ -106,14 +102,14 @@ jobs:
         with:
           name: tarball
           path: /tmp/tarball/
-      - name: Extract tarballs
-        run: cat /tmp/matrix.json | jq -r 'map("--directory=packages/" + .name + " --file=/tmp/tarball/" + .filename) | join("\n")' | xargs -L1 tar --extract --strip-component=1 --verbose
+      - env:
+          package_matrix: ${{ needs.build.outputs.package-matrix }}
+        name: Extract tarballs
+        run: echo $package_matrix | jq -r 'map("--directory=packages/" + .name + " --file=/tmp/tarball/" + .filename) | join("\n")' | xargs -L1 tar --extract --strip-component=1 --verbose
       - name: Test
         run: npm test --if-present --workspace=${{ matrix.name }}
 
   sanity-check-package:
-    env:
-      package_matrix: ${{ needs.build.outputs.package-matrix }}
     name: 'Sanity check: ${{ matrix.name }}'
     needs: build
     runs-on: ubuntu-latest
@@ -121,7 +117,9 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.build.outputs.package-matrix) }}
     steps:
-      - name: Save env
+      - env:
+          package_matrix: ${{ needs.build.outputs.package-matrix }}
+        name: Save package matrix
         run: echo $package_matrix | tee /tmp/package-matrix.json
       - name: Download tarball artifact
         uses: actions/download-artifact@v3
