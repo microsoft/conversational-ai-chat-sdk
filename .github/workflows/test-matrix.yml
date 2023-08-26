@@ -47,10 +47,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include: ${{ fromJSON(needs.prepare.outputs.matrix1) }}
         os:
           - ubuntu-latest
           - window-latest
+        include: ${{ fromJSON(needs.prepare.outputs.matrix1) }}
     steps:
       - run: |
           echo '${{ matrix.name }}'
@@ -66,10 +66,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include: ${{ fromJSON(needs.prepare.outputs.matrix2) }}
         os:
           - ubuntu-latest
           - window-latest
+        include: ${{ fromJSON(needs.prepare.outputs.matrix2) }}
     steps:
       - run: |
           echo '${{ matrix.name }}'
@@ -85,12 +85,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          - file: package-a
-          - file: package-b
         os:
           - ubuntu-latest
           - window-latest
+        include:
+          - file: package-a
+          - file: package-b
     steps:
       - run: |
           echo '${{ matrix.name }}'
