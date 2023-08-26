@@ -62,25 +62,25 @@ jobs:
       - if: ${{ strategy.job-index == 0 }}
         name: Pack tarballs
         run: |
-          mkdir -p ./.tmp/tarball
-          npm pack --json --pack-destination=./.tmp/tarball --workspaces=true > ./.tmp/pack-result.json
+          mkdir -p .tmp/tarball
+          npm pack --json --pack-destination=.tmp/tarball --workspaces=true > .tmp/pack-result.json
       - if: ${{ strategy.job-index == 0 }}
         name: Print pack result
-        run: cat ./.tmp/pack-result.json | jq -r 'map(del(.files))'
+        run: cat .tmp/pack-result.json | jq -r 'map(del(.files))'
       - if: ${{ strategy.job-index == 0 }}
         name: Upload tarball artifact
         uses: actions/upload-artifact@v3
         with:
           name: tarball
-          path: ./.tmp/tarball/*.tgz
+          path: .tmp/tarball/*.tgz
       - id: set-outputs
         if: ${{ strategy.job-index == 0 }}
         name: Set outputs
         run: |
-          cat ./.tmp/pack-result.json | jq -cr 'map({ filename: .filename, name: .name })' | tee --append ./.tmp/package-matrix.json
+          cat .tmp/pack-result.json | jq -cr 'map({ filename: .filename, name: .name })' | tee --append .tmp/package-matrix.json
 
-          echo package-matrix=$(< ./.tmp/package-matrix.json) | tee --append $GITHUB_OUTPUT
-          echo test-matrix=$(cat ./.tmp/package-matrix.json | jq -r 'reduce (([., [{ os: "ubuntu-latest" }, { os: "windows-latest" }]] | combinations) | reduce .[] as $i ({}; . * $i)) as $i ([]; . + [$i])') | tee --append $GITHUB_OUTPUT
+          echo package-matrix=$(< .tmp/package-matrix.json) | tee --append $GITHUB_OUTPUT
+          echo test-matrix=$(cat .tmp/package-matrix.json | jq -r 'reduce (([., [{ os: "ubuntu-latest" }, { os: "windows-latest" }]] | combinations) | reduce .[] as $i ({}; . * $i)) as $i ([]; . + [$i])') | tee --append $GITHUB_OUTPUT
 
   # We separated "test" so we can fan it out.
   test:
@@ -102,24 +102,24 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: tarball
-          path: ../.tmp/tarball/
+          path: .tmp/tarball/
       - env:
           package_matrix: ${{ needs.build.outputs.package-matrix }}
         name: Extract tarballs
         run: |
           set -x
 
-          ls ../.tmp/tarball/
-          echo $package_matrix | jq -r | tee ./.tmp/package-matrix.json
+          ls .tmp/tarball/
+          echo $package_matrix | jq -r | tee .tmp/package-matrix.json
 
-          last_index=$(cat ./.tmp/package-matrix.json | jq -r 'length - 1')
+          last_index=$(cat .tmp/package-matrix.json | jq -r 'length - 1')
 
           for index in $(seq 0 $last_index)
           do
-            filename=$(cat ./.tmp/package-matrix.json | jq --argjson index $index -r '.[$index].filename')
-            name=$(cat ./.tmp/package-matrix.json | jq --argjson index $index -r '.[$index].name')
+            filename=$(cat .tmp/package-matrix.json | jq --argjson index $index -r '.[$index].filename')
+            name=$(cat .tmp/package-matrix.json | jq --argjson index $index -r '.[$index].name')
 
-            tar -xvf ../.tmp/tarball/$filename --directory=packages/$name --strip-components=1
+            tar -xvf .tmp/tarball/$filename --directory=packages/$name --strip-components=1
           done
       - name: Test
         run: npm test --if-present --workspace=${{ matrix.name }}
@@ -175,10 +175,10 @@ jobs:
           package_matrix: ${{ needs.build.outputs.package-matrix }}
         name: 'Sanity check: no production dependencies are pre-release except local peers'
         run: |
-          mkdir ./.tmp/
-          echo $package_matrix | jq -r | tee ./.tmp/package-matrix.json
+          mkdir .tmp/
+          echo $package_matrix | jq -r | tee .tmp/package-matrix.json
 
-          cat ./package.json | jq --argfile matrix ./.tmp/package-matrix.json '.dependencies + ($matrix | map({ key: .name }) | from_entries) | with_entries(select(.value // "" | contains("-"))) | if length > 0 then halt_error(1) else empty end'
+          cat ./package.json | jq --argfile matrix .tmp/package-matrix.json '.dependencies + ($matrix | map({ key: .name }) | from_entries) | with_entries(select(.value // "" | contains("-"))) | if length > 0 then halt_error(1) else empty end'
       - name: 'Sanity check: version must be prerelease'
         run: cat ./package.json | jq '.version | if contains("-") then empty else halt_error(1) end'
       - if: ${{ steps.prepare.outputs.is-private != 'true' }}
