@@ -74,7 +74,9 @@ jobs:
             # "main.20230815-110805.0bf2b81" -> "main.20230815-110805.0bf2b81"
             # "main.20230815-110805.0012345" -> "main.20230815-110805.12345"
             # We will update the matrix again in build job.
-            version=$(jq -r '.version' ./$package_path/package.json | xargs -L1 npm exec --offline -- semver --increment prerelease -n false --preid $branch.$committer_date.$short_commitish)
+            current_version=$(jq -r '.version' ./$package_path/package.json)
+
+            version=$(npm exec --offline -- semver --increment prerelease -n false --preid $branch.$committer_date.$short_commitish $current_version)
 
             jq --arg path "$package_path" --arg version "$version" --argfile packageJSON ./$package_path/package.json -r '. + [{ name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), version: $version }]' .tmp/matrix.json > .tmp/matrix.json.tmp
 
@@ -132,7 +134,18 @@ jobs:
       - # We cannot run "npm version" right after "npx semver". Otherwise, next run of "npx semver" will ignore "-n false".
         # "npm version" will update workspaces. During update, it will need to talk to NPM registry.
         name: Bump versions
-        run: cat .tmp/matrix.json | jq -cr 'map("--workspace=" + .name + " " + .version) | join("\n")' | xargs -L1 npm version --no-git-tag-version
+        run: |
+          cat .tmp/matrix.json
+
+          for entry in $(cat .tmp/matrix.json | jq -cr '.[]')
+          do
+            name=$(echo $entry | jq -r .name)
+            version=$(echo $entry | jq -r .version)
+
+            echo $name@$version
+
+            npm version --no-git-tag-version --workspace=$name $version
+          done
       - if: ${{ matrix.rescope }}
         name: Rescope packages to @${{ github.repository_owner }}
         run: |
