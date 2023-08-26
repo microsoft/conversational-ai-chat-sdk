@@ -113,7 +113,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          cat /tmp/matrix.json | jq -r 'map("--directory=packages/" + .name + " --file=" + .filename) | join("\n")' | xargs -L1 tar --extract --strip-component=1 --verbose
+          cat /tmp/matrix.json | jq -r 'map("--directory=packages/" + .name + " --file=/tmp/tarball/" + .filename) | join("\n")' | xargs -L1 tar --extract --strip-component=1 --verbose
       - name: Test
         run: npm test --if-present --workspace=${{ matrix.name }}
 
