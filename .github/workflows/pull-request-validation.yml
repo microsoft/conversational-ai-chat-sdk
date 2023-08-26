@@ -10,6 +10,9 @@ defaults:
   run:
     shell: bash
 
+env:
+  node-version: lts/Hydrogen
+
 jobs:
   sanity-check-root:
     name: 'Sanity check: root package'
@@ -17,15 +20,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # This is based on assumptions in our toolchain.
+      # Assumption in our toolchain.
       - name: 'Sanity check: package path must match their package name'
         run: |
-          for path in `cat package.json | jq -r '.workspaces | join("\n")'`
+          for path in $(cat package.json | jq -r '.workspaces | join("\n")')
           do
-            cat ./$path/package.json | jq --arg packagePath "$path" -r 'if ("packages/" + .name) == $packagePath then empty else halt_error(1) end'
+            cat ./$path/package.json | jq --arg packagePath "$path" -r 'if $packagePath == "packages/" + .name then empty else halt_error(1) end'
           done
 
-      # This is based on assumptions in our toolchain.
+      # Assumption in our toolchain.
       - name: 'Sanity check: package-lock.json must be version 3'
         run: cat ./package-lock.json | jq 'if .lockfileVersion == 3 then empty else empty | halt_error(1) end'
 
@@ -35,21 +38,20 @@ jobs:
   build:
     name: Build
     outputs:
-      matrix: ${{ steps.write-outputs.outputs.matrix }}
+      package-matrix: ${{ steps.set-outputs.outputs.package-matrix }}
+      test-matrix: ${{ steps.set-outputs.outputs.test-matrix }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        node-version:
-          - lts/Hydrogen
         os:
           - ubuntu-latest
           - windows-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Use Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.node-version }}
           cache: npm
       - run: npm clean-install --ignore-scripts --strict-peer-deps # Prevents malicious scripts from stealing our token.
       - run: npm run postinstall --if-present --workspaces=true # Run whitelisted postinstall scripts.
@@ -57,52 +59,46 @@ jobs:
         run: npm run precommit --workspaces=true
       - name: Build
         run: npm run build --if-present --workspaces=true
-      - if: ${{ matrix.os == 'ubuntu-latest' }}
+      - if: ${{ strategy.job-index == 0 }}
         name: Pack tarballs
         run: |
           mkdir /tmp/tarball
           npm pack --json --pack-destination=/tmp/tarball --workspaces=true > /tmp/pack-result.json
-      - if: ${{ matrix.os == 'ubuntu-latest' }}
+      - if: ${{ strategy.job-index == 0 }}
         name: Print pack result
         run: cat /tmp/pack-result.json | jq -r 'map(del(.files))'
-      - if: ${{ matrix.os == 'ubuntu-latest' }}
+      - if: ${{ strategy.job-index == 0 }}
         name: Upload tarball artifact
-        uses: actions/upload-artifact@v3.1.1
+        uses: actions/upload-artifact@v3
         with:
           name: tarball
           path: /tmp/tarball/*.tgz
-      - id: write-outputs
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        name: Write to outputs
+      - id: set-outputs
+        if: ${{ strategy.job-index == 0 }}
+        name: Set outputs
         run: |
-          echo matrix=`cat /tmp/pack-result.json | jq -cr 'map({ filename: .filename, name: .name })'` | tee --append $GITHUB_OUTPUT
+          cat /tmp/pack-result.json | jq -cr 'map({ filename: .filename, name: .name })' | tee --append /tmp/package-matrix.json
+
+          echo package-matrix=$(< /tmp/package-matrix.json) | tee --append $GITHUB_OUTPUT
+          echo test-matrix=$(cat /tmp/package-matrix.json | jq -cr 'reduce ([., [{ os: "ubuntu-latest" }, { os: "windows-latest" }]] | combinations) as $i ([]; . + [$i])') | tee --append $GITHUB_OUTPUT
 
   test:
     env:
-      matrix: ${{ needs.build.outputs.matrix }}
-    name: Test
+      package_matrix: ${{ needs.build.outputs.package-matrix }}
+    name: Test (${{ matrix.name }}, ${{ matrix.os }})
     needs: build
-    # runs-on: ${{ matrix.os }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        include: ${{ fromJSON(needs.build.outputs.matrix) }}
-        # TODO: Enable matrix with include
-        # node-version:
-        #   - lts/Hydrogen
-        # os:
-        #   - ubuntu-latest
-        #   - windows-latest
+        include: ${{ fromJSON(needs.build.outputs.test-matrix) }}
     steps:
-      - name: Write matrix to file
-        run: echo $matrix | tee /tmp/matrix.json
+      - name: Save env
+        run: echo $package_matrix | tee /tmp/package-matrix.json
       - uses: actions/checkout@v3
-      # - name: Use Node.js ${{ matrix.node-version }}
-      - name: Use Node.js lts/Hydrogen
+      - name: Use Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
-          # node-version: ${{ matrix.node-version }}
-          node-version: lts/Hydrogen
+          node-version: ${{ env.node-version }}
           cache: 'npm'
       - run: npm clean-install --ignore-scripts --strict-peer-deps # Prevents malicious scripts from stealing our token.
       - run: npm run postinstall --if-present --workspaces=true # Run whitelisted postinstall scripts.
@@ -111,23 +107,22 @@ jobs:
           name: tarball
           path: /tmp/tarball/
       - name: Extract tarballs
-        run: |
-          cat /tmp/matrix.json | jq -r 'map("--directory=packages/" + .name + " --file=/tmp/tarball/" + .filename) | join("\n")' | xargs -L1 tar --extract --strip-component=1 --verbose
+        run: cat /tmp/matrix.json | jq -r 'map("--directory=packages/" + .name + " --file=/tmp/tarball/" + .filename) | join("\n")' | xargs -L1 tar --extract --strip-component=1 --verbose
       - name: Test
         run: npm test --if-present --workspace=${{ matrix.name }}
 
   sanity-check-package:
     env:
-      matrix: ${{ needs.build.outputs.matrix }}
+      package_matrix: ${{ needs.build.outputs.package-matrix }}
     name: 'Sanity check: ${{ matrix.name }}'
     needs: build
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include: ${{ fromJSON(needs.build.outputs.matrix) }}
+        include: ${{ fromJSON(needs.build.outputs.package-matrix) }}
     steps:
-      - name: Write matrix to file
-        run: echo $matrix | tee /tmp/matrix.json
+      - name: Save env
+        run: echo $package_matrix | tee /tmp/package-matrix.json
       - name: Download tarball artifact
         uses: actions/download-artifact@v3
         with:
@@ -136,7 +131,7 @@ jobs:
         run: tar --extract --file=${{ matrix.filename }} --strip-components=1 --verbose
       - id: prepare
         name: Prepare
-        run: echo is-private=`cat ./package.json | jq -r '.private // false'` | tee --append $GITHUB_OUTPUT
+        run: echo is-private=$(cat ./package.json | jq -r '.private // false') | tee --append $GITHUB_OUTPUT
       - name: 'Sanity check: package name must not be scoped'
         # This is because our rescoping step in continuous deployment will not work if the package is already scoped, it just do plain concat.
         # We can support scoped package if we add that feature to our CD pipeline.
@@ -168,12 +163,13 @@ jobs:
         run: '! compgen -G lib/**/*.test.*'
       - name: 'Sanity check: no production dependencies are pre-release except local peers'
         run: |
-          cat ./package.json | jq --argfile matrix /tmp/matrix.json '.dependencies + ($matrix | map({ key: .name }) | from_entries) | with_entries(select(.value // "" | contains("-"))) | if length > 0 then halt_error(1) else empty end'
+          cat ./package.json | jq --argfile matrix /tmp/package-matrix.json '.dependencies + ($matrix | map({ key: .name }) | from_entries) | with_entries(select(.value // "" | contains("-"))) | if length > 0 then halt_error(1) else empty end'
       - name: 'Sanity check: version must be prerelease'
         run: cat ./package.json | jq '.version | if contains("-") then empty else halt_error(1) end'
       - if: ${{ steps.prepare.outputs.is-private != 'true' }}
         name: 'Sanity check: package.json/files must contains at least one item'
         run: cat ./package.json | jq '.files // [] | if length == 0 then halt_error(1) else empty end'
+
       # TODO: Must contains changes in CHANGELOG.md if it modified *.ts
       # TODO: In CHANGELOG.md, if breaking changes is modified, must bump major
       # TODO: In CHANGELOG.md, if features are removed, must bump major
