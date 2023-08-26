@@ -7,7 +7,7 @@ on:
   workflow_dispatch: {} # Run on-demand for testing workflow functionality.
 
 env:
-  node-version: lts/Hydrogen
+  node-version-matrix: '["lts/Hydrogen"]' # This is JSON.
   os-matrix: '["ubuntu-latest", "windows-latest"]' # This is JSON.
 
 jobs:
@@ -41,7 +41,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        node-version: ${{ env.node-version }}
+        node-version: ${{ fromJSON(env.node-version-matrix) }}
         os: ${{ fromJSON(env.os-matrix) }}
     steps:
       - uses: actions/checkout@v3
