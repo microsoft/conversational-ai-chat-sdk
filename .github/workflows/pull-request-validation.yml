@@ -78,7 +78,7 @@ jobs:
 
   test:
     env:
-      matrix: needs.build.outputs.matrix
+      matrix: ${{ needs.build.outputs.matrix }}
     name: Test
     needs: build
     runs-on: ${{ matrix.os }}
