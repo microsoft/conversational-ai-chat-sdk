@@ -78,7 +78,7 @@ jobs:
       - name: Print matrix
         run: cat /tmp/matrix.json
       - name: 'Sanity check: matrix list all workspaces'
-        run: set -euo pipefail && cat /tmp/matrix.json | jq --argfile packageJSON ./package.json -n 'if (. | map(.path)) == ($packageJSON.workspaces) then empty else halt_error(1) end'
+        run: set -euo pipefail && cat /tmp/matrix.json | jq --argfile packageJSON ./package.json 'if (. | map(.path)) == ($packageJSON.workspaces) then empty else halt_error(1) end'
       - name: 'Sanity check: all entries must have "name" field'
         run: set -euo pipefail && cat /tmp/matrix.json | jq 'if map(select(.name | not)) | length == 0 then empty else halt_error(1) end'
       - name: 'Sanity check: all entries must have "path" field'
