@@ -10,7 +10,7 @@ on:
         required: true
         type: boolean
       # In pull-request-validation.yml, we enforce that the package name must equals to the package path.
-      package-name:
+      name:
         description: Package name
         options:
           - powerva-chat-adapter
@@ -37,232 +37,223 @@ env:
 jobs:
   prepare:
     name: Prepare
+    outputs:
+      matrix: ${{ steps.set-outputs.outputs.matrix }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - id: look-up-package-path
         name: Look up package path
-        uses: ./.github/actions/look-up-package-path
-        with:
-          name: ${{ inputs.package-name }}
+        run: |
+          for path in $(cat package.json | jq -r '.workspaces | .[]')
+          do
+            name=$(cat $path/package.json | jq -r .name)
+
+            echo ::group::$name
+
+            if [[ $name == ${{ inputs.name }} ]]
+            then
+              echo path=$path | tee --append $GITHUB_OUTPUT
+              exit 0
+            fi
+
+            echo ::endgroup::
+          done
+
+          exit 1
+
       - name: Use Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
           cache: npm
           node-version: ${{ env.node-version }}
+
       - if: ${{ env.use-secure-feed != 'false' }}
         name: Use secure feed
         run: npx https://aka.ms/EnableSecureFeed
-      - id: get-committed-version
-        name: Get committed version
-        run: echo version=`cat ${{ steps.look-up-package-path.outputs.path }}/package.json | jq -r .version` | tee --append $GITHUB_OUTPUT
-      - name: 'Sanity check: committed version must be prerelease'
-        run: if [[ "${{ steps.get-committed-version.outputs.version }}" != *-* ]]; then exit 1; fi
-      - id: compute-production-version
-        name: Compute production version from ${{ steps.get-committed-version.outputs.version }}
-        run: echo version=`npm exec -- semver --increment patch ${{ steps.get-committed-version.outputs.version }}` | tee --append $GITHUB_OUTPUT
-      - id: compute-next-prerelease-version
-        name: Compute next prerelease version from ${{ steps.compute-production-version.outputs.version }}
-        run: echo version=`npm exec -- semver --increment prepatch ${{ steps.compute-production-version.outputs.version }}` | tee --append $GITHUB_OUTPUT
-      - name: Build workflow control file
+
+      - id: bump-versions
+        name: Bump versions
         run: |
+          committed_version=$(cat ${{ steps.look-up-package-path.outputs.path }}/package.json | jq -r '.version')
+          production_version=$(npm exec -- semver --increment patch $committed_version)
+          next_prerelease_version=$(npm exec -- semver --increment prepatch $production_version)
+
+          echo committed-version=$committed_version | tee --append $GITHUB_OUTPUT
+          echo production-version=$production_version | tee --append $GITHUB_OUTPUT
+          echo next-prerelease-version=$next_prerelease_version | tee --append $GITHUB_OUTPUT
+
+      - name: Build matrix
+        run: |
+          mkdir .tmp/
+
           jq \
-            --arg nextVersion "${{ steps.compute-next-prerelease-version.outputs.version }}" \
-            --arg packageName "${{ inputs.package-name }}" \
-            --arg packagePath "${{ steps.look-up-package-path.outputs.path }}" \
-            --arg version "${{ steps.compute-production-version.outputs.version }}" \
-            -nr \
-            '{ nextVersion: $nextVersion, packageName: $packageName, packagePath: $packagePath, version: $version }' | tee workflow.json
-      - name: Print workflow control file
-        uses: ./.github/actions/print-step-summary-from-file
-        with:
-          path: workflow.json
-          title: Workflow control file
-      - name: 'Sanity check: workflow.json/packageName must not be empty'
-        run: if [[ -z "$(cat workflow.json | jq -r .packageName)" ]]; then exit 1; fi
-      - name: 'Sanity check: workflow.json/packagePath must not be empty'
-        run: if [[ -z "$(cat workflow.json | jq -r .packagePath)" ]]; then exit 1; fi
-      - name: 'Sanity check: workflow.json/version must not be empty'
-        run: if [[ -z "$(cat workflow.json | jq -r .version)" ]]; then exit 1; fi
-      - name: 'Sanity check: workflow.json/packagePath must point to the right package'
+            --arg committedVersion "${{ steps.bump-versions.outputs.committed-version }}" \
+            --arg name "${{ inputs.package-name }}" \
+            --arg nextPrereleaseVersion "${{ steps.bump-versions.outputs.next-prerelease-version }}" \
+            --arg path "${{ steps.look-up-package-path.outputs.path }}" \
+            --arg productionVersion "${{ steps.bump-versions.outputs.production-version }}" \
+            -cnr \
+            '{ include: [{ "committed-version": $committedVersion, name: $name, "next-prerelease-version": $nextPrereleaseVersion, path: $path, "production-version": $productionVersion }] }' | tee .tmp/matrix.json
+
+      - name: 'Sanity check: matrix "committed-version" must be prerelease and ends with -0'
+        run: '[[ "$(cat .tmp/matrix.json | jq -r ''.include.["committed-version"]'')" != *-0 ]]'
+
+      - name: 'Sanity check: matrix "name" must not be empty'
+        run: '[[ ! -z "$(cat .tmp/matrix.json | jq -r ''.include.name'')" ]]'
+
+      - name: 'Sanity check: matrix "next-prerelease-version" must be prerelease and ends with -0'
+        run: '[[ "$(cat .tmp/matrix.json | jq -r ''.include.["next-prerelease-version"]'')" = *-0 ]]'
+
+      - name: 'Sanity check: matrix "path" must not be empty'
+        run: '[[ ! -z "$(cat .tmp/matrix.json | jq -r ''.include.path'')" ]]'
+
+      - name: 'Sanity check: matrix "path" must point to the right package'
         run: |
-          package_json_path=$(cat workflow.json | jq -r .packagePath)/package.json
+          package_json_path=$(cat .tmp/matrix.json | jq -r '.include.path')/package.json
+          [[ "$(cat $package_json_path | jq -r '.name')" == "${{ inputs.package-name }}" ]]
 
-          [[ -f $package_json_path ]]
+      - name: 'Sanity check: matrix "production-version" must not be empty'
+        run: '[[ ! -z "$(cat .tmp/matrix.json | jq -r ''.include.["production-version"]'')" ]]'
 
-          if [[ "$(cat $package_json_path | jq -r .name)" != ${{ inputs.package-name }} ]]
-          then
-            exit 1
-          fi
-      - name: Upload workflow control file
-        uses: actions/upload-artifact@v3
-        with:
-          if-no-files-found: error
-          name: workflow
-          path: workflow.json
+      - id: set-outputs
+        name: Set outputs
+        run: echo matrix=$(< .tmp/matrix.json) | tee --append $GITHUB_OUTPUT
+
   build:
     name: Build
-    needs:
-      - prepare
+    needs: prepare
     outputs:
-      tarball: ${{ steps.pack-tarball.outputs.tarball }}
-      version: ${{ steps.bump-version.outputs.version }}
+      matrix: ${{ steps.set-outputs.outputs.matrix }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v3
-        with:
-          name: workflow
-      - id: prepare
-        name: Prepare
-        run: |
-          echo package-name=$(cat workflow.json | jq -r '.packageName') | tee --append $GITHUB_OUTPUT
-          echo package-path=$(cat workflow.json | jq -r '.packagePath') | tee --append $GITHUB_OUTPUT
-          echo version=$(cat workflow.json | jq -r '.version') | tee --append $GITHUB_OUTPUT
+
       - name: Use Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
           cache: npm
           node-version: ${{ env.node-version }}
+
       - if: ${{ env.use-secure-feed != 'false' }}
         name: Use secure feed
         run: npx https://aka.ms/EnableSecureFeed
         shell: bash
+
       - id: bump-version
         name: Bump version to production
-        run: npm version --no-git-tag-version --workspace=${{ steps.prepare.outputs.package-name }} ${{ steps.prepare.outputs.version }}
+        run: npm version --no-git-tag-version --workspace=${{ matrix.name }} ${{ matrix.production-version }}
+
       - name: Print bumped package.json
         uses: ./.github/actions/print-step-summary-from-file
         with:
-          path: ${{ steps.prepare.outputs.package-path }}/package.json
-          title: Content of ${{ steps.prepare.outputs.package-path }}/package.json
+          path: ${{ matrix.path }}/package.json
+          title: '`package.json` with production version'
           type: json
+
       - name: Run npm clean-install
         run: npm clean-install --ignore-scripts --strict-peer-deps # Prevents malicious scripts from stealing our token.
+
       - name: Build
         run: npm run build --if-present --workspaces=true
+
       - id: pack
         name: Pack
         run: |
-          npm pack --json --pack-destination=$PWD --workspace=${{ steps.prepare.outputs.package-name }} | tee /tmp/output.json
-          echo tarball=$(cat /tmp/output.json | jq -r '.[0].filename') | tee --append $GITHUB_OUTPUT
+          mkdir -p .tmp/tarball/
+
+          npm pack --json --pack-destination=.tmp/tarball/ --workspace=${{ matrix.name }} > .tmp/pack-output.json
+          cat .tmp/pack-output.json | jq '. + { files: "..." }'
+
+          echo filename=$(cat .tmp/pack-output.json | jq -r '.[0].filename') | tee --append $GITHUB_OUTPUT
+
       - name: Upload tarball
         uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error
-          name: package
-          path: ${{ steps.pack.outputs.tarball }}
-      - name: Update workflow control file
+          name: tarball
+          path: .tmp/tarball/${{ steps.pack.outputs.filename }}
+
+      - env:
+          matrix: ${{ needs.prepare.outputs.matrix }}
+        id: update-matrix
+        name: Update matrix
         run: |
-          cat workflow.json | jq --arg tarball "${{ steps.pack.outputs.tarball }}" -r '. + { tarball: $tarball }' | tee /tmp/workflow.json
-          mv /tmp/workflow.json workflow.json
-      - name: Print workflow control file
-        uses: ./.github/actions/print-step-summary-from-file
-        with:
-          path: workflow.json
-          title: Workflow control file
-          type: json
-      - name: Upload workflow control file
-        uses: actions/upload-artifact@v3
-        with:
-          if-no-files-found: error
-          name: workflow
-          path: workflow.json
-      - name: Prepare summary
-        run: |
-          tar --extract --file=${{ steps.pack.outputs.tarball }} --to-stdout package/package.json | tee /tmp/extracted-package.json
-          tar --list --file=${{ steps.pack.outputs.tarball }} --verbose | tee /tmp/tarball-content.txt
-      - name: Print content of ${{ steps.pack.outputs.tarball }}
-        uses: ./.github/actions/print-step-summary-from-file
-        with:
-          path: /tmp/tarball-content.txt
-          title: List of content of ${{ steps.pack.outputs.tarball }}
-      - name: Print ${{ steps.pack.outputs.tarball }}/package.json
-        uses: ./.github/actions/print-step-summary-from-file
-        with:
-          path: /tmp/extracted-package.json
-          title: Content of ${{ steps.pack.outputs.tarball }}/package.json
-          type: json
+          echo $matrix > .tmp/matrix.json
+
+          filename=${{ needs.pack.outputs.filename }}
+          production_version=`tar -xf .tmp/tarball/$filename --to-stdout package/package.json | jq -r .version'
+
+          cat .tmp/matrix.json | jq \
+            --arg filename "$filename" \
+            --arg productionVersion "$production_version" \
+            -r '{ . * { include: { filename: $filename, "production-version": $productionVersion } }' \
+            | tee .tmp/matrix.json.tmp
+
+          mv .tmp/matrix.json.tmp .tmp/matrix.json
+
+      - id: set-outputs
+        name: Set outputs
+        run: echo matrix=$(< .tmp/matrix.json) | tee --append $GITHUB_OUTPUT
 
   publish:
     environment:
-      name: ${{ matrix.registry-url == 'https://registry.npmjs.org/' && 'npm-publish' || '' }}
-      url: ${{ steps.result.outputs.url }}
+      name: npm-publish
+      url: https://npmjs.com/package/${{ matrix.name }}/v/${{ matrix.version }}
     name: Publish
-    needs:
-      - build
+    needs: build
     permissions:
       contents: read
       id-token: write
       packages: write
     runs-on: ubuntu-latest
     strategy:
-      matrix:
-        registry-url:
-          - https://registry.npmjs.org/
-          # - https://npm.pkg.github.com/ # GitHub Packages requires scoped package.
+      matrix: ${{ needs.build.outputs.matrix }}
+
     steps:
       - uses: actions/checkout@v3
-      - name: Download workflow control file
-        uses: actions/download-artifact@v3
-        with:
-          name: workflow
+
       - name: Download tarball artifact
         uses: actions/download-artifact@v3
         with:
-          name: package
+          name: tarball
+          path: .tmp/tarball/
+
       - name: Use Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.node-version }}
-          registry-url: ${{ matrix.registry-url }}
-      - id: prepare
-        name: Prepare
-        run: |
-          package_name=$(cat workflow.json | jq -r '.packageName')
-          tarball=$(cat workflow.json | jq -r '.tarball')
-          version=$(cat workflow.json | jq -r '.version')
 
-          url=https://npmjs.com/package/$package_name/v/$version
-
-          echo package-name=$package_name | tee --append $GITHUB_OUTPUT
-          echo tarball=$tarball | tee --append $GITHUB_OUTPUT
-          echo token=${{ matrix.registry-url == 'https://npm.pkg.github.com/' && github.token || secrets.NPM_TOKEN }} >> $GITHUB_OUTPUT
-          echo url=$url | tee --append $GITHUB_OUTPUT
-          echo version=$version | tee --append $GITHUB_OUTPUT
       - name: 'Sanity check: tarball exists'
-        run: |
-          compgen -G ${{ steps.prepare.outputs.tarball }}
-          ls ${{ steps.prepare.outputs.tarball }}
+        run: '[[ -f .tmp/tarball/${{ matrix.tarball }} ]]'
+
+      - name: Print package.json
+        run: tar -xf .tmp/tarball/${{ matrix.tarball }} --to-stdout package/package.json
+
       - id: has-published
-        name: Checks if ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }} is already published
+        name: Checks if ${{ matrix.name }}@${{ matrix.production-version }} is already published
         uses: ./.github/actions/check-if-package-has-published
         with:
-          name: ${{ steps.prepare.outputs.package-name }}
-          registry-url: ${{ matrix.registry-url }}
-          token: ${{ steps.prepare.outputs.token }}
-          version: ${{ steps.prepare.outputs.version }}
+          name: ${{ matrix.name }}
+          version: ${{ matrix.version }}
+
       - env:
-          NODE_AUTH_TOKEN: ${{ steps.prepare.outputs.token }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         if: ${{ !inputs.dry-run && steps.has-published.outputs.published == 'false' }}
-        name: Publish ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }}
+        name: Publish ${{ matrix.name }}@${{ matrix.version }}
         # TODO: Enable --provenance when in official repo.
-        run: npm publish --access public --json ${{ steps.prepare.outputs.tarball }}
-      - id: result
-        name: Result
-        run: |
-          if [[ "${{ matrix.registry-url }}" == "https://registry.npmjs.org/" ]]
-          then
-            echo url=https://npmjs.com/package/${{ steps.prepare.outputs.package-name }}/v/${{ steps.prepare.outputs.version }} | tee --append $GITHUB_OUTPUT
-          elif [[ "${{ matrix.registry-url }}" == "https://npm.pkg.github.com/" ]]
-          then
-            echo url=${{ github.server_url }}/${{ github.repository }}/pkgs/npm/${{ steps.prepare.outputs.package-name }} | tee --append $GITHUB_OUTPUT
-          fi
+        run: npm publish --access public --json .tmp/tarball/${{ matrix.tarball }}
 
   create-release:
+    continue-on-error: true
+    env:
+      tag: release/$package_name/v${{ matrix.next-prerelease-version }}
     environment:
       name: github-release
-      url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.prepare.outputs.tag }}
+      url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.tag }}
     name: Create release
     needs:
       - build
@@ -270,45 +261,43 @@ jobs:
     permissions:
       contents: write # Required for creating release
     runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJSON(needs.build.outputs.matrix) }}
+
     steps:
       - uses: actions/checkout@v3
-      - name: Download workflow control file
-        uses: actions/download-artifact@v3
-        with:
-          name: workflow
+
       - name: Download tarball artifact
         uses: actions/download-artifact@v3
         with:
-          name: package
-      - id: prepare
-        name: Prepare
-        run: |
-          package_name=$(cat workflow.json | jq -r '.packageName')
-          version=$(cat workflow.json | jq -r '.version')
+          name: tarball
+          path: .tmp/tarball/
 
-          tag=release/$package_name/v$version
-
-          echo package-name=$package_name | tee --append $GITHUB_OUTPUT
-          echo tag=$tag | tee --append $GITHUB_OUTPUT
-          echo version=$version | tee --append $GITHUB_OUTPUT
       - # We need to use "gh api" to create a tag/ref.
         # Otherwise, if last commit was modifying workflow, it will fail with permission issues.
         env:
           GH_TOKEN: ${{ github.token }}
-        id: push-tag
         if: ${{ !inputs.dry-run }}
         name: Push tag
-        run: gh api repos/${{ github.repository }}/git/refs --field ref=refs/tags/${{ steps.prepare.outputs.tag }} --field sha=${{ github.sha }}
+        run: gh api repos/${{ github.repository }}/git/refs --field ref=refs/tags/${{ env.tag }} --field sha=${{ github.sha }}
+
       - env:
           GH_TOKEN: ${{ github.token }}
-        id: create-release
         if: ${{ !inputs.dry-run }}
         name: Create release
         run: |
-          DATE=$(date +%F)
-          gh release create ${{ steps.prepare.outputs.tag }} ./*.tgz --repo ${{ github.repository }} --title "${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }} - $DATE"
+          date=$(date +%F)
+
+          gh release create \
+            ${{ env.tag }} \
+            .tmp/tarball/${{ matrix.tarball }} \
+            --notes "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            --repo ${{ github.repository }} \
+            --title "${{ matrix.name }}@${{ matrix.version }} - $date"
 
   pull-request-create-bump-version:
+    env:
+      branch-name: bot/postpublish/${{ matrix.name }/v${{ matrix.next-prerelease-version }}
     environment:
       name: pull-request
       url: ${{ steps.create-pull-request.outputs.url }}
@@ -319,39 +308,22 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Download workflow control file
-        uses: actions/download-artifact@v3
-        with:
-          name: workflow
+
       - name: Use Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
           cache: npm
           node-version: ${{ env.node-version }}
-          registry-url: https://npm.pkg.github.com/
+
       - if: ${{ env.use-secure-feed != 'false' }}
         name: Use secure feed
         run: npx https://aka.ms/EnableSecureFeed
-        shell: bash
-      - id: prepare
-        name: Prepare
-        run: |
-          next_version=$(cat workflow.json | jq -r '.nextVersion')
-          package_name=$(cat workflow.json | jq -r '.packageName')
-          package_path=$(cat workflow.json | jq -r '.packagePath')
-          version=$(cat workflow.json | jq -r '.version')
 
-          branch_name=bot/postpublish/$package_name/v$next_version
-
-          echo branch-name=$branch_name | tee --append $GITHUB_OUTPUT
-          echo next-version=$next_version | tee --append $GITHUB_OUTPUT
-          echo package-name=$package_name | tee --append $GITHUB_OUTPUT
-          echo package-path=$package_path | tee --append $GITHUB_OUTPUT
-          echo version=$version | tee --append $GITHUB_OUTPUT
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         id: create-branch
@@ -360,36 +332,51 @@ jobs:
           git config user.email "${{ github.actor }}@users.noreply.github.com"
           git config user.name "@${{ github.actor }}"
 
-          git checkout -b ${{ steps.prepare.outputs.branch-name }}
-      - name: Bump ${{ steps.prepare.outputs.package-path }}/CHANGELOG.md
-        run: npx keep-a-changelog --file="${{ steps.prepare.outputs.package-path }}/CHANGELOG.md" --format=markdownlint --url="${{ github.server_url }}/${{ github.repository }}" --release="${{ steps.prepare.outputs.version }}"
-      - name: Stage ${{ steps.prepare.outputs.package-path }}/CHANGELOG.md
-        run: git add ${{ steps.prepare.outputs.package-path }}/CHANGELOG.md
-      - env:
-          NODE_AUTH_TOKEN: ${{ github.token }}
-        id: bump-version
-        name: Bump ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.next-version }}
-        run: npm version --no-git-tag-version --workspace=${{ steps.prepare.outputs.package-name }} ${{ steps.prepare.outputs.next-version }}
+          git checkout -b ${{ env.branch-name }}
+
+      - name: Bump ${{ matrix.path }}/CHANGELOG.md
+        run: |
+          npx keep-a-changelog \
+            --file="${{ matrix.path }}/CHANGELOG.md" \
+            --format=markdownlint \
+            --release="${{ matrix.production-version }}" \
+            --url="${{ github.server_url }}/${{ github.repository }}"
+
+      - name: Stage ${{ matrix.path }}/CHANGELOG.md
+        run: git add ${{ matrix.path }}/CHANGELOG.md
+
+      - id: bump-version
+        name: Bump ${{ matrix.name }}@${{ matrix.next-prerelease-version }}
+        run: npm version --no-git-tag-version --workspace=${{ matrix.name }} ${{ matrix.next-prerelease-version }}
+
       - name: Print package.json
-        uses: ./.github/actions/print-step-summary-from-file
-        with:
-          path: ${{ steps.prepare.outputs.package-path }}/package.json
-          title: Content of ${{ steps.prepare.outputs.package-name }}/package.json
-          type: json
+        run: cat ${{ matrix.path }}/package.json | jq -r
+
       - name: Stage package-lock.json
         run: git add package-lock.json
-      - name: Stage ${{ steps.prepare.outputs.package-path }}/package.json
-        run: git add ${{ steps.prepare.outputs.package-path }}/package.json
+
+      - name: Stage ${{ matrix.path }}/package.json
+        run: git add ${{ matrix.path }}/package.json
+
       - name: Commit branch
-        run: git commit --message="Bump ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.next-version }}"
+        run: git commit --message="Bump ${{ matrix.name }}@${{ matrix.next-prerelease-version }}"
+
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         if: ${{ !inputs.dry-run }}
         name: Push branch
-        run: git push --set-upstream origin ${{ steps.prepare.outputs.branch-name }}
+        run: git push --set-upstream origin ${{ env.branch-name }}
+
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         id: create-pull-request
         if: ${{ !inputs.dry-run }}
         name: Create pull request
-        run: echo url=$(gh pr create --assignee @me --body "Post-publish of ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}." --fill --label bot --repo ${{ github.repository }}) | tee --append $GITHUB_OUTPUT
+        # TODO: Add "bot" label
+        run: |
+          gh pr create \
+            --assignee @me \
+            --body "Post-publish of ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}." \
+            --fill \
+            --repo ${{ github.repository }}) \
+            | tee --append $GITHUB_OUTPUT
