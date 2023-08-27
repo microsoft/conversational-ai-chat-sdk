@@ -1,4 +1,4 @@
-name: Publish package
+name: Publish production package
 run-name: 'Publish: ${{ inputs.name }}'
 
 on:
@@ -257,11 +257,11 @@ jobs:
   create-release:
     continue-on-error: true
     env:
-      tag: release/${{ matrix.name }}/v${{ matrix.next-prerelease-version }}
+      tag: release/${{ matrix.name }}/v${{ matrix.production-version }}
     environment:
       name: github-release
       url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.tag }}
-    name: Create release (${{ matrix.next-prerelease-version }})
+    name: Create release (${{ matrix.production-version }})
     needs:
       - build
       - publish
