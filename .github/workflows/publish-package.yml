@@ -4,6 +4,11 @@ run-name: 'Publish: ${{ inputs.package-name }}'
 on:
   workflow_dispatch:
     inputs:
+      dry-run:
+        default: true # TODO: Fix this
+        description: Dry run
+        required: true
+        type: boolean
       # In pull-request-validation.yml, we enforce that the package name must equals to the package path.
       package-name:
         description: Package name
@@ -15,6 +20,10 @@ on:
         type: choice
 
 concurrency: publish-package/${{ inputs.package-name }}
+
+defaults:
+  run:
+    shell: bash
 
 env:
   node-version: lts/Hydrogen
@@ -44,24 +53,17 @@ jobs:
       - if: ${{ env.use-secure-feed != 'false' }}
         name: Use secure feed
         run: npx https://aka.ms/EnableSecureFeed
-        shell: bash
       - id: get-committed-version
         name: Get committed version
-        run: |
-          VERSION=`cat ${{ steps.look-up-package-path.outputs.path }}/package.json | jq -r .version` && true || exit 1
-          echo version=$VERSION | tee --append $GITHUB_OUTPUT
+        run: echo version=`cat ${{ steps.look-up-package-path.outputs.path }}/package.json | jq -r .version` | tee --append $GITHUB_OUTPUT
       - name: 'Sanity check: committed version must be prerelease'
         run: if [[ "${{ steps.get-committed-version.outputs.version }}" != *-* ]]; then exit 1; fi
       - id: compute-production-version
         name: Compute production version from ${{ steps.get-committed-version.outputs.version }}
-        run: |
-          VERSION=`npm exec -- semver --increment patch ${{ steps.get-committed-version.outputs.version }}` && true || exit 1
-          echo version=$VERSION | tee --append $GITHUB_OUTPUT
+        run: echo version=`npm exec -- semver --increment patch ${{ steps.get-committed-version.outputs.version }}` | tee --append $GITHUB_OUTPUT
       - id: compute-next-prerelease-version
         name: Compute next prerelease version from ${{ steps.compute-production-version.outputs.version }}
-        run: |
-          VERSION=`npm exec -- semver --increment prepatch ${{ steps.compute-production-version.outputs.version }}` && true || exit 1
-          echo version=$VERSION | tee --append $GITHUB_OUTPUT
+        run: echo version=`npm exec -- semver --increment prepatch ${{ steps.compute-production-version.outputs.version }}` | tee --append $GITHUB_OUTPUT
       - name: Build workflow control file
         run: |
           jq \
@@ -77,16 +79,18 @@ jobs:
           path: workflow.json
           title: Workflow control file
       - name: 'Sanity check: workflow.json/packageName must not be empty'
-        run: if [[ -z "`cat workflow.json | jq -r .packageName`" ]]; then exit 1; fi
+        run: if [[ -z "$(cat workflow.json | jq -r .packageName)" ]]; then exit 1; fi
       - name: 'Sanity check: workflow.json/packagePath must not be empty'
-        run: if [[ -z "`cat workflow.json | jq -r .packagePath`" ]]; then exit 1; fi
+        run: if [[ -z "$(cat workflow.json | jq -r .packagePath)" ]]; then exit 1; fi
       - name: 'Sanity check: workflow.json/version must not be empty'
-        run: if [[ -z "`cat workflow.json | jq -r .version`" ]]; then exit 1; fi
+        run: if [[ -z "$(cat workflow.json | jq -r .version)" ]]; then exit 1; fi
       - name: 'Sanity check: workflow.json/packagePath must point to the right package'
         run: |
-          PACKAGE_PATH=`cat workflow.json | jq -r .packagePath` && true || exit 1
+          package_json_path=$(cat workflow.json | jq -r .packagePath)/package.json
 
-          if [[ "`cat $PACKAGE_PATH/package.json | jq -r .name`" != ${{ inputs.package-name }} ]]
+          [[ -f $package_json_path ]]
+
+          if [[ "$(cat $package_json_path | jq -r .name)" != ${{ inputs.package-name }} ]]
           then
             exit 1
           fi
@@ -112,9 +116,9 @@ jobs:
       - id: prepare
         name: Prepare
         run: |
-          echo package-name=`cat workflow.json | jq -r '.packageName'` | tee --append $GITHUB_OUTPUT
-          echo package-path=`cat workflow.json | jq -r '.packagePath'` | tee --append $GITHUB_OUTPUT
-          echo version=`cat workflow.json | jq -r '.version'` | tee --append $GITHUB_OUTPUT
+          echo package-name=$(cat workflow.json | jq -r '.packageName') | tee --append $GITHUB_OUTPUT
+          echo package-path=$(cat workflow.json | jq -r '.packagePath') | tee --append $GITHUB_OUTPUT
+          echo version=$(cat workflow.json | jq -r '.version') | tee --append $GITHUB_OUTPUT
       - name: Use Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
@@ -126,8 +130,7 @@ jobs:
         shell: bash
       - id: bump-version
         name: Bump version to production
-        run: |
-          npm version --no-git-tag-version --workspace=${{ steps.prepare.outputs.package-name }} ${{ steps.prepare.outputs.version }} && true || exit 1
+        run: npm version --no-git-tag-version --workspace=${{ steps.prepare.outputs.package-name }} ${{ steps.prepare.outputs.version }}
       - name: Print bumped package.json
         uses: ./.github/actions/print-step-summary-from-file
         with:
@@ -142,8 +145,7 @@ jobs:
         name: Pack
         run: |
           npm pack --json --pack-destination=$PWD --workspace=${{ steps.prepare.outputs.package-name }} | tee /tmp/output.json
-          TARBALL=`cat /tmp/output.json | jq -r '.[0].filename'` && true || exit 1
-          echo tarball=$TARBALL | tee --append $GITHUB_OUTPUT
+          echo tarball=$(cat /tmp/output.json | jq -r '.[0].filename') | tee --append $GITHUB_OUTPUT
       - name: Upload tarball
         uses: actions/upload-artifact@v3
         with:
@@ -217,17 +219,17 @@ jobs:
       - id: prepare
         name: Prepare
         run: |
-          PACKAGE_NAME=`cat workflow.json | jq -r '.packageName'`
-          TARBALL=`cat workflow.json | jq -r '.tarball'`
-          VERSION=`cat workflow.json | jq -r '.version'`
+          package_name=$(cat workflow.json | jq -r '.packageName')
+          tarball=$(cat workflow.json | jq -r '.tarball')
+          version=$(cat workflow.json | jq -r '.version')
 
-          URL=https://npmjs.com/package/$PACKAGE_NAME/v/$VERSION
+          url=https://npmjs.com/package/$package_name/v/$version
 
-          echo package-name=$PACKAGE_NAME | tee --append $GITHUB_OUTPUT
-          echo tarball=$TARBALL | tee --append $GITHUB_OUTPUT
+          echo package-name=$package_name | tee --append $GITHUB_OUTPUT
+          echo tarball=$tarball | tee --append $GITHUB_OUTPUT
           echo token=${{ matrix.registry-url == 'https://npm.pkg.github.com/' && github.token || secrets.NPM_TOKEN }} >> $GITHUB_OUTPUT
-          echo url=$URL | tee --append $GITHUB_OUTPUT
-          echo version=$VERSION | tee --append $GITHUB_OUTPUT
+          echo url=$url | tee --append $GITHUB_OUTPUT
+          echo version=$version | tee --append $GITHUB_OUTPUT
       - name: 'Sanity check: tarball exists'
         run: |
           compgen -G ${{ steps.prepare.outputs.tarball }}
@@ -242,7 +244,7 @@ jobs:
           version: ${{ steps.prepare.outputs.version }}
       - env:
           NODE_AUTH_TOKEN: ${{ steps.prepare.outputs.token }}
-        if: ${{ steps.has-published.outputs.published == 'false' }}
+        if: ${{ !inputs.dry-run && steps.has-published.outputs.published == 'false' }}
         name: Publish ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }}
         # TODO: Enable --provenance when in official repo.
         run: npm publish --access public --json ${{ steps.prepare.outputs.tarball }}
@@ -281,27 +283,29 @@ jobs:
       - id: prepare
         name: Prepare
         run: |
-          PACKAGE_NAME=`cat workflow.json | jq -r '.packageName'`
-          VERSION=`cat workflow.json | jq -r '.version'`
+          package_name=$(cat workflow.json | jq -r '.packageName')
+          version=$(cat workflow.json | jq -r '.version')
 
-          TAG=release/$PACKAGE_NAME/v$VERSION
+          tag=release/$package_name/v$version
 
-          echo package-name=$PACKAGE_NAME | tee --append $GITHUB_OUTPUT
-          echo tag=$TAG | tee --append $GITHUB_OUTPUT
-          echo version=$VERSION | tee --append $GITHUB_OUTPUT
+          echo package-name=$package_name | tee --append $GITHUB_OUTPUT
+          echo tag=$tag | tee --append $GITHUB_OUTPUT
+          echo version=$version | tee --append $GITHUB_OUTPUT
       - # We need to use "gh api" to create a tag/ref.
         # Otherwise, if last commit was modifying workflow, it will fail with permission issues.
         env:
           GH_TOKEN: ${{ github.token }}
         id: push-tag
+        if: ${{ !inputs.dry-run }}
         name: Push tag
         run: gh api repos/${{ github.repository }}/git/refs --field ref=refs/tags/${{ steps.prepare.outputs.tag }} --field sha=${{ github.sha }}
       - env:
           GH_TOKEN: ${{ github.token }}
         id: create-release
+        if: ${{ !inputs.dry-run }}
         name: Create release
         run: |
-          DATE=`date +%F`
+          DATE=$(date +%F)
           gh release create ${{ steps.prepare.outputs.tag }} ./*.tgz --repo ${{ github.repository }} --title "${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.version }} - $DATE"
 
   pull-request-create-bump-version:
@@ -336,18 +340,18 @@ jobs:
       - id: prepare
         name: Prepare
         run: |
-          NEXT_VERSION=`cat workflow.json | jq -r '.nextVersion'`
-          PACKAGE_NAME=`cat workflow.json | jq -r '.packageName'`
-          PACKAGE_PATH=`cat workflow.json | jq -r '.packagePath'`
-          VERSION=`cat workflow.json | jq -r '.version'`
+          next_version=$(cat workflow.json | jq -r '.nextVersion')
+          package_name=$(cat workflow.json | jq -r '.packageName')
+          package_path=$(cat workflow.json | jq -r '.packagePath')
+          version=$(cat workflow.json | jq -r '.version')
 
-          BRANCH_NAME=bot/postpublish/$PACKAGE_NAME/v$NEXT_VERSION
+          branch_name=bot/postpublish/$package_name/v$next_version
 
-          echo branch-name=$BRANCH_NAME | tee --append $GITHUB_OUTPUT
-          echo next-version=$NEXT_VERSION | tee --append $GITHUB_OUTPUT
-          echo package-name=$PACKAGE_NAME | tee --append $GITHUB_OUTPUT
-          echo package-path=$PACKAGE_PATH | tee --append $GITHUB_OUTPUT
-          echo version=$VERSION | tee --append $GITHUB_OUTPUT
+          echo branch-name=$branch_name | tee --append $GITHUB_OUTPUT
+          echo next-version=$next_version | tee --append $GITHUB_OUTPUT
+          echo package-name=$package_name | tee --append $GITHUB_OUTPUT
+          echo package-path=$package_path | tee --append $GITHUB_OUTPUT
+          echo version=$version | tee --append $GITHUB_OUTPUT
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         id: create-branch
@@ -380,12 +384,12 @@ jobs:
         run: git commit --message="Bump ${{ steps.prepare.outputs.package-name }}@${{ steps.prepare.outputs.next-version }}"
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        if: ${{ !inputs.dry-run }}
         name: Push branch
         run: git push --set-upstream origin ${{ steps.prepare.outputs.branch-name }}
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         id: create-pull-request
+        if: ${{ !inputs.dry-run }}
         name: Create pull request
-        run: |
-          URL=`gh pr create --assignee @me --body "Post-publish of ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}." --fill --label bot --repo ${{ github.repository }}` && true || exit 1
-          echo url=$URL | tee --append $GITHUB_OUTPUT
+        run: echo url=$(gh pr create --assignee @me --body "Post-publish of ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}." --fill --label bot --repo ${{ github.repository }}) | tee --append $GITHUB_OUTPUT
