@@ -343,7 +343,8 @@ jobs:
 
           git checkout -b ${{ env.branch-name }}
 
-      - name: Bump ${{ matrix.path }}/CHANGELOG.md
+      - continue-on-error: true
+        name: Bump ${{ matrix.path }}/CHANGELOG.md
         run: |
           npx keep-a-changelog \
             --file="${{ matrix.path }}/CHANGELOG.md" \
