@@ -231,8 +231,8 @@ jobs:
           name: ${{ matrix.rescope && 'scoped-packages' || 'packages' }}
           path: .tmp/tarball/
 
-  build-merge-matrix:
-    name: 'Build: merge matrix'
+  build-update-matrix:
+    name: 'Build: update matrix'
     needs:
       - build
       - prepare
@@ -295,7 +295,7 @@ jobs:
   build-github-pages:
     name: 'Build: GitHub Pages'
     needs:
-      - build-merge-matrix
+      - build-update-matrix
     runs-on: ubuntu-latest
     steps:
       - name: Download packages artifact
@@ -303,7 +303,7 @@ jobs:
         with:
           name: packages
       - env:
-          matrix: ${{ needs.build-merge-matrix.outputs.matrix }}
+          matrix: ${{ needs.build-update-matrix.outputs.matrix }}
         id: get-tarball-name
         name: Get tarball name
         run: echo filename=$(echo $matrix | jq -r '.[] | select(.name == "pages") | .filename | if . then . else halt_error(1) end') | tee --append $GITHUB_OUTPUT
@@ -322,7 +322,7 @@ jobs:
     name: Approval
     needs:
       - build-github-pages
-      - build-merge-matrix
+      - build-update-matrix
     outputs:
       matrix: ${{ steps.set-outputs.outputs.matrix }}
       public-only-matrix: ${{ steps.set-outputs.outputs.public-only-matrix }}
@@ -330,13 +330,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - env:
-          matrix: ${{ needs.build-merge-matrix.outputs.matrix }}
+          matrix: ${{ needs.build-update-matrix.outputs.matrix }}
         name: Save matrix
         run: |
           mkdir .tmp/
           echo $matrix | jq -r | tee .tmp/matrix.json
       - env:
-          matrix: ${{ needs.build-merge-matrix.outputs.matrix }}
+          matrix: ${{ needs.build-update-matrix.outputs.matrix }}
         name: Save public-only matrix
         run: cat .tmp/matrix.json | jq -r 'map(select(.private | not))' | tee .tmp/public-only-matrix.json
       - id: set-outputs
