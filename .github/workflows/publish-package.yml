@@ -308,7 +308,7 @@ jobs:
     environment:
       name: pull-request
       url: ${{ steps.create-pull-request.outputs.url }}
-    name: Create pull request for ${{ matrix.next-prerelease-version }}
+    name: Create pull request (${{ matrix.next-prerelease-version }})
     needs:
       - build
       - publish
@@ -343,21 +343,20 @@ jobs:
 
           git checkout -b ${{ env.branch-name }}
 
-      - continue-on-error: true
-        name: Bump ${{ matrix.path }}/CHANGELOG.md
+      - name: Bump CHANGELOG.md
         run: |
           npx keep-a-changelog \
             --file="${{ matrix.path }}/CHANGELOG.md" \
             --format=markdownlint \
             --release="${{ matrix.production-version }}" \
-            --url="${{ github.server_url }}/${{ github.repository }}"
+            --url="${{ github.server_url }}/${{ github.repository }}" || true
           npx keep-a-changelog \
             --create
             --file="${{ matrix.path }}/CHANGELOG.md" \
             --format=markdownlint \
-            --url="${{ github.server_url }}/${{ github.repository }}"
+            --url="${{ github.server_url }}/${{ github.repository }}" || true
 
-      - name: Stage ${{ matrix.path }}/CHANGELOG.md
+      - name: Stage CHANGELOG.md
         run: git add ${{ matrix.path }}/CHANGELOG.md
 
       - id: bump-version
@@ -391,7 +390,7 @@ jobs:
         run: |
           echo url=$(gh pr create \
             --assignee @me \
-            --body "Post-publish of ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}." \
+            --body "> Related to ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}." \
             --fill \
             --repo ${{ github.repository }} \
           ) | tee --append $GITHUB_OUTPUT
