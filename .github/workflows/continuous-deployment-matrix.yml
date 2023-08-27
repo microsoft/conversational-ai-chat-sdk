@@ -66,24 +66,24 @@ jobs:
           mkdir .tmp/
           echo [] > .tmp/matrix.json
 
-          for package_path in $(jq -r '.workspaces | join("\n")' ./package.json)
+          for path in $(cat ./package.json | jq -r '.workspaces | .[]')
           do
             # committer_date=20230815-110805
-            committer_date=$(git log --date=format:%Y%m%d-%H%M%S --pretty=format:'%cd' -1 ./$package_path/)
+            committer_date=$(git log --date=format:%Y%m%d-%H%M%S --pretty=format:'%cd' -1 ./$path/)
 
             # version=main.20230815-110805.0bf2b81
             # This version is not very accurate, after running `npm version`, it will remove leading zeroes in prerelease tags if that certain part is all numeric. This does not repro in semver.
             # "main.20230815-110805.0bf2b81" -> "main.20230815-110805.0bf2b81"
             # "main.20230815-110805.0012345" -> "main.20230815-110805.12345"
             # We will update the matrix again in build job.
-            current_version=$(jq -r '.version' ./$package_path/package.json)
+            current_version=$(jq -r '.version' ./$path/package.json)
 
             version=$(npm exec --offline -- semver --increment prerelease -n false --preid $branch.$committer_date.$short_commitish $current_version)
 
             cat .tmp/matrix.json | jq \
-              --arg path "$package_path" \
+              --arg path "$path" \
               --arg version "$version" \
-              --argfile packageJSON ./$package_path/package.json \
+              --argfile packageJSON ./$path/package.json \
               -r \
               '. + [{ name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), version: $version }]' \
               > .tmp/matrix.json.tmp
@@ -160,7 +160,7 @@ jobs:
       - if: ${{ matrix.rescope }}
         name: Rescope packages to @${{ github.repository_owner }}
         run: |
-          for path in $(cat ./package.json | jq -r '.workspaces | join("\n")')
+          for path in $(cat ./package.json | jq -r '.workspaces | .[]')
           do
             echo ::group::$path/package.json
 
@@ -181,7 +181,7 @@ jobs:
           # We only know how to deal with lockfile v3.
           cat ./package-lock.json | jq 'if .lockfileVersion == 3 then empty else empty | halt_error(1) end'
 
-          for path in $(cat ./package.json | jq -r '.workspaces | join("\n")')
+          for path in $(cat ./package.json | jq -r '.workspaces | .[]')
           do
             echo ::group::$path/package.json
 
