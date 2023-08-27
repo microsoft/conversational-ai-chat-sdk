@@ -350,7 +350,7 @@ jobs:
             --file="${{ matrix.path }}/CHANGELOG.md" \
             --format=markdownlint \
             --release="${{ matrix.production-version }}" \
-            --url="${{ github.server_url }}/${{ github.repository }}" || true
+            --url="${{ github.server_url }}/${{ github.repository }}"
 
       - continue-on-error: true
         name: Add unreleased to CHANGELOG.md
@@ -359,7 +359,7 @@ jobs:
             --create \
             --file="${{ matrix.path }}/CHANGELOG.md" \
             --format=markdownlint \
-            --url="${{ github.server_url }}/${{ github.repository }}" || true
+            --url="${{ github.server_url }}/${{ github.repository }}"
 
       - name: Stage CHANGELOG.md
         run: git add ${{ matrix.path }}/CHANGELOG.md
