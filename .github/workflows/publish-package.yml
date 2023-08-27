@@ -212,7 +212,7 @@ jobs:
       packages: write
     runs-on: ubuntu-latest
     strategy:
-      matrix: ${{ needs.build.outputs.matrix }}
+      matrix: ${{ fromJSON(needs.build.outputs.matrix) }}
 
     steps:
       - uses: actions/checkout@v3
@@ -309,6 +309,8 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJSON(needs.build.outputs.matrix) }}
 
     steps:
       - uses: actions/checkout@v3
