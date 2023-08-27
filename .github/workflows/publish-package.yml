@@ -191,7 +191,7 @@ jobs:
           cat .tmp/matrix.json | jq \
             --arg filename "$filename" \
             --arg productionVersion "$production_version" \
-            -r '{ include: [.include[0] * { filename: $filename, "production-version": $productionVersion }] }' \
+            -cr '{ include: [.include[0] * { filename: $filename, "production-version": $productionVersion }] }' \
             | tee .tmp/matrix.json.tmp
 
           mv .tmp/matrix.json.tmp .tmp/matrix.json
@@ -202,7 +202,7 @@ jobs:
 
   publish:
     environment:
-      name: npm-publish
+      # name: npm-publish # TODO: Fix this
       url: https://npmjs.com/package/${{ matrix.name }}/v/${{ matrix.version }}
     name: Publish (${{ matrix.name }}@${{ matrix.production-version }})
     needs: build
@@ -227,6 +227,12 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.node-version }}
+
+      - name: Print matrix
+        run: |
+          cat << EOL
+          ${{ toJSON(matrix) }}
+          EOL
 
       - name: 'Sanity check: tarball exists'
         run: '[[ -f .tmp/tarball/${{ matrix.tarball }} ]]'
@@ -253,7 +259,7 @@ jobs:
     env:
       tag: release/$package_name/v${{ matrix.next-prerelease-version }}
     environment:
-      name: github-release
+      # name: github-release # TODO: Fix this.
       url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.tag }}
     name: Create release (${{ matrix.next-prerelease-version }})
     needs:
@@ -300,7 +306,7 @@ jobs:
     env:
       branch-name: bot/postpublish/${{ matrix.name }}/v${{ matrix.next-prerelease-version }}
     environment:
-      name: pull-request
+      # name: pull-request # TODO: Fix this.
       url: ${{ steps.create-pull-request.outputs.url }}
     name: Create pull request for ${{ matrix.next-prerelease-version }}
     needs:
