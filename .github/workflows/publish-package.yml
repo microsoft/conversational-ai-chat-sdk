@@ -167,7 +167,7 @@ jobs:
           mkdir -p .tmp/tarball/
 
           npm pack --json --pack-destination=.tmp/tarball/ --workspace=${{ matrix.name }} > .tmp/pack-output.json
-          cat .tmp/pack-output.json | jq '. * { files: "..." }'
+          cat .tmp/pack-output.json | jq '.[0] * { files: "..." }'
 
           echo filename=$(cat .tmp/pack-output.json | jq -r '.[0].filename') | tee --append $GITHUB_OUTPUT
 
