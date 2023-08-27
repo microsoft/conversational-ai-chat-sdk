@@ -232,7 +232,7 @@ jobs:
           path: .tmp/tarball/
 
   build-merge-matrix:
-    name: 'Build: Merge matrix'
+    name: 'Build: merge matrix'
     needs:
       - build
       - prepare
@@ -363,7 +363,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     outputs:
       url: ${{ steps.deployment.outputs.page_url }}
-    name: 'GitHub Pages: Deploy'
+    name: 'GitHub Pages: deploy'
     needs: approval
     permissions:
       id-token: write
@@ -379,7 +379,7 @@ jobs:
       name: github-packages
       # https://github.com/microsoft/conversational-ai-chat-sdk/pkgs/npm/powerva-chat-adapter
       url: ${{ github.server_url }}/${{ github.repository }}/pkgs/npm/${{ matrix.name }}
-    name: 'GitHub Packages: Publish (${{ matrix.scoped-name }}@${{ matrix.version }})'
+    name: 'GitHub Packages: publish (${{ matrix.scoped-name }}@${{ matrix.version }})'
     needs: approval
     permissions:
       packages: write
@@ -424,7 +424,7 @@ jobs:
       url: https://npmjs.com/packages/${{ matrix.name }}/v/${{ matrix.version }}
     # Skip publishing to NPM on forks.
     if: ${{ github.repository_owner == 'microsoft' }}
-    name: 'NPM: Publish (${{ matrix.name }}@${{ matrix.version }})'
+    name: '${{ github.repository_owner == ''microsoft'' && format(''NPM: publish ({0}@{1})'', matrix.name, matrix.version) || ''NPM: publish'') }}'
     needs: approval
     permissions:
       packages: write
