@@ -82,8 +82,8 @@ jobs:
 
             mv .tmp/matrix.json.tmp .tmp/matrix.json
           done
-      - name: Print matrix
-        run: cat .tmp/matrix.json
+
+          cat .tmp/matrix.json
       - name: 'Sanity check: matrix list all workspaces'
         run: cat .tmp/matrix.json | jq --argfile packageJSON ./package.json 'if (. | map(.path)) == ($packageJSON.workspaces) then empty else halt_error(1) end'
       - name: 'Sanity check: all entries must have "name" field'
@@ -200,9 +200,9 @@ jobs:
 
             cat .tmp/pack-result.json | jq 'map(del(.files))'
 
-            cat .tmp/pack-result.json | jq -r '.[0].filename' | tee --append .tmp/filenames.txt
-            cat .tmp/pack-result.json | jq -r '.[0].name' | tee --append .tmp/names.txt
-            cat .tmp/pack-result.json | jq -r '.[0].version' | tee --append .tmp/versions.txt
+            cat .tmp/pack-result.json | jq -r '.[0].filename' >> .tmp/filenames.txt
+            cat .tmp/pack-result.json | jq -r '.[0].name' >> .tmp/names.txt
+            cat .tmp/pack-result.json | jq -r '.[0].version' >> .tmp/versions.txt
 
             echo ::endgroup::
           done
@@ -424,7 +424,7 @@ jobs:
       url: https://npmjs.com/packages/${{ matrix.name }}/v/${{ matrix.version }}
     # Skip publishing to NPM on forks.
     if: ${{ github.repository_owner == 'microsoft' }}
-    name: '${{ github.repository_owner == ''microsoft'' && format(''NPM: publish ({0}@{1})'', matrix.name, matrix.version) || ''NPM: publish'') }}'
+    name: '${{ github.repository_owner == ''microsoft'' && format(''NPM: publish ({0}@{1})'', matrix.name, matrix.version) || ''NPM: publish'' }}'
     needs: approval
     permissions:
       packages: write
