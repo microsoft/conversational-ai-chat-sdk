@@ -151,7 +151,7 @@ jobs:
         uses: ./.github/actions/print-step-summary-from-file
         with:
           path: ${{ matrix.path }}/package.json
-          title: '`package.json` with production version'
+          title: 'package.json with production version'
           type: json
 
       - run: npm clean-install --ignore-scripts --strict-peer-deps # Prevents malicious scripts from stealing our token.
@@ -303,6 +303,7 @@ jobs:
             --repo ${{ github.repository }}
 
   pull-request-create-bump-version:
+    continue-on-error: true
     env:
       branch-name: bot/postpublish/${{ matrix.name }}/v${{ matrix.next-prerelease-version }}
     environment:
@@ -346,23 +347,21 @@ jobs:
 
           git checkout -b ${{ env.branch-name }}
 
-      - continue-on-error: true
-        name: Bump CHANGELOG.md to ${{ matrix.production-version }}
+      - name: Bump CHANGELOG.md to ${{ matrix.production-version }}
         run: |
           npx keep-a-changelog \
             --file="${{ matrix.path }}/CHANGELOG.md" \
             --format=markdownlint \
             --release="${{ matrix.production-version }}" \
-            --url="${{ github.server_url }}/${{ github.repository }}"
+            --url="${{ github.server_url }}/${{ github.repository }}" || true
 
-      - continue-on-error: true
-        name: Add unreleased to CHANGELOG.md
+      - name: Add unreleased to CHANGELOG.md
         run: |
           npx keep-a-changelog \
             --create \
             --file="${{ matrix.path }}/CHANGELOG.md" \
             --format=markdownlint \
-            --url="${{ github.server_url }}/${{ github.repository }}"
+            --url="${{ github.server_url }}/${{ github.repository }}" || true
 
       - name: Stage CHANGELOG.md
         run: git add ${{ matrix.path }}/CHANGELOG.md
