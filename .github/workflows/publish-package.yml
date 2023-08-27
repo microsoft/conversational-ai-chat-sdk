@@ -298,8 +298,8 @@ jobs:
           gh release create \
             ${{ env.tag }} \
             .tmp/tarball/${{ matrix.filename }} \
-            --notes "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            --title "${{ matrix.name }}@${{ matrix.version }} - $date" \
+            --notes "> [Workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" \
+            --title "${{ matrix.name }}@${{ matrix.production-version }} - $date" \
             --repo ${{ github.repository }}
 
   pull-request-create-bump-version:
