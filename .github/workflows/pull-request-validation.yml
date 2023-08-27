@@ -107,17 +107,13 @@ jobs:
           package_matrix: ${{ needs.build.outputs.package-matrix }}
         name: Extract tarballs
         run: |
-          set -x
-
           ls .tmp/tarball/
           echo $package_matrix | jq -r | tee .tmp/package-matrix.json
 
-          last_index=$(cat .tmp/package-matrix.json | jq -r 'length - 1')
-
-          for index in $(seq 0 $last_index)
+          for entry in $(cat .tmp/package-matrix.json | jq -cr '.[]')
           do
-            filename=$(cat .tmp/package-matrix.json | jq --argjson index $index -r '.[$index].filename')
-            name=$(cat .tmp/package-matrix.json | jq --argjson index $index -r '.[$index].name')
+            filename=$(echo $entry | jq -r '.filename')
+            name=$(echo $entry | jq -r '.name')
 
             tar -xvf .tmp/tarball/$filename --directory=packages/$name --strip-components=1
           done
