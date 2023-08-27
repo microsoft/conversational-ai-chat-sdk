@@ -345,13 +345,13 @@ jobs:
           echo matrix=$(cat .tmp/matrix.json | jq -cr) | tee --append $GITHUB_OUTPUT
           echo public-only-matrix=$(cat .tmp/public-only-matrix.json | jq -cr) | tee --append $GITHUB_OUTPUT
       - name: Print approved matrix
-        uses: .github/actions/print-step-summary-from-file
+        uses: ./.github/actions/print-step-summary-from-file
         with:
           path: .tmp/matrix.json
           title: Approved matrix
           type: json
       - name: Print approved public-only matrix
-        uses: .github/actions/print-step-summary-from-file
+        uses: ./.github/actions/print-step-summary-from-file
         with:
           path: .tmp/public-only-matrix.json
           title: Approved public-only matrix
@@ -405,7 +405,7 @@ jobs:
         run: tar -xf .tmp/tarball/${{ matrix.scoped-filename }} --to-stdout package/package.json
       - id: has-published
         name: Checks if ${{ matrix.name }}@${{ matrix.version }} is already published
-        uses: .github/actions/check-if-package-has-published
+        uses: ./.github/actions/check-if-package-has-published
         with:
           name: ${{ matrix.name }}
           registry-url: https://npm.pkg.github.com/
@@ -449,7 +449,7 @@ jobs:
         run: tar -xf .tmp/tarball/${{ matrix.filename }} --to-stdout package/package.json
       - id: has-published
         name: Checks if ${{ matrix.name }}@${{ matrix.version }} is already published
-        uses: .github/actions/check-if-package-has-published
+        uses: ./.github/actions/check-if-package-has-published
         with:
           name: ${{ matrix.name }}
           version: ${{ matrix.version }}
