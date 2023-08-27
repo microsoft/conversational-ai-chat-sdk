@@ -299,8 +299,8 @@ jobs:
             ${{ env.tag }} \
             .tmp/tarball/${{ matrix.filename }} \
             --notes "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            --repo ${{ github.repository }} \
-            --title "${{ matrix.name }}@${{ matrix.version }} - $date"
+            --title "${{ matrix.name }}@${{ matrix.version }} - $date" \
+            --repo ${{ github.repository }}
 
   pull-request-create-bump-version:
     env:
@@ -350,6 +350,11 @@ jobs:
             --file="${{ matrix.path }}/CHANGELOG.md" \
             --format=markdownlint \
             --release="${{ matrix.production-version }}" \
+            --url="${{ github.server_url }}/${{ github.repository }}"
+          npx keep-a-changelog \
+            --create
+            --file="${{ matrix.path }}/CHANGELOG.md" \
+            --format=markdownlint \
             --url="${{ github.server_url }}/${{ github.repository }}"
 
       - name: Stage ${{ matrix.path }}/CHANGELOG.md
