@@ -66,7 +66,7 @@ jobs:
           mkdir .tmp/
           echo [] > .tmp/matrix.json
 
-          for path in $(cat ./package.json | jq -r '.workspaces | .[]')
+          for path in $(cat ./package.json | jq -cr '.workspaces | .[]')
           do
             # committer_date=20230815-110805
             committer_date=$(git log --date=format:%Y%m%d-%H%M%S --pretty=format:'%cd' -1 ./$path/)
@@ -160,7 +160,7 @@ jobs:
       - if: ${{ matrix.rescope }}
         name: Rescope packages to @${{ github.repository_owner }}
         run: |
-          for path in $(cat ./package.json | jq -r '.workspaces | .[]')
+          for path in $(cat ./package.json | jq -cr '.workspaces | .[]')
           do
             echo ::group::$path/package.json
 
@@ -181,7 +181,7 @@ jobs:
           # We only know how to deal with lockfile v3.
           cat ./package-lock.json | jq 'if .lockfileVersion == 3 then empty else empty | halt_error(1) end'
 
-          for path in $(cat ./package.json | jq -r '.workspaces | .[]')
+          for path in $(cat ./package.json | jq -cr '.workspaces | .[]')
           do
             echo ::group::$path/package.json
 
@@ -219,7 +219,7 @@ jobs:
         run: |
           mkdir -p .tmp/tarball/
 
-          for path in $(cat ./package.json | jq -r '.workspaces | .[]')
+          for path in $(cat ./package.json | jq -cr '.workspaces | .[]')
           do
             echo ::group::$path
 
