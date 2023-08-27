@@ -388,5 +388,5 @@ jobs:
             --assignee @me \
             --body "Post-publish of ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}." \
             --fill \
-            --repo ${{ github.repository }}) \
+            --repo ${{ github.repository }} \
             | tee --append $GITHUB_OUTPUT
