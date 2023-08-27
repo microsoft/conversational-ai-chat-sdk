@@ -13,7 +13,7 @@ on:
     inputs:
       dry-run:
         default: true # TODO: Turn this off.
-        description: Dry-run
+        description: Dry run
         required: true
         type: boolean
       skip-secure-feed:
@@ -461,8 +461,8 @@ jobs:
   npm-publish:
     environment:
       name: npm-publish
-      # https://npmjs.com/packages/powerva-chat-adapter/v/0.0.0-0
-      url: https://npmjs.com/packages/${{ matrix.name }}/v/${{ matrix.version }}
+      # https://npmjs.com/package/powerva-chat-adapter/v/0.0.0-0
+      url: https://npmjs.com/package/${{ matrix.name }}/v/${{ matrix.version }}
     # Skip publishing to NPM on forks.
     if: ${{ github.repository_owner == 'microsoft' }}
     name: 'NPM: publish ${{ matrix.name }}@${{ matrix.version }}'
