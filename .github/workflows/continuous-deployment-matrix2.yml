@@ -224,13 +224,6 @@ jobs:
           echo filenames=$(cat .tmp/filenames.txt | jq -cnR 'reduce inputs as $i ([]; . + [$i])') | tee --append $GITHUB_OUTPUT
           echo names=$(cat .tmp/names.txt | jq -cnR 'reduce inputs as $i ([]; . + [$i])') | tee --append $GITHUB_OUTPUT
           echo versions=$(cat .tmp/versions.txt | jq -cnR 'reduce inputs as $i ([]; . + [$i])') | tee --append $GITHUB_OUTPUT
-      - if: ${{ !matrix.rescope }}
-        name: Upload package-lock.json
-        uses: actions/upload-artifact@v3
-        with:
-          if-no-files-found: error
-          name: package-lock
-          path: ./package-lock.json
       - name: Upload packages artifact
         uses: actions/upload-artifact@v3
         with:
@@ -257,11 +250,25 @@ jobs:
         run: |
           mkdir .tmp/
 
+          echo ::group::matrix.json
           echo $matrix | jq -r | tee .tmp/matrix.json
+          echo ::endgroup::
+
+          echo ::group::filenames.json
           echo $filenames | jq -r | tee .tmp/filenames.json
+          echo ::endgroup::
+
+          echo ::group::scoped-filenames.json
           echo $scoped_filenames | jq -r | tee .tmp/scoped-filenames.json
+          echo ::endgroup::
+
+          echo ::group::scoped-names.json
           echo $scoped_names | jq -r | tee .tmp/scoped-names.json
+          echo ::endgroup::
+
+          echo ::group::versions.json
           echo $versions | jq -r | tee .tmp/versions.json
+          echo ::endgroup::
       - name: Update matrix
         run: |
           jq -n --argfile filenames .tmp/filenames.json --argfile matrix .tmp/matrix.json --argfile scopedFilenames .tmp/scoped-filenames.json --argfile scopedNames .tmp/scoped-names.json --argfile versions .tmp/versions.json '($matrix | to_entries) + ($filenames | to_entries) + ($scopedFilenames | to_entries) + ($scopedNames | to_entries) + ($versions | to_entries) | group_by(.key) | map(.[0].value * { filename: .[1].value, "scoped-filename": .[2].value, "scoped-name": .[3].value, version: .[4].value })' | tee .tmp/matrix.json.tmp
