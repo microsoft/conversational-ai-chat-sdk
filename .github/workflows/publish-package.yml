@@ -98,24 +98,24 @@ jobs:
             '{ include: [{ "committed-version": $committedVersion, name: $name, "next-prerelease-version": $nextPrereleaseVersion, path: $path, "production-version": $productionVersion }] }' | tee .tmp/matrix.json
 
       - name: 'Sanity check: matrix "committed-version" must be prerelease and ends with -0'
-        run: '[[ "$(cat .tmp/matrix.json | jq -r ''.include.["committed-version"]'')" != *-0 ]]'
+        run: '[[ "$(cat .tmp/matrix.json | jq -r ''.include[0].["committed-version"]'')" == *-0 ]]'
 
       - name: 'Sanity check: matrix "name" must not be empty'
-        run: '[[ ! -z "$(cat .tmp/matrix.json | jq -r ''.include.name'')" ]]'
+        run: '[[ ! -z "$(cat .tmp/matrix.json | jq -r ''.include[0].name'')" ]]'
 
       - name: 'Sanity check: matrix "next-prerelease-version" must be prerelease and ends with -0'
-        run: '[[ "$(cat .tmp/matrix.json | jq -r ''.include.["next-prerelease-version"]'')" = *-0 ]]'
+        run: '[[ "$(cat .tmp/matrix.json | jq -r ''.include[0].["next-prerelease-version"]'')" == *-0 ]]'
 
       - name: 'Sanity check: matrix "path" must not be empty'
-        run: '[[ ! -z "$(cat .tmp/matrix.json | jq -r ''.include.path'')" ]]'
+        run: '[[ ! -z "$(cat .tmp/matrix.json | jq -r ''.include[0].path'')" ]]'
 
       - name: 'Sanity check: matrix "path" must point to the right package'
         run: |
-          package_json_path=$(cat .tmp/matrix.json | jq -r '.include.path')/package.json
+          package_json_path=$(cat .tmp/matrix.json | jq -r '.include[0].path')/package.json
           [[ "$(cat $package_json_path | jq -r '.name')" == "${{ inputs.name }}" ]]
 
       - name: 'Sanity check: matrix "production-version" must not be empty'
-        run: '[[ ! -z "$(cat .tmp/matrix.json | jq -r ''.include.["production-version"]'')" ]]'
+        run: '[[ ! -z "$(cat .tmp/matrix.json | jq -r ''.include[0].["production-version"]'')" ]]'
 
       - id: set-outputs
         name: Set outputs
@@ -191,7 +191,7 @@ jobs:
           cat .tmp/matrix.json | jq \
             --arg filename "$filename" \
             --arg productionVersion "$production_version" \
-            -r '{ . * { include: { filename: $filename, "production-version": $productionVersion } }' \
+            -r '{ include: [.include[0] * { filename: $filename, "production-version": $productionVersion }] }' \
             | tee .tmp/matrix.json.tmp
 
           mv .tmp/matrix.json.tmp .tmp/matrix.json
