@@ -122,7 +122,7 @@ jobs:
         run: echo matrix=$(< .tmp/matrix.json) | tee --append $GITHUB_OUTPUT
 
   build:
-    name: Build
+    name: Build (${{ matrix.name }}@${{ matrix.production-version }})
     needs: prepare
     outputs:
       matrix: ${{ steps.set-outputs.outputs.matrix }}
@@ -204,7 +204,7 @@ jobs:
     environment:
       name: npm-publish
       url: https://npmjs.com/package/${{ matrix.name }}/v/${{ matrix.version }}
-    name: Publish
+    name: Publish (${{ matrix.name }}@${{ matrix.production-version }})
     needs: build
     permissions:
       contents: read
@@ -255,7 +255,7 @@ jobs:
     environment:
       name: github-release
       url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.tag }}
-    name: Create release
+    name: Create release (${{ matrix.next-prerelease-version }})
     needs:
       - build
       - publish
@@ -302,7 +302,7 @@ jobs:
     environment:
       name: pull-request
       url: ${{ steps.create-pull-request.outputs.url }}
-    name: Create pull request to bump
+    name: Create pull request for ${{ matrix.next-prerelease-version }}
     needs:
       - build
       - publish
