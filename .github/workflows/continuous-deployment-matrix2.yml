@@ -264,7 +264,9 @@ jobs:
           echo $versions | jq -r | tee .tmp/versions.json
       - name: Update matrix
         run: |
-          jq -n --argfile filenames .tmp/filenames.json --argfile matrix .tmp/matrix.json --argfile scopedFilenames .tmp/scoped-filenames.json --argfile scopedNames .tmp/scoped-names.json --argfile versions .tmp/versions.json '($matrix | to_entries) + ($filenames | to_entries) + ($scopedFilenames | to_entries) + ($scopedNames | to_entries) + ($versions | to_entries) | group_by(.key) | map(.[0].value * { filename: .[1].value, "scoped-filename": .[2].value, "scoped-name": .[3].value, version: .[4].value })' | tee .tmp/updated-matrix.json
+          jq -n --argfile filenames .tmp/filenames.json --argfile matrix .tmp/matrix.json --argfile scopedFilenames .tmp/scoped-filenames.json --argfile scopedNames .tmp/scoped-names.json --argfile versions .tmp/versions.json '($matrix | to_entries) + ($filenames | to_entries) + ($scopedFilenames | to_entries) + ($scopedNames | to_entries) + ($versions | to_entries) | group_by(.key) | map(.[0].value * { filename: .[1].value, "scoped-filename": .[2].value, "scoped-name": .[3].value, version: .[4].value })' | tee .tmp/matrix.json.tmp
+
+          mv .tmp/matrix.json.tmp .tmp/matrix.json
       - name: Print updated matrix
         run: cat .tmp/matrix.json
       - env:
