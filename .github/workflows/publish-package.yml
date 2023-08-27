@@ -390,7 +390,7 @@ jobs:
         run: |
           echo url=$(gh pr create \
             --assignee @me \
-            --body "> Related to ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}." \
+            --body "> [Workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})." \
             --fill \
             --repo ${{ github.repository }} \
           ) | tee --append $GITHUB_OUTPUT
