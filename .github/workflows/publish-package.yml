@@ -284,13 +284,13 @@ jobs:
         # Otherwise, if last commit was modifying workflow, it will fail with permission issues.
         env:
           GH_TOKEN: ${{ github.token }}
-        if: ${{ !inputs.dry-run }}
+        # if: ${{ !inputs.dry-run }}
         name: Push tag
         run: gh api repos/${{ github.repository }}/git/refs --field ref=refs/tags/${{ env.tag }} --field sha=${{ github.sha }}
 
       - env:
           GH_TOKEN: ${{ github.token }}
-        if: ${{ !inputs.dry-run }}
+        # if: ${{ !inputs.dry-run }}
         name: Create release
         run: |
           date=$(date +%F)
@@ -373,14 +373,14 @@ jobs:
 
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        if: ${{ !inputs.dry-run }}
+        # if: ${{ !inputs.dry-run }}
         name: Push branch
         run: git push --set-upstream origin ${{ env.branch-name }}
 
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         id: create-pull-request
-        if: ${{ !inputs.dry-run }}
+        # if: ${{ !inputs.dry-run }}
         name: Create pull request
         # TODO: Add "bot" label
         run: |
