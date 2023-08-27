@@ -149,8 +149,6 @@ jobs:
       - if: ${{ matrix.rescope }}
         name: Rescope packages to @${{ github.repository_owner }}
         run: |
-          mkdir .tmp/
-
           for path in $(cat ./package.json | jq -r '.workspaces | join("\n")')
           do
             echo ::group::$path/package.json
