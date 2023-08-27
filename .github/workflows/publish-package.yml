@@ -261,7 +261,7 @@ jobs:
     environment:
       name: github-release
       url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.tag }}
-    name: Create release (${{ matrix.production-version }})
+    name: Create release (${{ matrix.name }}@${{ matrix.production-version }})
     needs:
       - build
       - publish
@@ -308,7 +308,7 @@ jobs:
     environment:
       name: pull-request
       url: ${{ steps.create-pull-request.outputs.url }}
-    name: Create pull request (${{ matrix.next-prerelease-version }})
+    name: Create pull request (${{ matrix.name }}@${{ matrix.next-prerelease-version }})
     needs:
       - build
       - publish
