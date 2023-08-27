@@ -76,7 +76,13 @@ jobs:
 
             version=$(npm exec --offline -- semver --increment prerelease -n false --preid $branch.$committer_date.$short_commitish $current_version)
 
-            jq --arg path "$package_path" --arg version "$version" --argfile packageJSON ./$package_path/package.json -r '. + [{ name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), version: $version }]' .tmp/matrix.json > .tmp/matrix.json.tmp
+            cat .tmp/matrix.json | jq \
+              --arg path "$package_path" \
+              --arg version "$version" \
+              --argfile packageJSON ./$package_path/package.json \
+              -r \
+              '. + [{ name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), version: $version }]' \
+              > .tmp/matrix.json.tmp
 
             mv .tmp/matrix.json.tmp .tmp/matrix.json
           done
@@ -151,7 +157,12 @@ jobs:
           do
             echo ::group::$path/package.json
 
-            cat $path/package.json | jq --arg owner "${{ github.repository_owner }}" --argfile matrix .tmp/matrix.json -r 'def rescope($entry): $entry | if ($matrix | map(select(.name == $entry.key)) | length > 0) then .value = "npm:@" + $owner + "/" + .key + "@" + .value else . end; . | (.name = "@" + $owner + "/" + .name) | (.dependencies |= (. | with_entries(rescope(.)))) | (.devDependencies |= (. | with_entries(rescope(.))))' | tee .tmp/package.json
+            cat $path/package.json | jq \
+              --arg owner "${{ github.repository_owner }}" \
+              --argfile matrix .tmp/matrix.json \
+              -r \
+              'def rescope($entry): $entry | if ($matrix | map(select(.name == $entry.key)) | length > 0) then .value = "npm:@" + $owner + "/" + .key + "@" + .value else . end; . | (.name = "@" + $owner + "/" + .name) | (.dependencies |= (. | with_entries(rescope(.)))) | (.devDependencies |= (. | with_entries(rescope(.))))' \
+              | tee .tmp/package.json
 
             mv .tmp/package.json $path/package.json
 
@@ -167,15 +178,28 @@ jobs:
           do
             echo ::group::$path/package.json
 
-            cat ./package-lock.json | jq --arg path "$path" --argfile package $path/package.json -r '.packages[$path] += { dependencies: $package.dependencies, devDependencies: $package.devDependencies, name: $package.name, optionalDependencies: ($package.optionalDependencies // {}), peerDependencies: ($package.peerDependencies // {}) }' > .tmp/package-lock.json.tmp
+            cat ./package-lock.json | jq \
+              --arg path "$path" \
+              --argfile package $path/package.json \
+              -r \
+              '.packages[$path] += { dependencies: $package.dependencies, devDependencies: $package.devDependencies, name: $package.name, optionalDependencies: ($package.optionalDependencies // {}), peerDependencies: ($package.peerDependencies // {}) }' \
+              > .tmp/package-lock.json.tmp
 
             mv .tmp/package-lock.json.tmp ./package-lock.json
 
-            cat ./package-lock.json | jq --arg path "$path" --argfile package $path/package.json -r '.packages |= with_entries(if .value.resolved == $path then .key = "node_modules/" + $package.name else . end)' > .tmp/package-lock.json.tmp
+            cat ./package-lock.json | jq \
+              --arg path "$path" \
+              --argfile package $path/package.json \
+              -r \
+              '.packages |= with_entries(if .value.resolved == $path then .key = "node_modules/" + $package.name else . end)' \
+              > .tmp/package-lock.json.tmp
 
             mv .tmp/package-lock.json.tmp ./package-lock.json
 
-            cat ./package-lock.json | jq --arg path "$path" -r '.packages | with_entries(select(.key == $path // .value.resolved == $path))'
+            cat ./package-lock.json | jq \
+              --arg path "$path" \
+              -r \
+              '.packages | with_entries(select(.key == $path // .value.resolved == $path))'
 
             echo ::endgroup::
           done
@@ -269,7 +293,15 @@ jobs:
           echo ::endgroup::
       - name: Update matrix
         run: |
-          jq -n --argfile filenames .tmp/filenames.json --argfile matrix .tmp/matrix.json --argfile scopedFilenames .tmp/scoped-filenames.json --argfile scopedNames .tmp/scoped-names.json --argfile versions .tmp/versions.json '($matrix | to_entries) + ($filenames | to_entries) + ($scopedFilenames | to_entries) + ($scopedNames | to_entries) + ($versions | to_entries) | group_by(.key) | map(.[0].value * { filename: .[1].value, "scoped-filename": .[2].value, "scoped-name": .[3].value, version: .[4].value })' | tee .tmp/matrix.json.tmp
+          jq \
+            --argfile filenames .tmp/filenames.json \
+            --argfile matrix .tmp/matrix.json \
+            --argfile scopedFilenames .tmp/scoped-filenames.json \
+            --argfile scopedNames .tmp/scoped-names.json \
+            --argfile versions .tmp/versions.json \
+            -n \
+            '($matrix | to_entries) + ($filenames | to_entries) + ($scopedFilenames | to_entries) + ($scopedNames | to_entries) + ($versions | to_entries) | group_by(.key) | map(.[0].value * { filename: .[1].value, "scoped-filename": .[2].value, "scoped-name": .[3].value, version: .[4].value })' \
+            | tee .tmp/matrix.json.tmp
 
           mv .tmp/matrix.json.tmp .tmp/matrix.json
       - name: Print updated matrix
@@ -470,5 +502,3 @@ jobs:
         run: |
           echo - [GitHub Packages]\(${{ github.server_url }}/${{ github.repository_owner }}?tab=packages\&repo_name=${{ github.event.repository.name }}\) >> $GITHUB_STEP_SUMMARY
           echo - [GitHub Pages]\(${{ needs.github-pages-deploy.outputs.url }}\) >> $GITHUB_STEP_SUMMARY
-          # echo - [Release]\(${{ needs.release-publish.outputs.url }}\) >> $GITHUB_STEP_SUMMARY
-          # echo - [Source code \(tagged\)]\(${{ needs.release-publish.outputs.tag-url }}\) >> $GITHUB_STEP_SUMMARY
