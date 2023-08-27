@@ -298,7 +298,7 @@ jobs:
           gh release create \
             ${{ env.tag }} \
             .tmp/tarball/${{ matrix.filename }} \
-            --notes "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            --notes "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             --title "${{ matrix.name }}@${{ matrix.version }} - $date" \
             --repo ${{ github.repository }}
 
@@ -389,9 +389,9 @@ jobs:
         name: Create pull request
         # TODO: Add "bot" label
         run: |
-          gh pr create \
+          echo url=$(gh pr create \
             --assignee @me \
             --body "Post-publish of ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}." \
             --fill \
             --repo ${{ github.repository }} \
-            | tee --append $GITHUB_OUTPUT
+          ) | tee --append $GITHUB_OUTPUT
