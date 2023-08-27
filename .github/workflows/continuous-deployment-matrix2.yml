@@ -208,16 +208,23 @@ jobs:
 
             echo ::endgroup::
           done
+
+          echo ::group::.tmp/filenames.txt
+          cat .tmp/filenames.txt
+          echo ::endgroup::
+
+          echo ::group::.tmp/names.txt
+          cat .tmp/names.txt
+          echo ::endgroup::
+
+          echo ::group::.tmp/versions.txt
+          cat .tmp/versions.txt
+          echo ::endgroup::
       - id: set-outputs
         name: Set outputs
         run: |
-          cat .tmp/filenames.txt
           echo filenames=$(cat .tmp/filenames.txt | jq -cnR 'reduce inputs as $i ([]; . + [$i])') | tee --append $GITHUB_OUTPUT
-
-          cat .tmp/names.txt
           echo names=$(cat .tmp/names.txt | jq -cnR 'reduce inputs as $i ([]; . + [$i])') | tee --append $GITHUB_OUTPUT
-
-          cat .tmp/versions.txt
           echo versions=$(cat .tmp/versions.txt | jq -cnR 'reduce inputs as $i ([]; . + [$i])') | tee --append $GITHUB_OUTPUT
       - if: ${{ !matrix.rescope }}
         name: Upload package-lock.json
@@ -243,47 +250,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - env:
+          filenames: ${{ needs.build.outputs.filenames }}
           matrix: ${{ needs.prepare.outputs.matrix }}
-        name: Save matrix
+          scoped_filenames: ${{ needs.build.outputs.scoped-filenames }}
+          scoped_names: ${{ needs.build.outputs.scoped-names }}
+          versions: ${{ needs.build.outputs.versions }}
+        name: Save env
         run: |
           mkdir .tmp/
+
           echo $matrix | jq -r | tee .tmp/matrix.json
-      - env:
-          filenames: ${{ needs.build.outputs.filenames }}
-        name: Add filename to matrix
-        run: |
           echo $filenames | jq -r | tee .tmp/filenames.json
-
-          cat .tmp/matrix.json | jq --argfile filenames .tmp/filenames.json -r 'to_entries | map(.value + { filename: $filenames[.key] })' | tee .tmp/matrix.json.tmp
-
-          mv .tmp/matrix.json.tmp .tmp/matrix.json
-      - env:
-          scoped_filenames: ${{ needs.build.outputs.scoped-filenames }}
-        name: Add scoped filenames to matrix
-        run: |
           echo $scoped_filenames | jq -r | tee .tmp/scoped-filenames.json
-
-          cat .tmp/matrix.json | jq --argfile scopedFilenames .tmp/scoped-filenames.json -r 'to_entries | map(.value + { "scoped-filename": $scopedFilenames[.key] })' | tee .tmp/matrix.json.tmp
-
-          mv .tmp/matrix.json.tmp .tmp/matrix.json
-      - env:
-          scoped_names: ${{ needs.build.outputs.scoped-names }}
-        name: Add scoped names to matrix
-        run: |
           echo $scoped_names | jq -r | tee .tmp/scoped-names.json
-
-          cat .tmp/matrix.json | jq --argfile scopedNames .tmp/scoped-names.json -r 'to_entries | map(.value + { "scoped-name": $scopedNames[.key] })' | tee .tmp/matrix.json.tmp
-
-          mv .tmp/matrix.json.tmp .tmp/matrix.json
-      - env:
-          versions: ${{ needs.build.outputs.versions }}
-        name: Add versions to matrix
-        run: |
           echo $versions | jq -r | tee .tmp/versions.json
-
-          cat .tmp/matrix.json | jq --argfile versions .tmp/versions.json -r 'to_entries | map(.value + { version: $versions[.key] })' | tee .tmp/matrix.json.tmp
-
-          mv .tmp/matrix.json.tmp .tmp/matrix.json
+      - name: Update matrix
+        run: |
+          jq -n --argfile filenames .tmp/filenames.json --argfile matrix .tmp/matrix.json --argfile scopedFilenames .tmp/scoped-filenames.json --argfile scopedNames .tmp/scoped-names.json --argfile versions .tmp/versions.json '($matrix | to_entries) + ($filenames | to_entries) + ($scopedFilenames | to_entries) + ($scopedNames | to_entries) + ($versions | to_entries) | group_by(.key) | map(.[0].value * { filename: .[1].value, "scoped-filename": .[2].value, "scoped-name": .[3].value, version: .[4].value })' | tee .tmp/updated-matrix.json
       - name: Print updated matrix
         run: cat .tmp/matrix.json
       - env:
@@ -294,6 +277,8 @@ jobs:
         run: cat .tmp/matrix.json | jq 'if (.[] | select(.filename | not) | length > 0) then halt_error(1) else empty end'
       - name: 'Sanity check: matrix must have "scoped-filename" field'
         run: cat .tmp/matrix.json | jq 'if (.[] | select(.["scoped-filename"] | not) | length > 0) then halt_error(1) else empty end'
+      - name: 'Sanity check: matrix must have "scoped-name" field'
+        run: cat .tmp/matrix.json | jq 'if (.[] | select(.["scoped-name"] | not) | length > 0) then halt_error(1) else empty end'
       - name: 'Sanity check: matrix must have "version" field'
         run: cat .tmp/matrix.json | jq 'if (.[] | select(.version | not) | length > 0) then halt_error(1) else empty end'
       - id: set-outputs
