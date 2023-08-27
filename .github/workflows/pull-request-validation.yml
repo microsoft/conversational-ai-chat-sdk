@@ -25,7 +25,10 @@ jobs:
         run: |
           for path in $(cat package.json | jq -r '.workspaces | join("\n")')
           do
-            cat ./$path/package.json | jq --arg packagePath "$path" -r 'if $packagePath == "packages/" + .name then empty else halt_error(1) end'
+            cat ./$path/package.json | jq \
+              --arg packagePath "$path" \
+              -r \
+              'if $packagePath == "packages/" + .name then empty else halt_error(1) end'
           done
 
       # Assumption in our toolchain.
@@ -174,7 +177,9 @@ jobs:
           mkdir .tmp/
           echo $package_matrix | jq -r | tee .tmp/package-matrix.json
 
-          cat ./package.json | jq --argfile matrix .tmp/package-matrix.json '.dependencies + ($matrix | map({ key: .name }) | from_entries) | with_entries(select(.value // "" | contains("-"))) | if length > 0 then halt_error(1) else empty end'
+          cat ./package.json | jq \
+            --argfile matrix .tmp/package-matrix.json \
+            '.dependencies + ($matrix | map({ key: .name }) | from_entries) | with_entries(select(.value // "" | contains("-"))) | if length > 0 then halt_error(1) else empty end'
       - name: 'Sanity check: version must be prerelease'
         run: cat ./package.json | jq '.version | if contains("-") then empty else halt_error(1) end'
       - if: ${{ steps.prepare.outputs.is-private != 'true' }}

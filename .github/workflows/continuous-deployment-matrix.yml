@@ -89,7 +89,10 @@ jobs:
 
           cat .tmp/matrix.json
       - name: 'Sanity check: matrix list all workspaces'
-        run: cat .tmp/matrix.json | jq --argfile packageJSON ./package.json 'if (. | map(.path)) == ($packageJSON.workspaces) then empty else halt_error(1) end'
+        run: |
+          cat .tmp/matrix.json | jq \
+            --argfile packageJSON ./package.json \
+            'if (. | map(.path)) == ($packageJSON.workspaces) then empty else halt_error(1) end'
       - name: 'Sanity check: all entries must have "name" field'
         run: cat .tmp/matrix.json | jq 'if map(select(.name | not)) | length == 0 then empty else halt_error(1) end'
       - name: 'Sanity check: all entries must have "path" field'
@@ -309,7 +312,10 @@ jobs:
       - env:
           matrix: ${{ needs.prepare.outputs.matrix }}
         name: 'Sanity check: updated matrix must have same number of items'
-        run: cat .tmp/matrix.json | jq --argjson matrix $matrix 'if (. | length) == ($matrix | length) then empty else halt_error(1) end'
+        run: |
+          cat .tmp/matrix.json | jq \
+            --argjson matrix $matrix \
+            'if (. | length) == ($matrix | length) then empty else halt_error(1) end'
       - name: 'Sanity check: matrix must have "filename" field'
         run: cat .tmp/matrix.json | jq 'if (.[] | select(.filename | not) | length > 0) then halt_error(1) else empty end'
       - name: 'Sanity check: matrix must have "scoped-filename" field'
