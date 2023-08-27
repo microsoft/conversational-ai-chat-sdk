@@ -98,13 +98,13 @@ jobs:
             '{ include: [{ "committed-version": $committedVersion, name: $name, "next-prerelease-version": $nextPrereleaseVersion, path: $path, "production-version": $productionVersion }] }' | tee .tmp/matrix.json
 
       - name: 'Sanity check: matrix "committed-version" must be prerelease and ends with -0'
-        run: '[[ "$(cat .tmp/matrix.json | jq -r ''.include[0].["committed-version"]'')" == *-0 ]]'
+        run: '[[ "$(cat .tmp/matrix.json | jq -r ''.include[0]["committed-version"]'')" == *-0 ]]'
 
       - name: 'Sanity check: matrix "name" must not be empty'
         run: '[[ ! -z "$(cat .tmp/matrix.json | jq -r ''.include[0].name'')" ]]'
 
       - name: 'Sanity check: matrix "next-prerelease-version" must be prerelease and ends with -0'
-        run: '[[ "$(cat .tmp/matrix.json | jq -r ''.include[0].["next-prerelease-version"]'')" == *-0 ]]'
+        run: '[[ "$(cat .tmp/matrix.json | jq -r ''.include[0]["next-prerelease-version"]'')" == *-0 ]]'
 
       - name: 'Sanity check: matrix "path" must not be empty'
         run: '[[ ! -z "$(cat .tmp/matrix.json | jq -r ''.include[0].path'')" ]]'
@@ -115,7 +115,7 @@ jobs:
           [[ "$(cat $package_json_path | jq -r '.name')" == "${{ inputs.name }}" ]]
 
       - name: 'Sanity check: matrix "production-version" must not be empty'
-        run: '[[ ! -z "$(cat .tmp/matrix.json | jq -r ''.include[0].["production-version"]'')" ]]'
+        run: '[[ ! -z "$(cat .tmp/matrix.json | jq -r ''.include[0]["production-version"]'')" ]]'
 
       - id: set-outputs
         name: Set outputs
