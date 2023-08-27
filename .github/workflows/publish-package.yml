@@ -185,7 +185,7 @@ jobs:
         run: |
           echo $matrix > .tmp/matrix.json
 
-          filename=${{ needs.pack.outputs.filename }}
+          filename=${{ steps.pack.outputs.filename }}
           production_version=`tar -xf .tmp/tarball/$filename --to-stdout package/package.json | jq -r .version'
 
           cat .tmp/matrix.json | jq \
