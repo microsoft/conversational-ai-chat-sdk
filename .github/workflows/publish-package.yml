@@ -356,7 +356,7 @@ jobs:
         name: Add unreleased to CHANGELOG.md
         run: |
           npx keep-a-changelog \
-            --create
+            --create \
             --file="${{ matrix.path }}/CHANGELOG.md" \
             --format=markdownlint \
             --url="${{ github.server_url }}/${{ github.repository }}" || true
