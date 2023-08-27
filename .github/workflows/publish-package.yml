@@ -257,7 +257,7 @@ jobs:
   create-release:
     continue-on-error: true
     env:
-      tag: release/$package_name/v${{ matrix.next-prerelease-version }}
+      tag: release/${{ matrix.name }}/v${{ matrix.next-prerelease-version }}
     environment:
       name: github-release
       url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.tag }}
