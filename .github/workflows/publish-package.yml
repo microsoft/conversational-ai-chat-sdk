@@ -235,10 +235,10 @@ jobs:
           EOL
 
       - name: 'Sanity check: tarball exists'
-        run: '[[ -f .tmp/tarball/${{ matrix.tarball }} ]]'
+        run: '[[ -f .tmp/tarball/${{ matrix.filename }} ]]'
 
       - name: Print package.json
-        run: tar -xf .tmp/tarball/${{ matrix.tarball }} --to-stdout package/package.json
+        run: tar -xf .tmp/tarball/${{ matrix.filename }} --to-stdout package/package.json
 
       - id: has-published
         name: Checks if ${{ matrix.name }}@${{ matrix.production-version }} is already published
@@ -252,7 +252,7 @@ jobs:
         if: ${{ !inputs.dry-run && steps.has-published.outputs.published == 'false' }}
         name: Publish ${{ matrix.name }}@${{ matrix.version }}
         # TODO: Enable --provenance when in official repo.
-        run: npm publish --access public --json .tmp/tarball/${{ matrix.tarball }}
+        run: npm publish --access public --json .tmp/tarball/${{ matrix.filename }}
 
   create-release:
     continue-on-error: true
@@ -297,7 +297,7 @@ jobs:
 
           gh release create \
             ${{ env.tag }} \
-            .tmp/tarball/${{ matrix.tarball }} \
+            .tmp/tarball/${{ matrix.filename }} \
             --notes "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             --repo ${{ github.repository }} \
             --title "${{ matrix.name }}@${{ matrix.version }} - $date"
