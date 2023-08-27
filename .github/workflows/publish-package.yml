@@ -306,6 +306,9 @@ jobs:
     env:
       branch-name: bot/postpublish/${{ matrix.name }}/v${{ matrix.next-prerelease-version }}
     environment:
+      # This environment need:
+      # - pull-request: write
+      # - workflows: write // for submitting PR which contains changes to workflow file
       name: pull-request
       url: ${{ steps.create-pull-request.outputs.url }}
     name: Create pull request (${{ matrix.name }}@${{ matrix.next-prerelease-version }})
