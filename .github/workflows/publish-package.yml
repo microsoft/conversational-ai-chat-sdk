@@ -202,7 +202,7 @@ jobs:
 
   publish:
     environment:
-      # name: npm-publish # TODO: Fix this
+      name: npm-publish
       url: https://npmjs.com/package/${{ matrix.name }}/v/${{ matrix.version }}
     name: Publish (${{ matrix.name }}@${{ matrix.production-version }})
     needs: build
@@ -259,7 +259,7 @@ jobs:
     env:
       tag: release/$package_name/v${{ matrix.next-prerelease-version }}
     environment:
-      # name: github-release # TODO: Fix this.
+      name: github-release
       url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.tag }}
     name: Create release (${{ matrix.next-prerelease-version }})
     needs:
@@ -306,7 +306,7 @@ jobs:
     env:
       branch-name: bot/postpublish/${{ matrix.name }}/v${{ matrix.next-prerelease-version }}
     environment:
-      # name: pull-request # TODO: Fix this.
+      name: pull-request
       url: ${{ steps.create-pull-request.outputs.url }}
     name: Create pull request for ${{ matrix.next-prerelease-version }}
     needs:
