@@ -11,9 +11,13 @@ on:
       - '.github/**'
   workflow_dispatch:
     inputs:
+      dry-run:
+        default: true # TODO: Turn this off.
+        description: Dry-run
+        required: true
+        type: boolean
       skip-secure-feed:
-        # TODO: Turn this off.
-        default: true
+        default: true # TODO: Turn this off.
         description: Skip secure feed (only for development)
         required: true
         type: boolean
@@ -406,7 +410,8 @@ jobs:
       pages: write
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to GitHub Pages
+      - if: ${{ !inputs.dry-run }}
+        name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v2
 
@@ -449,7 +454,7 @@ jobs:
           version: ${{ matrix.version }}
       - env:
           NODE_AUTH_TOKEN: ${{ github.token }}
-        if: ${{ steps.has-published.outputs.published == 'false' }}
+        if: ${{ steps.has-published.outputs.published == 'false' && !inputs.dry-run }} }}
         name: Publish ${{ matrix.name }}@${{ matrix.version }}
         run: npm publish --json .tmp/tarball/${{ matrix.scoped-filename }}
 
@@ -491,7 +496,7 @@ jobs:
           version: ${{ matrix.version }}
       - env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: ${{ steps.has-published.outputs.published == 'false' }}
+        if: ${{ steps.has-published.outputs.published == 'false' && !inputs.dry-run }}
         name: Publish ${{ matrix.name }}@${{ matrix.version }}
         run: npm publish --json .tmp/tarball/${{ matrix.filename }}
 
