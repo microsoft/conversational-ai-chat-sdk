@@ -298,7 +298,7 @@ jobs:
 
   pull-request-create-bump-version:
     env:
-      branch-name: bot/postpublish/${{ matrix.name }/v${{ matrix.next-prerelease-version }}
+      branch-name: bot/postpublish/${{ matrix.name }}/v${{ matrix.next-prerelease-version }}
     environment:
       name: pull-request
       url: ${{ steps.create-pull-request.outputs.url }}
