@@ -116,13 +116,13 @@ jobs:
         # We are rescoping packages so they can publish to contributor's GitHub Packages so they can consume it easily.
         rescope: [false, true]
     steps:
+      - uses: actions/checkout@v3
       - env:
           matrix: ${{ needs.prepare.outputs.matrix }}
         name: Save matrix
         run: |
           mkdir .tmp/
           echo $matrix | jq -r | tee .tmp/matrix.json
-      - uses: actions/checkout@v3
       - name: Set up Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
