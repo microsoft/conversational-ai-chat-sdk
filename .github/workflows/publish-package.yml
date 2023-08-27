@@ -1,5 +1,5 @@
 name: Publish package
-run-name: 'Publish: ${{ inputs.package-name }}'
+run-name: 'Publish: ${{ inputs.name }}'
 
 on:
   workflow_dispatch:
@@ -19,7 +19,7 @@ on:
         required: true
         type: choice
 
-concurrency: publish-package/${{ inputs.package-name }}
+concurrency: publish-package/${{ inputs.name }}
 
 defaults:
   run:
@@ -90,7 +90,7 @@ jobs:
 
           jq \
             --arg committedVersion "${{ steps.bump-versions.outputs.committed-version }}" \
-            --arg name "${{ inputs.package-name }}" \
+            --arg name "${{ inputs.name }}" \
             --arg nextPrereleaseVersion "${{ steps.bump-versions.outputs.next-prerelease-version }}" \
             --arg path "${{ steps.look-up-package-path.outputs.path }}" \
             --arg productionVersion "${{ steps.bump-versions.outputs.production-version }}" \
@@ -112,7 +112,7 @@ jobs:
       - name: 'Sanity check: matrix "path" must point to the right package'
         run: |
           package_json_path=$(cat .tmp/matrix.json | jq -r '.include.path')/package.json
-          [[ "$(cat $package_json_path | jq -r '.name')" == "${{ inputs.package-name }}" ]]
+          [[ "$(cat $package_json_path | jq -r '.name')" == "${{ inputs.name }}" ]]
 
       - name: 'Sanity check: matrix "production-version" must not be empty'
         run: '[[ ! -z "$(cat .tmp/matrix.json | jq -r ''.include.["production-version"]'')" ]]'
