@@ -62,22 +62,22 @@ jobs:
         run: npm run precommit --workspaces=true
       - name: Build
         run: npm run build --if-present --workspaces=true
-      - if: ${{ strategy.job-index == 0 }}
+      - if: strategy.job-index == 0
         name: Pack tarballs
         run: |
           mkdir -p .tmp/tarball
           npm pack --json --pack-destination=.tmp/tarball --workspaces=true > .tmp/pack-result.json
-      - if: ${{ strategy.job-index == 0 }}
+      - if: strategy.job-index == 0
         name: Print pack result
         run: cat .tmp/pack-result.json | jq -r 'map(del(.files))'
-      - if: ${{ strategy.job-index == 0 }}
+      - if: strategy.job-index == 0
         name: Upload tarball artifact
         uses: actions/upload-artifact@v3
         with:
           name: tarball
           path: .tmp/tarball/*.tgz
       - id: set-outputs
-        if: ${{ strategy.job-index == 0 }}
+        if: strategy.job-index == 0
         name: Set outputs
         run: |
           cat .tmp/pack-result.json | jq -cr 'map({ filename: .filename, name: .name })' | tee --append .tmp/package-matrix.json
@@ -145,29 +145,29 @@ jobs:
         # This is because our rescoping step in continuous deployment will not work if the package is already scoped, it just do plain concat.
         # We can support scoped package if we add that feature to our CD pipeline.
         run: cat ./package.json | jq 'if .name | contains("@") then halt_error(1) else empty end'
-      - if: ${{ steps.prepare.outputs.is-private != 'true' }}
+      - if: steps.prepare.outputs.is-private != 'true'
         name: 'Sanity check: has LICENSE'
         run: '[[ -f ./LICENSE ]]'
-      - if: ${{ steps.prepare.outputs.is-private != 'true' }}
+      - if: steps.prepare.outputs.is-private != 'true'
         name: 'Sanity check: has README.md'
         run: '[[ -f ./README.md ]]'
-      - if: ${{ steps.prepare.outputs.is-private != 'true' }}
+      - if: steps.prepare.outputs.is-private != 'true'
         name: 'Sanity check: at least one exports'
         run: cat ./package.json | jq '.exports | to_entries | if length == 0 then halt_error(1) else empty end'
-      - if: ${{ steps.prepare.outputs.is-private != 'true' }}
+      - if: steps.prepare.outputs.is-private != 'true'
         name: 'Sanity check: all exports exists'
         run: cat ./package.json | jq '.exports | map(flatten) | flatten | .[]' | xargs -L1 test -f
-      - if: ${{ steps.prepare.outputs.is-private != 'true' }}
+      - if: steps.prepare.outputs.is-private != 'true'
         name: 'Sanity check: all exports has "types" condition'
         run: cat ./package.json | jq '.exports | map(select(.types == null)) | if length > 0 then halt_error(1) else empty end'
-      - if: ${{ steps.prepare.outputs.is-private != 'true' }}
+      - if: steps.prepare.outputs.is-private != 'true'
         name: 'Sanity check: has source maps'
         # TODO: Check if abc.js has abc.js.map, instead of just *.js.map.
         run: compgen -G lib/**/*.js.map
-      - if: ${{ steps.prepare.outputs.is-private != 'true' }}
+      - if: steps.prepare.outputs.is-private != 'true'
         name: 'Sanity check: no lib/**/*.spec.*'
         run: '! compgen -G lib/**/*.spec.*'
-      - if: ${{ steps.prepare.outputs.is-private != 'true' }}
+      - if: steps.prepare.outputs.is-private != 'true'
         name: 'Sanity check: no lib/**/*.test.*'
         run: '! compgen -G lib/**/*.test.*'
       - env:
@@ -182,7 +182,7 @@ jobs:
             '.dependencies + ($matrix | map({ key: .name }) | from_entries) | with_entries(select(.value // "" | contains("-"))) | if length > 0 then halt_error(1) else empty end'
       - name: 'Sanity check: version must be prerelease and ends with -0'
         run: '[[ "$(cat ./package.json | jq -r ''.version'')" == *-0 ]]'
-      - if: ${{ steps.prepare.outputs.is-private != 'true' }}
+      - if: steps.prepare.outputs.is-private != 'true'
         name: 'Sanity check: package.json/files must contains at least one item'
         run: cat ./package.json | jq '.files // [] | if length == 0 then halt_error(1) else empty end'
 
