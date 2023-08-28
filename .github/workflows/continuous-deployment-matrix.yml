@@ -45,7 +45,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.node-version }}
-      - if: ${{ !inputs.skip-secure-feed }}
+      - if: '!inputs.skip-secure-feed'
         name: Set up secure feed
         run: npx https://aka.ms/EnableSecureFeed
       - run: npm install --global --ignore-scripts semver@latest # Ignore scripts to prevent malicious scripts.
@@ -139,7 +139,7 @@ jobs:
         with:
           cache: npm
           node-version: ${{ env.node-version }}
-      - if: ${{ !inputs.skip-secure-feed }}
+      - if: '!inputs.skip-secure-feed'
         name: Set up secure feed
         run: npx https://aka.ms/EnableSecureFeed
       - # We cannot run "npm version" right after "npx semver". Otherwise, next run of "npx semver" will ignore "-n false".
@@ -157,7 +157,7 @@ jobs:
 
             npm version --no-git-tag-version --workspace=$name $version
           done
-      - if: ${{ matrix.rescope }}
+      - if: matrix.rescope
         name: Rescope packages to @${{ github.repository_owner }}
         run: |
           for path in $(cat ./package.json | jq -cr '.workspaces | .[]')
@@ -175,7 +175,7 @@ jobs:
 
             echo ::endgroup::
           done
-      - if: ${{ matrix.rescope }}
+      - if: matrix.rescope
         name: Rescope package-lock.json
         run: |
           # We only know how to deal with lockfile v3.
@@ -410,7 +410,7 @@ jobs:
       pages: write
     runs-on: ubuntu-latest
     steps:
-      - if: ${{ !inputs.dry-run }}
+      - if: '!inputs.dry-run'
         name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v2
@@ -464,7 +464,7 @@ jobs:
       # https://npmjs.com/package/powerva-chat-adapter/v/0.0.0-0
       url: https://npmjs.com/package/${{ matrix.name }}/v/${{ matrix.version }}
     # Skip publishing to NPM on forks.
-    if: ${{ github.repository_owner == 'microsoft' }}
+    if: github.repository_owner == 'microsoft'
     name: 'NPM: publish ${{ matrix.name }}@${{ matrix.version }}'
     needs: approval
     permissions:
@@ -501,7 +501,7 @@ jobs:
         run: npm publish --json .tmp/tarball/${{ matrix.filename }}
 
   summary:
-    if: ${{ always() }}
+    if: always()
     name: Summary
     needs:
       - github-packages-publish
