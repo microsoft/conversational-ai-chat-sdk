@@ -244,7 +244,7 @@ jobs:
 
       - env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: '!inputs.dry-run && steps.has-published.outputs.published == 'false''
+        if: '!inputs.dry-run && steps.has-published.outputs.published == ''false'''
         name: Publish ${{ matrix.name }}@${{ matrix.version }}
         run: npm publish --access public --json .tmp/tarball/${{ matrix.filename }} --provenance
 
