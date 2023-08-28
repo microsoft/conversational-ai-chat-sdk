@@ -27,7 +27,7 @@ defaults:
 
 env:
   node-version: lts/Hydrogen
-  use-secure-feed: true
+  use-secure-feed: false
 
 jobs:
   prepare:
