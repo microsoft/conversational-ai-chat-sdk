@@ -454,7 +454,7 @@ jobs:
           version: ${{ matrix.version }}
       - env:
           NODE_AUTH_TOKEN: ${{ github.token }}
-        if: ${{ (steps.has-published.outputs.published == 'false') && !inputs.dry-run }} }}
+        if: steps.has-published.outputs.published == 'false' && !inputs.dry-run
         name: Publish ${{ matrix.name }}@${{ matrix.version }}
         run: npm publish --json .tmp/tarball/${{ matrix.scoped-filename }}
 
@@ -496,7 +496,7 @@ jobs:
           version: ${{ matrix.version }}
       - env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: ${{ (steps.has-published.outputs.published == 'false') && !inputs.dry-run }}
+        if: steps.has-published.outputs.published == 'false' && !inputs.dry-run
         name: Publish ${{ matrix.name }}@${{ matrix.version }}
         run: npm publish --json .tmp/tarball/${{ matrix.filename }}
 
