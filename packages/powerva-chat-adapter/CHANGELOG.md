@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added new subprotocol for published bot, by [@compulim](https://github.com/compulim), in PR [#XXX](https://github.com/microsoft/conversational-ai-chat-sdk/pull/XXX)
+- Added new subprotocol for published bot, by [@compulim](https://github.com/compulim)
 
 ## [0.0.0] - 2023-08-19
 
