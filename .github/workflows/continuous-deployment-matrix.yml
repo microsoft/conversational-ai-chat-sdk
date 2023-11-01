@@ -168,7 +168,7 @@ jobs:
               --arg owner "${{ github.repository_owner }}" \
               --argfile matrix .tmp/matrix.json \
               -r \
-              'def rescope($entry): $entry | if ($matrix | map(select(.name == $entry.key)) | length > 0) then .value = "npm:@" + $owner + "/" + .key + "@" + .value else . end; . | (.name = "@" + $owner + "/" + .name) | (.dependencies |= (. | with_entries(rescope(.)))) | (.devDependencies |= (. | with_entries(rescope(.))))' \
+              'def rescope($entry): ($matrix | map(select(.name == $entry.key)))[0].version as $version | if ($version) then .value = "npm:@" + $owner + "/" + .key + "@" + $version else $entry end; . | (.name = "@" + $owner + "/" + .name) | (.dependencies |= (. | with_entries(rescope(.)))) | (.devDependencies |= (. | with_entries(rescope(.))))' \
               | tee .tmp/package.json
 
             mv .tmp/package.json $path/package.json
