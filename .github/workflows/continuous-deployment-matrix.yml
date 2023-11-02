@@ -177,7 +177,7 @@ jobs:
               --arg owner "${{ github.repository_owner }}" \
               --argfile matrix .tmp/matrix.json \
               -r \
-              '({} + .dependencies + .devDependencies) | to_entries | map(.key as $name | ($matrix | map(select(.name == $name))[0] as $entry | if ($entry) then $name + "@npm:" + $owner + "/" + $entry.name + "@" + $entry.version else empty end)) | .[]' \
+              '({} + .dependencies + .devDependencies) | to_entries | map(.key as $name | ($matrix | map(select(.name == $name))[0] as $entry | if ($entry) then $name + "@npm:@" + $owner + "/" + $entry.name + "@" + $entry.version else empty end)) | .[]' \
               | tee .tmp/versions.json
 
             cat .tmp/versions.json | xargs -L1 npm install --package-lock-only
