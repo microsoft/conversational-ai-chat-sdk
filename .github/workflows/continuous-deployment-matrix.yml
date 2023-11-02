@@ -164,14 +164,15 @@ jobs:
           do
             echo ::group::$path/package.json
 
-            cat $path/package.json | jq \
-              --arg owner "${{ github.repository_owner }}" \
-              --argfile matrix .tmp/matrix.json \
+            cat ./package.json | jq \
+              --arg owner "compulim" \
+              --argfile matrix ./matrix.json \
               -r \
-              'def rescope($entry): ($matrix | map(select(.name == $entry.key)))[0].version as $version | if ($version) then .value = "npm:@" + $owner + "/" + .key + "@" + $version else $entry end; . | (.name = "@" + $owner + "/" + .name) | (.dependencies |= (. | with_entries(rescope(.)))) | (.devDependencies |= (. | with_entries(rescope(.))))' \
-              | tee .tmp/package.json
+              '.dependencies | to_entries | map(.key as $name | ($matrix | map(select(.name == $name))[0] as $entry | if ($entry) then $name + "@npm:" + $entry.name + "@" + $entry.version else empty end)) | .[]'
 
-            mv .tmp/package.json $path/package.json
+              '.dependencies | with_entries(. as $entry | ($matrix | with_entries(if (.name == $entry.key) then (.name + "@npm:XYZ") else $entry.key end)))' | tee .tmp/versions.json
+
+            cat .tmp/versions.json | xargs -L1 npm install --package-lock-only
 
             echo ::endgroup::
           done
