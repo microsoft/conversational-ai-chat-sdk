@@ -164,53 +164,62 @@ jobs:
           do
             echo ::group::$path/package.json
 
-            cat ./package.json | jq \
-              --arg owner "compulim" \
+            cat $path/package.json | jq \
+              --arg owner "${{ github.repository_owner }}" \
               --argfile matrix .tmp/matrix.json \
               -r \
-              '.dependencies | to_entries | map(.key as $name | ($matrix | map(select(.name == $name))[0] as $entry | if ($entry) then $name + "@npm:" + $entry.name + "@" + $entry.version else empty end)) | .[]'
+              '.name = "@" + $owner + "/" + .name' \
+              | tee .tmp/package.json
 
-              '.dependencies | with_entries(. as $entry | ($matrix | with_entries(if (.name == $entry.key) then (.name + "@npm:XYZ") else $entry.key end)))' | tee .tmp/versions.json
+            mv .tmp/package.json $path/package.json
+
+            cat $path/package.json | jq \
+              --argfile matrix .tmp/matrix.json \
+              -r \
+              '({} + .dependencies + .devDependencies) | to_entries | map(.key as $name | ($matrix | map(select(.name == $name))[0] as $entry | if ($entry) then $name + "@npm:" + $entry.name + "@" + $entry.version else empty end)) | .[]' \
+              | tee .tmp/versions.json
 
             cat .tmp/versions.json | xargs -L1 npm install --package-lock-only
 
-            echo ::endgroup::
-          done
-      - if: matrix.rescope
-        name: Rescope package-lock.json
-        run: |
-          # We only know how to deal with lockfile v3.
-          cat ./package-lock.json | jq 'if .lockfileVersion == 3 then empty else empty | halt_error(1) end'
-
-          for path in $(cat ./package.json | jq -cr '.workspaces | .[]')
-          do
-            echo ::group::$path/package.json
-
-            cat ./package-lock.json | jq \
-              --arg path "$path" \
-              --argfile package $path/package.json \
-              -r \
-              '.packages[$path] += { dependencies: $package.dependencies, devDependencies: $package.devDependencies, name: $package.name, optionalDependencies: ($package.optionalDependencies // {}), peerDependencies: ($package.peerDependencies // {}) }' \
-              > .tmp/package-lock.json.tmp
-
-            mv .tmp/package-lock.json.tmp ./package-lock.json
-
-            cat ./package-lock.json | jq \
-              --arg path "$path" \
-              --argfile package $path/package.json \
-              -r \
-              '.packages |= with_entries(if .value.resolved == $path then .key = "node_modules/" + $package.name else . end)' \
-              > .tmp/package-lock.json.tmp
-
-            mv .tmp/package-lock.json.tmp ./package-lock.json
-
-            cat ./package-lock.json | jq \
-              --arg path "$path" \
-              -r \
-              '.packages | with_entries(select(.key == $path // .value.resolved == $path))'
+            cat ./package.json
 
             echo ::endgroup::
           done
+      # - if: matrix.rescope
+      #   name: Rescope package-lock.json
+      #   run: |
+      #     # We only know how to deal with lockfile v3.
+      #     cat ./package-lock.json | jq 'if .lockfileVersion == 3 then empty else empty | halt_error(1) end'
+
+      #     for path in $(cat ./package.json | jq -cr '.workspaces | .[]')
+      #     do
+      #       echo ::group::$path/package.json
+
+      #       cat ./package-lock.json | jq \
+      #         --arg path "$path" \
+      #         --argfile package $path/package.json \
+      #         -r \
+      #         '.packages[$path] += { dependencies: $package.dependencies, devDependencies: $package.devDependencies, name: $package.name, optionalDependencies: ($package.optionalDependencies // {}), peerDependencies: ($package.peerDependencies // {}) }' \
+      #         > .tmp/package-lock.json.tmp
+
+      #       mv .tmp/package-lock.json.tmp ./package-lock.json
+
+      #       cat ./package-lock.json | jq \
+      #         --arg path "$path" \
+      #         --argfile package $path/package.json \
+      #         -r \
+      #         '.packages |= with_entries(if .value.resolved == $path then .key = "node_modules/" + $package.name else . end)' \
+      #         > .tmp/package-lock.json.tmp
+
+      #       mv .tmp/package-lock.json.tmp ./package-lock.json
+
+      #       cat ./package-lock.json | jq \
+      #         --arg path "$path" \
+      #         -r \
+      #         '.packages | with_entries(select(.key == $path // .value.resolved == $path))'
+
+      #       echo ::endgroup::
+      #     done
       - run: npm clean-install --ignore-scripts --strict-peer-deps # Prevent malicious scripts from running.
       - name: Run whitelisted install scripts
         run: npm run postinstall --if-present --workspaces=true
