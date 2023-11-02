@@ -173,6 +173,9 @@ jobs:
 
             mv .tmp/package.json $path/package.json
 
+            # Commit the package name into package-lock.json.
+            npm install --package-lock-only
+
             cat $path/package.json | jq \
               --arg owner "${{ github.repository_owner }}" \
               --argfile matrix .tmp/matrix.json \
