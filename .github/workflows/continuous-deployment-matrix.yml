@@ -166,7 +166,7 @@ jobs:
 
             cat ./package.json | jq \
               --arg owner "compulim" \
-              --argfile matrix ./matrix.json \
+              --argfile matrix .tmp/matrix.json \
               -r \
               '.dependencies | to_entries | map(.key as $name | ($matrix | map(select(.name == $name))[0] as $entry | if ($entry) then $name + "@npm:" + $entry.name + "@" + $entry.version else empty end)) | .[]'
 
