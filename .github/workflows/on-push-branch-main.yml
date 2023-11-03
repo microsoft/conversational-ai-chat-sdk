@@ -102,7 +102,7 @@ jobs:
       - name: Stage package-lock.json
         run: git add ./package-lock.json
       - name: Commit
-        run: git commit --message "Create release for refs/heads/${{ env.branch }} of commit ${{ env.short_commitish }}"
+        run: git commit --message "Create release for refs/heads/${{ env.source_branch }} of commit ${{ env.short_commitish }}"
       - if: '!inputs.dry-run'
         name: Push
         run: git push --set-upstream origin ${{ env.target_branch }}
