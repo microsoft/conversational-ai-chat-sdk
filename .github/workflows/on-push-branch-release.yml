@@ -225,7 +225,7 @@ jobs:
 
   delete-branch:
     environment: admin
-    if: event.name != 'workflow_dispatch'
+    if: github.event_name != 'workflow_dispatch'
     name: Delete branch
     needs:
       - github-pages-deployment
