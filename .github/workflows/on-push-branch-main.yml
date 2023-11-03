@@ -1,4 +1,4 @@
-name: Continuous deployment
+name: 'CD: Push to main'
 run-name: "${{ github.event_name != 'push' && format('Continuous deployment: {0} on {1}', github.event_name, github.ref_name) || null }}"
 
 on:

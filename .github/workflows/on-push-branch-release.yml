@@ -1,4 +1,4 @@
-name: 'Push: branch "bot/release/*"'
+name: 'CD: Release'
 run-name: "${{ contains(github.ref_name, '-') && format('Development release: {0}', github.ref_name) || format('Production release: {0}', github.ref_name) }}"
 
 on:
