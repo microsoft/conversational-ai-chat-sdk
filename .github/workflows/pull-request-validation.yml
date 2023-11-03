@@ -1,4 +1,4 @@
-name: Pull request validation
+name: 'CI: Pull request validation'
 
 on:
   pull_request:
