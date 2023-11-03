@@ -51,7 +51,8 @@ jobs:
       - name: Prepare environment
         run: |
           # Example: source_branch=main
-          echo source_branch=$(git branch --show-current) | tee --append $GITHUB_ENV
+          source_branch=$(git branch --show-current)
+          echo source_branch=$source_branch | tee --append $GITHUB_ENV
 
           # The short commitish is at the root because the package can be influenced by /package-lock.json too.
           # Example: short_commitish=0bf2b81
@@ -60,7 +61,7 @@ jobs:
 
           # Example: target_branch=bot/release/main/0bf2b81
           echo target_branch=bot/release/$source_branch/$short_commitish | tee --append $GITHUB_ENV
-      - name: create-branch
+      - name: Create branch
         run: git checkout -b $target_branch
       - name: Bump version
         run: |
