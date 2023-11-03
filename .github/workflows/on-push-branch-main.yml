@@ -61,13 +61,10 @@ jobs:
 
           # Example: target_branch=bot/release/main/0bf2b81
           echo target_branch=bot/release/$source_branch/$short_commitish | tee --append $GITHUB_ENV
-      - env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        name: Configure Git
+      - name: Configure Git
         run: |
           git config user.email "${{ github.actor }}@users.noreply.github.com"
           git config user.name "@${{ github.actor }}"
-          git config user.password "$GH_TOKEN"
       - name: Create branch
         run: git checkout -b $target_branch
       - name: Bump version
@@ -104,4 +101,6 @@ jobs:
         run: git commit --message "Create release for refs/heads/$branch of commit $short_commitish"
       - if: '!inputs.dry-run'
         name: Push
-        run: git push --set-upstream origin $target_branch
+        run: |
+          git config user.password "${{ secrets.GH_TOKEN }}"
+          git push --set-upstream origin $target_branch
