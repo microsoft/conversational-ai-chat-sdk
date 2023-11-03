@@ -1,5 +1,5 @@
 name: 'CD: Release'
-run-name: "${{ startsWith(github.ref_name, 'bot/release/production/') && format('Production release: {0}', github.ref_name) }} || format('Development release: {0}', github.ref_name)"
+run-name: "${{ startsWith(github.ref_name, 'bot/release/production/') && format('Production release: {0}', github.ref_name) || format('Development release: {0}', github.ref_name) }}"
 
 on:
   push:
