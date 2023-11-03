@@ -41,12 +41,6 @@ jobs:
       - id: read-matrix
         name: Output matrix.json
         run: echo matrix=$(jq -cr '.' ./matrix.json) | tee --append $GITHUB_OUTPUT
-      - name: Upload matrix.json
-        uses: actions/upload-artifact@v3
-        with:
-          if-no-files-found: error
-          name: matrix
-          path: ./matrix.json
 
   build:
     name: Build
@@ -107,10 +101,9 @@ jobs:
       - build
     runs-on: ubuntu-latest
     steps:
-      - name: Download matrix artifact
-        uses: actions/download-artifact@v3
+      - uses: actions/checkout@v3
         with:
-          name: matrix
+          sparse-checkout: matrix.json
       - name: Download packages artifact
         uses: actions/download-artifact@v3
         with:
