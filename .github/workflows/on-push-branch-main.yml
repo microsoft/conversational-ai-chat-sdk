@@ -32,7 +32,7 @@ env:
 
 jobs:
   create-branch:
-    environment: pull-request
+    environment: admin
     name: Create branch for release
     runs-on: ubuntu-latest
     steps:
