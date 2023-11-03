@@ -95,7 +95,9 @@ jobs:
             echo ::endgroup::
           done
       - name: Build matrix file
-        run: ./.github/scripts/build-matrix-file.sh
+        run: |
+          chmod +x ./.github/scripts/build-matrix-file.sh
+          ./.github/scripts/build-matrix-file.sh
       - name: Stage matrix.json
         run: git add ./matrix.json
       - name: Stage package-lock.json
