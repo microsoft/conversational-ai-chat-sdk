@@ -11,6 +11,8 @@ runs:
         do
           echo ::group::$path
 
+          cat package.json
+
           # Example: version=0.0.0-main.20230815-110805.bf2b81
           version=$(cat package.json | jq -r .version)
 
