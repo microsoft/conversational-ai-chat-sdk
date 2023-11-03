@@ -92,6 +92,8 @@ jobs:
             npm version --no-git-tag-version --package-lock-only --workspace=$name $propose_version
             git add ./$path/package.json
 
+            cat ./$path/package.json
+
             echo ::endgroup::
           done
       - name: Build matrix file
