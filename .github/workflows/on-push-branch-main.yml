@@ -49,7 +49,7 @@ jobs:
       # But we also need to be super careful we don't run any NPM commands that would fetch the registry. We are insecure here.
       - uses: actions/checkout@v3
         with:
-          token: ${{ secrets.GH_TOKEN }}
+          ssh-key: ${{ secrets.SSH_DEPLOY_KEY }}
       - name: Prepare environment
         run: |
           # Example: source_branch=main
