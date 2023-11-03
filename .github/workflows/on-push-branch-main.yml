@@ -102,5 +102,6 @@ jobs:
       - if: '!inputs.dry-run'
         name: Push
         run: |
+          git config credential.helper cache
           git config user.password "${{ secrets.GH_TOKEN }}"
           git push --set-upstream origin $target_branch
