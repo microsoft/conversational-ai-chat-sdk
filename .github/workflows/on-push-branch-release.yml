@@ -222,3 +222,18 @@ jobs:
         name: Publish ${{ matrix.name }}@${{ matrix.version }}
         # TODO: Remove "echo".
         run: echo npm publish --json .tmp/tarball/${{ matrix.tarball }} --provenance
+
+  delete-branch:
+    environment: admin
+    if: event.name != 'workflow_dispatch'
+    name: Delete branch
+    needs:
+      - github-pages-deployment
+      - npm-publishing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ssh-key: ${{ secrets.SSH_DEPLOY_KEY }}
+      - name: Delete branch
+        run: git push -d origin ${{ github.ref_name }}
