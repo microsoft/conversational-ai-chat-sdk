@@ -6,22 +6,26 @@ runs:
     - name: Build matrix
       run: |
         echo [] > ./matrix.json
+
         for path in $(cat ./package.json | jq -cr '.workspaces | .[]')
         do
           echo ::group::$path
-          cat package.json
-          # Example: version=0.0.0-main.20230815-110805.bf2b81
-          version=$(cat package.json | jq -r .version)
+
+          cat ./$path/package.json
+
           cat ./matrix.json | jq \
             --arg path "$path" \
             --arg version "$version" \
             --argfile packageJSON ./$path/package.json \
             -r \
-            '. + [{ name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), tarball: ($packageJSON.name + "-" + $version + ".tgz"), version: $version }]' \
+            '. + [{ name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), tarball: ($packageJSON.name + "-" + $version + ".tgz"), version: $packageJSON.version }]' \
             > ./matrix.json.tmp
+
           mv ./matrix.json.tmp ./matrix.json
+
           echo ::endgroup::
         done
+
         cat ./matrix.json
       shell: bash
     - name: 'Sanity check: matrix should list all workspaces'
