@@ -4,7 +4,7 @@ run-name: "${{ contains(github.ref_name, '-') && format('Development release: {0
 on:
   push:
     branches:
-      - bot/release/*
+      - bot/release/**
   workflow_dispatch:
     inputs:
       dry-run:
@@ -35,7 +35,7 @@ jobs:
       matrix: ${{ steps.read-matrix.outputs.matrix }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Print matrix.json
         run: jq -r '.' ./matrix.json
       - id: read-matrix
@@ -47,7 +47,7 @@ jobs:
     needs: prepare
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
@@ -101,7 +101,7 @@ jobs:
       - build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           sparse-checkout: matrix.json
       - name: Download packages artifact
