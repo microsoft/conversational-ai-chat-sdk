@@ -48,6 +48,8 @@ jobs:
       # This will speed up secure feed setup significantly as it don't need to patch package-lock.json.
       # But we also need to be super careful we don't run any NPM commands that would fetch the registry. We are insecure here.
       - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GH_TOKEN }}
       - name: Prepare environment
         run: |
           # Example: source_branch=main
@@ -66,7 +68,7 @@ jobs:
           git config user.email "${{ github.actor }}@users.noreply.github.com"
           git config user.name "@${{ github.actor }}"
       - name: Create branch
-        run: git checkout -b $target_branch
+        run: git checkout -b ${{ env.target_branch }}
       - name: Bump version
         run: |
           for path in $(cat ./package.json | jq -cr '.workspaces | .[]')
@@ -98,11 +100,7 @@ jobs:
       - name: Stage package-lock.json
         run: git add ./package-lock.json
       - name: Commit
-        run: git commit --message "Create release for refs/heads/$branch of commit $short_commitish"
+        run: git commit --message "Create release for refs/heads/${{ env.branch }} of commit ${{ env.short_commitish }}"
       - if: '!inputs.dry-run'
         name: Push
-        run: |
-          git config credential.helper cache
-          git config user.password "${{ secrets.GH_TOKEN }}"
-          GIT_USER=${{ github.actor }}:${{ secrets.GH_TOKEN }}
-          git push --set-upstream origin $target_branch
+        run: git push --set-upstream origin ${{ env.target_branch }}
