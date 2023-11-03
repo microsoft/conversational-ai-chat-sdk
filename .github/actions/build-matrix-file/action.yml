@@ -15,10 +15,9 @@ runs:
 
           cat ./matrix.json | jq \
             --arg path "$path" \
-            --arg version "$version" \
             --argfile packageJSON ./$path/package.json \
             -r \
-            '. + [{ name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), tarball: ($packageJSON.name + "-" + $version + ".tgz"), version: $packageJSON.version }]' \
+            '. + [{ name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), tarball: ($packageJSON.name + "-" + $packageJSON.version + ".tgz"), version: $packageJSON.version }]' \
             > ./matrix.json.tmp
 
           mv ./matrix.json.tmp ./matrix.json
