@@ -4,6 +4,12 @@ run-name: 'Publish: ${{ inputs.name }}'
 on:
   workflow_dispatch:
     inputs:
+      # When backporting a fix, we could release from a QFE branch.
+      branch-name:
+        default: main
+        description: Branch to publish
+        required: true
+        type: string
       dry-run:
         default: false
         description: Dry run
@@ -244,7 +250,7 @@ jobs:
 
       - env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: '!inputs.dry-run && steps.has-published.outputs.published == ''false'''
+        if: '!inputs.dry-run && !steps.has-published.outputs.published'
         name: Publish ${{ matrix.name }}@${{ matrix.version }}
         run: npm publish --access public --json .tmp/tarball/${{ matrix.filename }} --provenance
 
