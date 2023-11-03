@@ -1,5 +1,5 @@
 name: 'Push: branch "bot/release/*"'
-run-name: "${{ contains((github.event_name == 'workflow_dispatch' && inputs.branch || github.ref_name), '-') }} && format('Development release: {0}', github.ref_name) || format('Production release: {0}', github.ref_name) }}"
+run-name: "${{ contains(github.ref_name, '-') && format('Development release: {0}', github.ref_name) || format('Production release: {0}', github.ref_name) }}"
 
 on:
   push:
@@ -18,6 +18,8 @@ on:
         required: true
         type: boolean
 
+concurrency: on-push-branch-release
+
 defaults:
   run:
     shell: bash
@@ -30,13 +32,21 @@ jobs:
   prepare:
     name: Prepare
     outputs:
-      matrix: steps.read-matrix.outputs.matrix
+      matrix: ${{ steps.read-matrix.outputs.matrix }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Print matrix.json
+        run: jq -r '.' ./matrix.json
       - id: read-matrix
-        name: Read matrix.json
+        name: Output matrix.json
         run: echo matrix=$(jq -cr '.' ./matrix.json) | tee --append $GITHUB_OUTPUT
+      - name: Upload matrix.json
+        uses: actions/upload-artifact@v3
+        with:
+          if-no-files-found: error
+          name: matrix
+          path: ./matrix.json
 
   build:
     name: Build
@@ -49,7 +59,7 @@ jobs:
         with:
           cache: npm
           node-version: ${{ env.node-version }}
-      - if: '!inputs.skip-secure-feed'
+      - if: '!env.skip-secure-feed'
         name: Set up secure feed
         run: npx https://aka.ms/EnableSecureFeed
       - run: npm clean-install --ignore-scripts --strict-peer-deps # Prevent malicious scripts from running.
@@ -76,7 +86,11 @@ jobs:
 
             # Just in case if the tarball named differently than our matrix.json, rename it.
             actual_tarball=$(cat .tmp/pack-result.json | jq -r '.[0].filename')
-            mv .tmp/tarball/$actual_tarball .tmp/tarball/$expected_tarball
+            if [[ $actual_tarball != $expected_tarball ]]
+            then
+              echo ::warning::Expected tarball filename "$expected_tarball" is different than actual filename "$actual_tarball".
+              mv .tmp/tarball/$actual_tarball .tmp/tarball/$expected_tarball
+            fi
 
             echo ::endgroup::
           done
@@ -93,17 +107,23 @@ jobs:
       - build
     runs-on: ubuntu-latest
     steps:
+      - name: Download matrix artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: matrix
       - name: Download packages artifact
         uses: actions/download-artifact@v3
         with:
           name: packages
       - name: Make directory
         run: mkdir ./_site/
-      - name: Extract ${{ steps.get-tarball-name.outputs.filename }}
-        run: |
-          pages_tarball=$(cat ./matrix.json | jq -r '.[] | select(.name == "pages") | .filename | if . then . else halt_error(1) end') | tee --append $GITHUB_OUTPUT
-
-          tar --directory=./_site/ --extract --file=$pages_tarball --strip-components=2 --verbose package/public
+      - id: pages-tarball
+        name: Get tarball filename
+        run: echo tarball=$(cat ./matrix.json | jq -r '.[] | select(.name == "pages") | .tarball') | tee --append $GITHUB_OUTPUT
+      - name: 'Sanity check: tarball exists'
+        run: '[[ -f ${{ steps.pages-tarball.outputs.tarball }} ]]'
+      - name: Extract ${{ steps.pages-tarball.outputs.tarball }}
+        run: tar --directory=./_site/ --extract --file=${{ steps.pages-tarball.outputs.tarball }} --strip-components=2 --verbose package/public
       - name: List directory
         run: ls -la ./_site/
       - name: 'Sanity check: must have index.html'
@@ -113,6 +133,10 @@ jobs:
 
   sanity-check:
     name: 'Sanity check: ${{ matrix.name }}'
+    needs:
+      - build
+      - prepare
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         include: ${{ fromJSON(needs.prepare.outputs.matrix) }}
@@ -123,12 +147,17 @@ jobs:
           name: packages
       - name: 'Sanity check: "${{ matrix.tarball }}" must exists'
         run: '[[ -f ./${{ matrix.tarball }} ]]'
-      - name: 'Sanity check: tarball name must be "${{ matrix.name }}"'
+      - name: Print package.json
+        run: tar --extract --file=${{ matrix.tarball }} --to-stdout package/package.json | jq
+      - name: 'Sanity check: tarball "name" field must be "${{ matrix.name }}"'
         run: '[[ $(tar --extract --file=${{ matrix.tarball }} --to-stdout package/package.json | jq -r .name) == "${{ matrix.name }}" ]]'
-      - name: 'Sanity check: tarball version must be "${{ matrix.version }}"'
+      - name: 'Sanity check: tarball "version" field must be "${{ matrix.version }}"'
         run: '[[ $(tar --extract --file=${{ matrix.tarball }} --to-stdout package/package.json | jq -r .version) == "${{ matrix.version }}" ]]'
+      - name: 'Sanity check: tarball "private" field must be "${{ matrix.private }}"'
+        run: |
+          [[ $(tar --extract --file=${{ matrix.tarball }} --to-stdout package/package.json | jq -r '.private // false') == "${{ matrix.private }}" ]]
 
-  github-pages-deploy:
+  github-pages-deployment:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -148,7 +177,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v2
 
-  npm-publish:
+  npm-publishing:
     environment:
       name: npm-publish
       # Example: https://npmjs.com/package/powerva-chat-adapter/v/0.0.0-0
@@ -167,23 +196,28 @@ jobs:
     strategy:
       matrix:
         include: ${{ fromJSON(needs.prepare.outputs.matrix) }}
-    if: '!matrix.private'
     steps:
-      - uses: actions/checkout@v3
-      - name: Download packages
+      - if: '!matrix.private'
+        uses: actions/checkout@v3
+      - if: '!matrix.private'
+        name: Download packages
         uses: actions/download-artifact@v3
         with:
           name: packages
           path: .tmp/tarball/
-      - name: Set up Node.js ${{ env.node-version }}
+      - if: '!matrix.private'
+        name: Set up Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.node-version }}
-      - name: List package
+      - if: '!matrix.private'
+        name: List package
         run: ls -l .tmp/tarball/${{ matrix.tarball }}
-      - name: Print package.json
+      - if: '!matrix.private'
+        name: Print package.json
         run: tar --extract --file=.tmp/tarball/${{ matrix.tarball }} --to-stdout package/package.json
       - id: has-published
+        if: '!matrix.private'
         name: Checks if ${{ matrix.name }}@${{ matrix.version }} is already published
         uses: ./.github/actions/check-if-package-has-published
         with:
@@ -191,7 +225,7 @@ jobs:
           version: ${{ matrix.version }}
       - env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: '!steps.has-published.outputs.published && !inputs.dry-run'
+        if: '!matrix.private && !steps.has-published.outputs.published && !inputs.dry-run'
         name: Publish ${{ matrix.name }}@${{ matrix.version }}
         # TODO: Remove "echo".
         run: echo npm publish --json .tmp/tarball/${{ matrix.tarball }} --provenance

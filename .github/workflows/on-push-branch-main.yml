@@ -1,0 +1,99 @@
+name: Continuous deployment
+run-name: "${{ github.event_name != 'push' && format('Continuous deployment: {0} on {1}', github.event_name, github.ref_name) || null }}"
+
+on:
+  push:
+    branches:
+      - main
+    # TODO: Uncomment this. We are commenting this for development.
+    # paths-ignore:
+    #   - '.azdo/**'
+    #   - '.devcontainer/**'
+    #   - '.github/**'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        default: true # TODO: Turn this off.
+        description: Dry run
+        required: true
+        type: boolean
+      skip-secure-feed:
+        default: true # TODO: Turn this off.
+        description: Skip secure feed (only for development)
+        required: true
+        type: boolean
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  node-version: lts/Iron
+  publish-tag: release/vnext
+
+jobs:
+  create-branch:
+    name: Create matrix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Node.js ${{ env.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.node-version }}
+      - if: '!inputs.skip-secure-feed'
+        name: Set up secure feed
+        run: npx https://aka.ms/EnableSecureFeed
+      - run: npm install --global --ignore-scripts semver@latest # Ignore scripts to prevent malicious scripts.
+      # We intentionally checkout after enable secure feed.
+      # This will speed up secure feed setup significantly as it don't need to patch package-lock.json.
+      # But we also need to be super careful we don't run any NPM commands that would fetch the registry. We are insecure here.
+      - uses: actions/checkout@v3
+      - name: Prepare environment
+        run: |
+          # Example: source_branch=main
+          echo source_branch=$(git branch --show-current) | tee --append $GITHUB_ENV
+
+          # The short commitish is at the root because the package can be influenced by /package-lock.json too.
+          # Example: short_commitish=0bf2b81
+          short_commitish=$(git log --pretty=format:'%h' -1)
+          echo short_commitish=$short_commitish | tee --append $GITHUB_ENV
+
+          # Example: target_branch=bot/release/main/0bf2b81
+          echo target_branch=bot/release/$source_branch/$short_commitish | tee --append $GITHUB_ENV
+      - name: create-branch
+        run: git checkout -b $target_branch
+      - name: Bump version
+        run: |
+          for path in $(cat ./package.json | jq -cr '.workspaces | .[]')
+          do
+            echo ::group::$path
+
+            name=$(jq -r '.name' ./$path/package.json)
+
+            # Example: committer_date=20230815-110805
+            committer_date=$(git log --date=format:%Y%m%d-%H%M%S --pretty=format:'%cd' -1 ./$path/)
+
+            # This version is not very accurate, after running `npm version`, it will remove leading zeroes in prerelease tags if that certain part is all numeric. This does not repro in semver.
+            # "main.20230815-110805.0bf2b81" -> "main.20230815-110805.0bf2b81"
+            # "main.20230815-110805.0012345" -> "main.20230815-110805.12345"
+            # Example: current_version=0.0.0-0
+            current_version=$(jq -r '.version' ./$path/package.json)
+
+            # Example: propose_version=0.0.0-main.20230815-110805.0bf2b81
+            propose_version=npm exec --offline -- semver --increment prerelease -n false --preid $source_branch.$committer_date.$short_commitish $current_version
+
+            npm version --no-git-tag-version --package-lock-only --workspace=$name $propose_version
+            git add ./$path/package.json
+
+            echo ::endgroup::
+          done
+      - uses: ./.github/actions/build-matrix-file
+      - name: Stage matrix.json
+        run: git add ./matrix.json
+      - name: Stage package-lock.json
+        run: git add ./package-lock.json
+      - name: Commit
+        run: git commit --message "Create release for refs/heads/$branch of commit $short_commitish"
+      - if: '!inputs.dry-run'
+        name: Push
+        run: git push --set-upstream origin $target_branch
