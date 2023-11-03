@@ -81,7 +81,7 @@ jobs:
             current_version=$(jq -r '.version' ./$path/package.json)
 
             # Example: propose_version=0.0.0-main.20230815-110805.0bf2b81
-            propose_version=npm exec --offline -- semver --increment prerelease -n false --preid $source_branch.$committer_date.$short_commitish $current_version
+            propose_version=$(npm exec --offline -- semver --increment prerelease -n false --preid $source_branch.$committer_date.$short_commitish $current_version)
 
             npm version --no-git-tag-version --package-lock-only --workspace=$name $propose_version
             git add ./$path/package.json
