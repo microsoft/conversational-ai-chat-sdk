@@ -29,7 +29,6 @@ defaults:
 
 env:
   node-version: lts/Iron
-  publish-tag: release/vnext
 
 jobs:
   create-branch:
