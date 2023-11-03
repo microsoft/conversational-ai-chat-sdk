@@ -60,6 +60,10 @@ jobs:
 
           # Example: target_branch=bot/release/main/0bf2b81
           echo target_branch=bot/release/$source_branch/$short_commitish | tee --append $GITHUB_ENV
+      - name: Configure Git
+        run: |
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git config user.name "@${{ github.actor }}"
       - name: Create branch
         run: git checkout -b $target_branch
       - name: Bump version
