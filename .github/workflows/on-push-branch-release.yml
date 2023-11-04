@@ -280,7 +280,6 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.prepare.outputs.matrix).packagesToNPM }}
     steps:
-      # - uses: actions/checkout@v3
       - name: Download packages
         uses: actions/download-artifact@v3
         with:
@@ -319,7 +318,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # ssh-key: ${{ secrets.SSH_DEPLOY_KEY }}
           token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
       - name: Delete branch
         run: git push -d origin ${{ github.ref_name }}
