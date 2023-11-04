@@ -7,6 +7,7 @@ inputs:
 outputs:
   path:
     value: ${{ steps.look-up-package-path.outputs.path }}
+
 runs:
   using: composite
   steps:

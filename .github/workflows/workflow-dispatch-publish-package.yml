@@ -62,6 +62,8 @@ jobs:
 
       - id: path
         uses: ./.github/actions/look-up-package-path
+        with:
+          name: ${{ inputs.name }}
 
       - name: Print package.json
         run: cat ${{ steps.path.outputs.path }}/package.json | jq
