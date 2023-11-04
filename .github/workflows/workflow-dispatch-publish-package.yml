@@ -145,8 +145,10 @@ jobs:
           git config user.name "@${{ github.actor }}"
 
       - id: version
-        name: Bump version ${{ inputs.name }}@${{ env.version }}
-        run: npm version --no-git-tag-version --package-lock-only --workspace=${{ inputs.name }} ${{ env.version }}
+        uses: ./.github/bump-version-in-workspace
+        with:
+          name: ${{ inputs.name }}
+          version: ${{ env.version }}
 
       - name: Print package.json
         run: cat ${{ env.path }}/package.json | jq -r
@@ -250,8 +252,10 @@ jobs:
         run: git add ${{ env.path }}/CHANGELOG.md
 
       - id: version
-        name: Bump version for package "${{ inputs.name }}"
-        run: npm version --no-git-tag-version --package-lock-only --workspace=${{ inputs.name }} prepatch
+        uses: ./.github/bump-version-in-workspace
+        with:
+          name: ${{ inputs.name }}
+          version: prepatch
 
       - name: Print package.json
         run: cat ${{ env.path }}/package.json | jq -r
