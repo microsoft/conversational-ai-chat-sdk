@@ -4,6 +4,10 @@ inputs:
   name:
     description: Name of the package
     required: true
+  stage:
+    default: true
+    description: Stage modified package.json
+    type: boolean
   version:
     description: Version
     required: true
@@ -44,6 +48,12 @@ runs:
             # We should bump to what is in the package.json.
             # We should do audit at another time, not when bumping versions.
             npm install --no-audit --package-lock-only --workspace=$name ${{ inputs.name }}@${{ steps.version.outputs.version }}
+
+            echo
+            echo After bump:
+            cat $path/package.json | jq -r '.dependencies + .devDependencies'
+
+            [[ "${{ inputs.stage }}" == "true" ]] && git add $path/package.json
           fi
 
           echo ::endgroup::
