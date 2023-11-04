@@ -32,8 +32,6 @@ runs:
 
           echo ::endgroup::
         done
-
-        cat ./matrix.json
       shell: bash
 
     - name: Build packages to publish to NPM
@@ -94,15 +92,19 @@ runs:
           --argfile packageJSON ./package.json \
           'if (.packages | map(.path)) == ($packageJSON.workspaces) then empty else halt_error(1) end'
       shell: bash
+
     - name: 'Sanity check: all entries must have "name" field'
       run: cat ./matrix.json | jq 'if .packages | map(select(.name | not)) | length == 0 then empty else halt_error(1) end'
       shell: bash
+
     - name: 'Sanity check: all entries must have "path" field'
       run: cat ./matrix.json | jq 'if .packages | map(select(.path | not)) | length == 0 then empty else halt_error(1) end'
       shell: bash
+
     - name: 'Sanity check: all entries must have "tarball" field'
       run: cat ./matrix.json | jq 'if .packages | map(select(.tarball | not)) | length == 0 then empty else halt_error(1) end'
       shell: bash
+
     - name: 'Sanity check: all entries must have "version" field'
       run: cat ./matrix.json | jq 'if .packages | map(select(.version | not)) | length == 0 then empty else halt_error(1) end'
       shell: bash
