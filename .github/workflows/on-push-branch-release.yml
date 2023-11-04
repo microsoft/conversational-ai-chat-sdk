@@ -239,10 +239,10 @@ jobs:
         if: '!inputs.dry-run'
         name: Push tag
         run: |
-          gh api repos/${{ github.repository }}/git/refs \
+          gh api \
+            repos/${{ github.repository }}/git/refs \
             --field ref=refs/tags/${{ env.tag }} \
-            --field sha=${{ github.sha }} \
-            --repo ${{ github.server_url }}/${{ github.repository }}
+            --field sha=${{ github.sha }}
 
       - env:
           GH_TOKEN: ${{ github.token }}
