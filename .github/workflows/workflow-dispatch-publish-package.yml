@@ -87,9 +87,9 @@ jobs:
       - name: Summary
         run: |
           {
-            echo Current published version on NPM is ${{ inputs.name }}@${{ steps.published-version.outputs.version }}
+            echo 'Current published version on NPM is `${{ inputs.name }}@${{ steps.published-version.outputs.version }}`.'
             echo
-            echo This workflow will release ${{ inputs.name }}@${{ steps.version.outputs.version }}.
+            echo 'This workflow will release `${{ inputs.name }}@${{ steps.version.outputs.version }}`.'
           } | tee --append $GITHUB_STEP_SUMMARY
 
   approval:
@@ -245,8 +245,8 @@ jobs:
         # We installed keep-a-changelog from secure feed, make sure we run offline and don't install another one.
         run: |
           npx \
-            --offline
-            --workspace=${{ inputs.name }}
+            --offline \
+            --workspace=${{ inputs.name }} \
             keep-a-changelog \
             --create \
             --file="CHANGELOG.md" \
