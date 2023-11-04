@@ -120,7 +120,7 @@ jobs:
         run: git add ./package-lock.json
 
       - id: npm-packages
-        name: Mark packages to publish to NPM
+        name: List packages to publish to NPM
         run: |
           package_to_publish_to_npm=[]
 
@@ -128,8 +128,8 @@ jobs:
           do
             echo ::group::$path
 
-            name=$(cat ./package.json | jq -r .name)
-            private=$(cat ./package.json | jq -r .private)
+            name=$(cat $path/package.json | jq -r .name)
+            private=$(cat $path/package.json | jq -r .private)
 
             if [[ $private != "true" ]]
             then
