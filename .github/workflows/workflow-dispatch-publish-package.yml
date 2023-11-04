@@ -88,9 +88,11 @@ jobs:
 
       - name: Summary
         run: |
-          echo Current published version on NPM is ${{ inputs.name }}@${{ steps.published-version.outputs.version }} | tee --append $GITHUB_STEP_SUMMARY
-          echo | tee --append $GITHUB_STEP_SUMMARY
-          echo This workflow will release ${{ inputs.name }}@${{ steps.version.outputs.version }}. | tee --append $GITHUB_STEP_SUMMARY
+          {
+            echo Current published version on NPM is ${{ inputs.name }}@${{ steps.published-version.outputs.version }}
+            echo
+            echo This workflow will release ${{ inputs.name }}@${{ steps.version.outputs.version }}.
+          } | tee --append $GITHUB_STEP_SUMMARY
 
   approval:
     environment: owner-approval
