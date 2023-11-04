@@ -36,13 +36,14 @@ runs:
 
           echo ::group::$name
 
-          cat $path/package.json
+          cat $path/package.json | jq -r '.dependencies + .devDependencies'
 
           if [[ "$(cat $path/package.json | jq --arg name "${{ inputs.name }}" -r 'if (.dependencies + .devDependencies)[$name] then true else false end')" == "true" ]]
           then
             # The actual version bumped to, may differ from inputs.version, such as "prepatch".
             # We should bump to what is in the package.json.
-            npm install --package-lock-only --workspace=$name ${{ inputs.name }}@${{ steps.version.outputs.version }}
+            # We should do audit at another time, not when bumping versions.
+            npm install --no-audit --package-lock-only --workspace=$name ${{ inputs.name }}@${{ steps.version.outputs.version }}
           fi
 
           echo ::endgroup::
