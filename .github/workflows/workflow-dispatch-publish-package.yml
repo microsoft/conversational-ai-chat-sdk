@@ -151,6 +151,9 @@ jobs:
       - name: Print package.json
         run: cat ${{ env.path }}/package.json | jq -r
 
+      - name: Stage package.json
+        run: git add ${{ env.path }}/package.json
+
       - name: Stage package-lock.json
         run: git add ./package-lock.json
 
