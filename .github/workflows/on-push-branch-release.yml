@@ -255,7 +255,7 @@ jobs:
             ${{ env.tag }} \
             ${{ matrix.tarball }} \
             --notes "> [Workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" \
-            --title "${{ matrix.name }}@${{ matrix.production-version }} - $date" \
+            --title "${{ matrix.name }}@${{ matrix.version }} - $date" \
             --repo ${{ github.server_url }}/${{ github.repository }}
 
   npm-publishing:
