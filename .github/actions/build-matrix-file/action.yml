@@ -23,7 +23,7 @@ runs:
 
         for path in $(cat ./package.json | jq -cr '.workspaces | .[]')
         do
-          echo ::group::$path
+          echo ::group::Add $path to "packages"
 
           cat ./$path/package.json
 
@@ -46,7 +46,7 @@ runs:
       run: |
         for name in "${{ inputs.publishToNPM }}"
         do
-          echo ::group::$name
+          echo ::group::Add $name to "publishToNPM"
 
           private=$(npm pkg get private --json --workspaces | jq --arg name "$name" -r '.[$name]')
 
@@ -64,7 +64,7 @@ runs:
             '$matrixJSON | .packagesToNPM += ($matrixJSON.packages | map(select(.name == $name)))' \
             | tee ./matrix.tmp.json
 
-          mv ./matrix.tmp.json
+          mv ./matrix.tmp.json ./matrix.json
 
           echo ::endgroup::
         done
@@ -76,7 +76,7 @@ runs:
       run: |
         for name in "${{ inputs.publishToGitHubRelease }}"
         do
-          echo ::group::$name
+          echo ::group:: Add $name to "publishToGitHubRelease"
 
           jq \
             --arg name "$name" \
@@ -86,7 +86,7 @@ runs:
             '$matrixJSON | .packageToGitHubRelease += ($matrixJSON.packages | map(select(.name == $name)))' \
             | tee ./matrix.tmp.json
 
-          mv ./matrix.tmp.json
+          mv ./matrix.tmp.json ./matrix.json
 
           echo ::endgroup::
         done
