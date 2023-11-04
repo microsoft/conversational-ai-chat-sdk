@@ -134,7 +134,6 @@ jobs:
       # But we also need to be super careful we don't run any NPM commands that would fetch the registry. We are insecure here.
       - uses: actions/checkout@v4
         with:
-          # ssh-key: ${{ secrets.SSH_DEPLOY_KEY }}
           token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
 
       - name: Configure Git
@@ -190,6 +189,7 @@ jobs:
         name: Push branch
         run: git push --set-upstream origin ${{ env.release_branch }}
 
+  # TODO: We should move "create pull request" to "CD: Release" after we published successfully.
   pull-request:
     continue-on-error: true
     env:
@@ -225,8 +225,9 @@ jobs:
       # But we also need to be super careful we don't run any NPM commands that would fetch the registry. We are insecure here.
       - uses: actions/checkout@v4
         with:
+          # We are creating the pull request based on release branch.
+          # For example, CHANGELOG is bumped in the release branch.
           ref: ${{ env.release_branch }}
-          # ssh-key: ${{ secrets.SSH_DEPLOY_KEY }}
           token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
 
       - name: Configure Git
