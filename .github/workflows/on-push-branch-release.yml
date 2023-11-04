@@ -312,7 +312,7 @@ jobs:
     name: Delete branch
     needs:
       - github-pages-deployment
-      # - github-release-publish
+      - github-release-publish
       - npm-publishing
     runs-on: ubuntu-latest
     steps:
