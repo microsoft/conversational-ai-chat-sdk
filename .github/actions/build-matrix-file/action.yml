@@ -1,11 +1,25 @@
 name: Build matrix.json
 description: Build matrix.json from current checkout
+inputs:
+  publishToGitHubRelease:
+    description: Packages to publish to GitHub Release
+    required: false
+  publishToNPM:
+    description: Packages to publish to NPM
+    required: false
+
 runs:
   using: composite
   steps:
+    - name: Print inputs
+      run: |
+        echo ${{ inputs.publishToGitHubRelease }}
+        echo ${{ inputs.publishToNPM }}
+      shell: bash
+
     - name: Build matrix
       run: |
-        echo [] > ./matrix.json
+        [[ ! -f ./matrix.json ]] && echo {} | tee --append ./matrix.json
 
         for path in $(cat ./package.json | jq -cr '.workspaces | .[]')
         do
@@ -17,7 +31,7 @@ runs:
             --arg path "$path" \
             --argfile packageJSON ./$path/package.json \
             -r \
-            '. + [{ name: $packageJSON.name, path: $path, private: ($packageJSON.private // false), tarball: ($packageJSON.name + "-" + $packageJSON.version + ".tgz"), version: $packageJSON.version }]' \
+            '.packages += [{ name: $packageJSON.name, path: $path, tarball: ($packageJSON.name + "-" + $packageJSON.version + ".tgz"), version: $packageJSON.version }]' \
             > ./matrix.json.tmp
 
           mv ./matrix.json.tmp ./matrix.json
@@ -27,24 +41,74 @@ runs:
 
         cat ./matrix.json
       shell: bash
+
+    - name: Build packages to publish to NPM
+      run: |
+        for name in $(echo ${{ inputs.publishToNPM }} | jq -r '.[]')
+        do
+          echo ::group::$name
+
+          private=$(npm pkg get private --json --workspaces | jq --arg name "$name" -r '.[$name]')
+
+          if [[ $private == "true" ]]
+          then
+            echo ::error::Cannot publish private package "${name}" to NPM.
+            exit 1
+          end
+
+          jq \
+            --arg name "$name" \
+            --argfile matrixJSON ./matrix.json \
+            -n \
+            -r \
+            '$matrixJSON | .packagesToNPM += ($matrixJSON.packages | map(select(.name == $name)))' \
+            | tee ./matrix.tmp.json
+
+          mv ./matrix.tmp.json
+
+          echo ::endgroup::
+        done
+
+        cat ./matrix.json
+      shell: bash
+
+    - name: Build packages to publish to GitHub Release
+      run: |
+        for name in $(echo ${{ inputs.publishToGitHubRelease }} | jq -r '.[]')
+        do
+          echo ::group::$name
+
+          jq \
+            --arg name "$name" \
+            --argfile matrixJSON ./matrix.json \
+            -n \
+            -r \
+            '$matrixJSON | .packageToGitHubRelease += ($matrixJSON.packages | map(select(.name == $name)))' \
+            | tee ./matrix.tmp.json
+
+          mv ./matrix.tmp.json
+
+          echo ::endgroup::
+        done
+
+        cat ./matrix.json
+      shell: bash
+
     - name: 'Sanity check: matrix should list all workspaces'
       run: |
         cat ./matrix.json | jq \
           --argfile packageJSON ./package.json \
-          'if (. | map(.path)) == ($packageJSON.workspaces) then empty else halt_error(1) end'
+          'if (.packages | map(.path)) == ($packageJSON.workspaces) then empty else halt_error(1) end'
       shell: bash
     - name: 'Sanity check: all entries must have "name" field'
-      run: cat ./matrix.json | jq 'if map(select(.name | not)) | length == 0 then empty else halt_error(1) end'
+      run: cat ./matrix.json | jq 'if .packages | map(select(.name | not)) | length == 0 then empty else halt_error(1) end'
       shell: bash
     - name: 'Sanity check: all entries must have "path" field'
-      run: cat ./matrix.json | jq 'if map(select(.path | not)) | length == 0 then empty else halt_error(1) end'
+      run: cat ./matrix.json | jq 'if .packages | map(select(.path | not)) | length == 0 then empty else halt_error(1) end'
       shell: bash
     - name: 'Sanity check: all entries must have "tarball" field'
-      run: cat ./matrix.json | jq 'if map(select(.tarball | not)) | length == 0 then empty else halt_error(1) end'
+      run: cat ./matrix.json | jq 'if .packages | map(select(.tarball | not)) | length == 0 then empty else halt_error(1) end'
       shell: bash
     - name: 'Sanity check: all entries must have "version" field'
-      run: cat ./matrix.json | jq 'if map(select(.version | not)) | length == 0 then empty else halt_error(1) end'
-      shell: bash
-    - name: 'Sanity check: at least one entry marked as non-private'
-      run: cat ./matrix.json | jq 'if map(select(.private | not)) | length > 0 then empty else halt_error(1) end'
+      run: cat ./matrix.json | jq 'if .packages | map(select(.version | not)) | length == 0 then empty else halt_error(1) end'
       shell: bash

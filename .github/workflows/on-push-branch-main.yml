@@ -119,7 +119,31 @@ jobs:
       - name: Stage package-lock.json
         run: git add ./package-lock.json
 
+      - id: npm-packages
+        name: Mark packages to publish to NPM
+        run: |
+          package_to_publish_to_npm=[]
+
+          for path in $(cat ./package.json | jq -cr '.workspaces | .[]')
+          do
+            echo ::group::$path
+
+            name=$(cat ./package.json | jq -r .name)
+            private=$(cat ./package.json | jq -r .private)
+
+            if [[ $private != "true" ]]
+            then
+              package_to_publish_to_npm=$(echo $package_to_publish_to_npm | jq --arg name "$name" -r '. + [$name]')
+            fi
+
+            echo ::endgroup::
+          done
+
+          echo json=$package_to_publish_to_npm | tee --append $GITHUB_OUTPUT
+
       - uses: ./.github/actions/build-matrix-file
+        with:
+          publishToNPM: ${{ fromJSON(steps.npm-packages.outputs.json) }}
 
       - name: Stage matrix.json
         run: git add ./matrix.json
