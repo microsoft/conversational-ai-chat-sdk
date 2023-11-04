@@ -326,7 +326,7 @@ jobs:
       name: owner
       url: ${{ steps.create-pull-request.outputs.url }}
     # Creates pull request branch only for production release.
-    if: "startsWith(github.ref_name, 'bot/release/production/')"
+    if: "always() && needs.github-release-publish.result == 'success' && needs.npm-publishing.result == 'success' && startsWith(github.ref_name, 'bot/release/production/')"
     name: Pull request
     needs:
       - github-pages-deployment
@@ -424,8 +424,7 @@ jobs:
 
   delete-development-branch:
     environment: owner
-    # If job are not executed because their "if" is not satisfied, they are consider cancelled.
-    if: 'cancelled() || success()'
+    if: "always() && needs.github-release-publish.result == 'success' && needs.npm-publishing.result == 'success' && needs.pull-request-create.result == 'success'"
     name: Delete development branch
     needs:
       - github-pages-deployment
