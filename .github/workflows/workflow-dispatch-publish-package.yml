@@ -285,7 +285,8 @@ jobs:
         run: |
           echo url=$(gh pr create \
             --assignee @me \
-            --body "> [Workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})." \
+            --body "> [Workflow run](${{ format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) }})." \
             --fill \
+            --title "Bump after production release of ${{ format('{0}@{1}', inputs.name, env.version) }}" \
             --repo ${{ github.repository }} \
           ) | tee --append $GITHUB_OUTPUT
