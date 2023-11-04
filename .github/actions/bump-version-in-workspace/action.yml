@@ -48,6 +48,4 @@ runs:
 
           echo ::endgroup::
         done
-
-        exit 1
       shell: bash
