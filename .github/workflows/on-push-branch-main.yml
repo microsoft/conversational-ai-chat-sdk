@@ -32,8 +32,10 @@ env:
 
 jobs:
   create-branch:
-    environment: admin
-    name: Create branch for release
+    environment:
+      name: admin
+      url: ${{ steps.environment.outputs.url }}
+    name: Create release branch
     runs-on: ubuntu-latest
     steps:
       - name: Set up Node.js ${{ env.node-version }}
@@ -50,7 +52,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ssh-key: ${{ secrets.SSH_DEPLOY_KEY }}
-      - name: Prepare environment
+      - id: environment
+        name: Prepare environment
         run: |
           # Example: source_branch=main
           source_branch=$(git branch --show-current)
@@ -62,7 +65,11 @@ jobs:
           echo short_commitish=$short_commitish | tee --append $GITHUB_ENV
 
           # Example: target_branch=bot/release/main/0bf2b81
-          echo target_branch=bot/release/$source_branch/$short_commitish | tee --append $GITHUB_ENV
+          target_branch=bot/release/$source_branch/$short_commitish
+          echo target_branch=$target_branch | tee --append $GITHUB_ENV
+
+          # Example: https://github.com/compulim/conversational-ai-chat-sdk/tree/bot/release/main/0bf2b81
+          echo url=${{ github.server_url }}/${{ github.repository }}/tree/$target_branch | tee --append $GITHUB_OUTPUT
       - name: Configure Git
         run: |
           git config user.email "${{ github.actor }}@users.noreply.github.com"
