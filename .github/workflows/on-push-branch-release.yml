@@ -25,6 +25,7 @@ defaults:
     shell: bash
 
 env:
+  need-pull-request: ${{ startsWith(github.ref_name, 'bot/release/production/') }}
   node-version: lts/Iron # Node.js 20
   skip-secure-feed: true
 
@@ -284,40 +285,184 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: packages
-          path: .tmp/tarball/
+
       - name: Set up Node.js ${{ env.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.node-version }}
+
       - name: List package
-        run: ls -l .tmp/tarball/${{ matrix.tarball }}
+        run: ls -l ${{ matrix.tarball }}
+
       - name: Print package.json
-        run: tar --extract --file=.tmp/tarball/${{ matrix.tarball }} --to-stdout package/package.json
+        run: tar --extract --file=${{ matrix.tarball }} --to-stdout package/package.json
+
       - id: has-published
         name: Checks if ${{ format('{0}@{1}', matrix.name, matrix.version) }} is already published
         uses: ./.github/actions/check-if-package-has-published
         with:
           name: ${{ matrix.name }}
           version: ${{ matrix.version }}
+
       - env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         if: '!steps.has-published.outputs.published && !inputs.dry-run'
-        name: Publish ${{ format('{0}@{1}', matrix.name, matrix.version) }}
+        name: "Publish ${{ format('{0}@{1}', matrix.name, matrix.version) }}"
         # TODO: Remove "echo".
-        run: echo npm publish --json .tmp/tarball/${{ matrix.tarball }} --provenance
+        run: echo npm publish --json ${{ matrix.tarball }} --provenance
 
-  delete-branch:
+  delete-development-branch:
     environment: admin
-    if: github.event_name != 'workflow_dispatch'
-    name: Delete branch
+    if: "!env.need-pull-request && github.event_name != 'workflow_dispatch'"
+    name: Delete development branch
     needs:
       - github-pages-deployment
       - github-release-publish
       - npm-publishing
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
+
       - name: Delete branch
         run: git push -d origin ${{ github.ref_name }}
+
+  # TODO: We should move "create pull request" to "CD: Release" after we published successfully.
+  pull-request-prepare:
+    concurrency: pull-request-prepare/${{ github.run_id }}
+    continue-on-error: true
+    environment:
+      # This environment need:
+      # - pull-request: write
+      # - workflows: write // PR may contains changes to workflow file
+      name: owner
+      url: ${{ steps.create-pull-request.outputs.url }}
+    if: env.need-pull-request
+    name: "Pull request: ${{ format('{0}@{1}', matrix.name, matrix.version) }}"
+    needs:
+      - github-pages-deployment
+      - github-release-publish
+      - npm-publishing
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.matrix).packagesToNPM }}
+
+    steps:
+      - name: Set up Node.js ${{ env.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.node-version }}
+
+      - if: '!inputs.skip-secure-feed'
+        name: Set up secure feed
+        run: npx https://aka.ms/EnableSecureFeed
+
+      - run: npm install --global --ignore-scripts keep-a-changelog@latest # Ignore scripts to prevent malicious scripts.
+
+      # We intentionally checkout after enable secure feed.
+      # This will speed up secure feed setup significantly as it don't need to patch package-lock.json.
+      # But we also need to be super careful we don't run any NPM commands that would fetch the registry. We are insecure here.
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
+
+      - name: Add unreleased to CHANGELOG.md
+        # We installed keep-a-changelog from secure feed, make sure we run offline and don't install another one.
+        run: |
+          npx \
+            --offline \
+            --workspace=${{ matrix.name }} \
+            keep-a-changelog \
+            --create \
+            --file="CHANGELOG.md" \
+            --format=markdownlint \
+            --url="${{ format('{0}/{1}', github.server_url, github.repository) }}" || true
+
+      - name: Stage CHANGELOG.md
+        run: git add ${{ matrix.path }}/CHANGELOG.md
+
+      - id: version
+        uses: ./.github/actions/bump-version-in-workspace
+        with:
+          name: ${{ matrix.name }}
+          version: prepatch
+
+      - name: Print package.json
+        run: cat ${{ matrix.path }}/package.json | jq -r
+
+      - name: Stage package.json
+        run: git add ${{ matrix.path }}/package.json
+
+      - name: Stage package-lock.json
+        run: git add package-lock.json
+
+      - name: Configure Git
+        run: |
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git config user.name "@${{ github.actor }}"
+
+      - name: Commit to branch
+        run: git commit --message="Bump after production release of ${{ format('{0}@{1}', matrix.name, matrix.version) }}"
+
+      - env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
+        if: '!inputs.dry-run'
+        name: Push branch
+        run: git push
+
+  pull-request-complete:
+    concurrency: pull-request-prepare/${{ github.run_id }}
+    continue-on-error: true
+    environment:
+      # This environment need:
+      # - pull-request: write
+      # - workflows: write // PR may contains changes to workflow file
+      name: owner
+      url: ${{ steps.create-pull-request.outputs.url }}
+    if: env.need-pull-request
+    name: "Pull request: ${{ format('{0}@{1}', matrix.name, matrix.version) }}"
+    needs:
+      - pull-request-prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.matrix).packagesToNPM }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
+
+      - name: Remove matrix.json
+        run: git rm ./matrix.json
+
+      - name: Configure Git
+        run: |
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git config user.name "@${{ github.actor }}"
+
+      - name: Commit to branch
+        run: git commit --message="Bump after production release"
+
+      - env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
+        if: '!inputs.dry-run'
+        name: Push branch
+        run: git push
+
+      - env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
+        id: create-pull-request
+        if: '!inputs.dry-run'
+        name: Create pull request
+        # TODO: Add "bot" label
+        run: |
+          echo url=$(gh pr create \
+            --assignee @me \
+            --body "> [Workflow run](${{ format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) }})." \
+            --title "Bump after production release" \
+            --repo ${{ github.repository }} \
+          ) | tee --append $GITHUB_OUTPUT
