@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       dry-run:
-        default: true # TODO: Turn this off.
+        default: false
         description: Dry run
         required: true
         type: boolean
