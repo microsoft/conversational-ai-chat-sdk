@@ -92,6 +92,7 @@ runs:
 
     - name: Print matrix.json
       run: cat ./matrix.json
+      shell: bash
 
     - name: 'Sanity check: matrix should list all workspaces'
       run: |
