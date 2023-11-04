@@ -119,6 +119,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -162,6 +163,7 @@ jobs:
     strategy:
       matrix:
         include: ${{ fromJSON(needs.prepare.outputs.matrix).packages }}
+
     steps:
       - name: Download packages artifact
         uses: actions/download-artifact@v3
@@ -194,63 +196,66 @@ jobs:
       id-token: write
       pages: write
     runs-on: ubuntu-latest
+
     steps:
       - id: deployment
         if: '!inputs.dry-run'
         name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v2
 
-  # github-release-publish:
-  #   env:
-  #     tag: release/${{ inputs.name }}/v${{ matrix.production-version }}
-  #   environment:
-  #     name: github-release
-  #     url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.tag }}
-  #   # Skip publishing to NPM on forks.
-  #   # TODO: Remove this. We are commenting out for testing.
-  #   # if: github.repository_owner == 'microsoft'
-  #   # Do not run if there are nothing to publish.
-  #   if: fromJSON(needs.prepare.outputs.matrix).packagesToGitHubRelease
-  #   name: Create release (${{ matrix.name }}@${{ matrix.production-version }})
-  #   needs:
-  #     - build
-  #     - publish
-  #   permissions:
-  #     contents: write # Required for creating release
-  #   runs-on: ubuntu-latest
-  #   strategy:
-  #     matrix: ${{ fromJSON(needs.prepare.outputs.matrix).packagesToGitHubRelease }}
+  github-release-publish:
+    env:
+      tag: release/${{ matrix.name }}/v${{ matrix.version }}
+    environment:
+      name: github-release
+      url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.tag }}
+    # Skip publishing to NPM on forks.
+    # TODO: Remove this. We are commenting out for testing.
+    # if: github.repository_owner == 'microsoft'
+    # Do not run if there are nothing to publish.
+    if: toJSON(fromJSON(needs.prepare.outputs.matrix).packagesToGitHubRelease || []) != "[]"
+    name: 'GitHub: ${{ matrix.name }}@${{ matrix.version }}'
+    needs:
+      - build
+      - prepare
+      - sanity-check
+    permissions:
+      contents: write # Required for creating release
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix).packagesToGitHubRelease }}
 
-  #   steps:
-  #     - uses: actions/checkout@v3
+    steps:
+      - name: Download tarball artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: tarball
 
-  #     - name: Download tarball artifact
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: tarball
-  #         path: .tmp/tarball/
+      - # We need to use "gh api" to create a tag/ref, instead of "git push" tag.
+        # This is because, if last commit was modifying workflow, it will fail with permission issues.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        if: '!inputs.dry-run'
+        name: Push tag
+        run: |
+          gh api repos/${{ github.repository }}/git/refs \
+            --field ref=refs/tags/${{ env.tag }} \
+            --field sha=${{ github.sha }} \
+            --repo ${{ github.server_url }}/${{ github.repository }}
 
-  #     - # We need to use "gh api" to create a tag/ref.
-  #       # Otherwise, if last commit was modifying workflow, it will fail with permission issues.
-  #       env:
-  #         GH_TOKEN: ${{ github.token }}
-  #       if: '!inputs.dry-run'
-  #       name: Push tag
-  #       run: gh api repos/${{ github.repository }}/git/refs --field ref=refs/tags/${{ env.tag }} --field sha=${{ github.sha }}
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        if: '!inputs.dry-run'
+        name: Create release
+        run: |
+          date=$(date +%F)
 
-  #     - env:
-  #         GH_TOKEN: ${{ github.token }}
-  #       if: '!inputs.dry-run'
-  #       name: Create release
-  #       run: |
-  #         date=$(date +%F)
-
-  #         gh release create \
-  #           ${{ env.tag }} \
-  #           .tmp/tarball/${{ matrix.filename }} \
-  #           --notes "> [Workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" \
-  #           --title "${{ matrix.name }}@${{ matrix.production-version }} - $date" \
-  #           --repo ${{ github.repository }}
+          gh release create \
+            ${{ env.tag }} \
+            ${{ matrix.tarball }} \
+            --notes "> [Workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" \
+            --title "${{ matrix.name }}@${{ matrix.production-version }} - $date" \
+            --repo ${{ github.server_url }}/${{ github.repository }}
 
   npm-publishing:
     environment:
@@ -263,7 +268,7 @@ jobs:
     # if: github.repository_owner == 'microsoft'
 
     # Do not run if there are nothing to publish.
-    if: fromJSON(needs.prepare.outputs.matrix).packagesToNPM
+    if: toJSON(fromJSON(needs.prepare.outputs.matrix).packagesToNPM || []) != "[]"
     name: 'NPM: publish ${{ matrix.name }}@${{ matrix.version }}'
     needs:
       - build
