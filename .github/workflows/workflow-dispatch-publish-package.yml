@@ -58,7 +58,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           # ssh-key: ${{ secrets.SSH_DEPLOY_KEY }}
-          ssh-key: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
+          token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
 
       - id: path
         uses: ./.github/actions/look-up-package-path
