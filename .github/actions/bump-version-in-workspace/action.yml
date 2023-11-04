@@ -1,4 +1,4 @@
-name: Bump version to ${{ inputs.name }}@${{ inputs.version }}
+name: Bump version
 description: Bump version of a workspace package and its depending workspace packages
 inputs:
   name:
@@ -16,13 +16,16 @@ runs:
   steps:
     - name: Bump version
       run: npm version --no-git-tag-version --package-lock-only --workspace=${{ inputs.name }} ${{ inputs.version }}
+      shell: bash
 
     - id: path
       uses: ./.github/actions/look-up-package-path
+      shell: bash
 
     - id: version
       name: Print version
       run: echo version=$(cat ${{ steps.path.outputs.path }}/package.json | jq -r '.version') | tee --append $GITHUB_OUTPUT
+      shell: bash
 
     - name: Bump depending workspace packages
       run: |
