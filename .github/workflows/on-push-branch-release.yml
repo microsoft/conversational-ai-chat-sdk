@@ -327,7 +327,7 @@ jobs:
       url: ${{ steps.create-pull-request.outputs.url }}
     # Creates pull request branch only for production release.
     if: "startsWith(github.ref_name, 'bot/release/production/')"
-    name: "Pull request: ${{ format('{0}@{1}', matrix.name, matrix.version) }}"
+    name: Pull request
     needs:
       - github-pages-deployment
       - github-release-publish
@@ -423,7 +423,7 @@ jobs:
           ) | tee --append $GITHUB_OUTPUT
 
   delete-development-branch:
-    environment: admin
+    environment: owner
     if: "github.event_name != 'workflow_dispatch'"
     name: Delete development branch
     needs:
