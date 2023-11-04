@@ -88,9 +88,9 @@ jobs:
       - name: Summary
         run: |
           {
-            echo 'Current published version on NPM is `${{ inputs.name }}@${{ steps.published-version.outputs.version }}`.'
+            echo 'Current published version on NPM is `${{ format('{0}@{1}', inputs.name, steps.published-version.outputs.version) }}`.'
             echo
-            echo 'This workflow will release `${{ inputs.name }}@${{ steps.version.outputs.version }}`.'
+            echo 'This workflow will release `${{ format('{0}@{1}', inputs.name, steps.version.outputs.version) }}`.'
           } | tee --append $GITHUB_STEP_SUMMARY
 
   approval:
@@ -167,7 +167,7 @@ jobs:
             --file="./CHANGELOG.md" \
             --format=markdownlint \
             --release="${{ env.version }}" \
-            --url="${{ github.server_url }}/${{ github.repository }}" || true
+            --url="${{ format('{0}/{1}', github.server_url, github.repository) }}" || true
 
       - name: Stage CHANGELOG.md
         run: git add ${{ env.path }}/CHANGELOG.md
@@ -184,7 +184,7 @@ jobs:
         run: git checkout -b ${{ env.release_branch }}
 
       - name: Commit to branch
-        run: git commit --message "Create production release for ${{ inputs.name }}@${{ env.version }}"
+        run: git commit --message "Create production release for ${{ format('{0}@{1}', inputs.name, env.version) }}"
 
       - if: '!inputs.dry-run'
         name: Push branch
@@ -268,7 +268,7 @@ jobs:
         run: git checkout -b ${{ env.pull_request_branch }}
 
       - name: Commit to branch
-        run: git commit --message="Bump after production release of ${{ inputs.name }}@${{ env.version }}"
+        run: git commit --message="Bump after production release of ${{ format('{0}@{1}', inputs.name, env.version) }}"
 
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
