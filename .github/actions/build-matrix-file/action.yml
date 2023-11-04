@@ -44,7 +44,7 @@ runs:
 
     - name: Build packages to publish to NPM
       run: |
-        for name in $(echo ${{ inputs.publishToNPM }} | jq -r '.[]')
+        for name in "${{ inputs.publishToNPM }}"
         do
           echo ::group::$name
 
@@ -74,7 +74,7 @@ runs:
 
     - name: Build packages to publish to GitHub Release
       run: |
-        for name in $(echo ${{ inputs.publishToGitHubRelease }} | jq -r '.[]')
+        for name in "${{ inputs.publishToGitHubRelease }}"
         do
           echo ::group::$name
 

@@ -139,11 +139,15 @@ jobs:
             echo ::endgroup::
           done
 
-          echo json=$package_to_publish_to_npm | tee --append $GITHUB_OUTPUT
+          {
+            echo 'json<<EOF'
+            echo $package_to_publish_to_npm | jq -r '.[]'
+            echo EOF
+          } | tee --append $GITHUB_OUTPUT
 
       - uses: ./.github/actions/build-matrix-file
         with:
-          publishToNPM: ${{ fromJSON(steps.npm-packages.outputs.json) }}
+          publishToNPM: ${{ steps.npm-packages.outputs.json }}
 
       - name: Stage matrix.json
         run: git add ./matrix.json

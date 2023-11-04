@@ -5,7 +5,8 @@ on:
   workflow_dispatch:
     inputs:
       dry-run:
-        default: false
+        # TODO: Turn this off.
+        default: true
         description: Dry run
         required: true
         type: boolean
@@ -167,6 +168,14 @@ jobs:
         run: git add ${{ env.path }}/CHANGELOG.md
 
       - uses: ./.github/actions/build-matrix-file
+        with:
+          publishToGitHubRelease: ${{ inputs.name }}
+          publishToNPM: ${{ inputs.name }}
+
+      - name: Mark package to publish to GitHub Release
+        run: |
+          cat ./matrix.json | jq --arg name="${{ inputs.name }}" -r '.publishToGitHubRelease += [$name]' | tee --append ./matrix.json.tmp
+          mv ./matrix.json.tmp ./matrix.json
 
       - name: Stage matrix.json
         run: git add ./matrix.json
