@@ -93,7 +93,7 @@ jobs:
           } | tee --append $GITHUB_STEP_SUMMARY
 
   approval:
-    environment: owner-approval
+    environment: approval-production
     name: Approval
     needs: prepare
     runs-on: ubuntu-latest
