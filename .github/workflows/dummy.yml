@@ -29,14 +29,14 @@ jobs:
           echo 6. ${{ toJSON(fromJSON(env.branch).xyz || '[]') == '[]' }}
 
   test-1:
-    if: ${{ toJSON(fromJSON(env.branch).abc || '[]') == '[]' }}
+    if: "toJSON(fromJSON(env.branch).abc || '[]') == '[]'"
     name: Test 1
     runs-on: ubuntu-latest
     steps:
       - run: echo OK
 
   test-2:
-    if: ${{ toJSON(fromJSON(env.branch).xyz || '[]') == '[]' }}
+    if: "toJSON(fromJSON(env.branch).xyz || '[]') == '[]'"
     name: Test 2
     runs-on: ubuntu-latest
     steps:
