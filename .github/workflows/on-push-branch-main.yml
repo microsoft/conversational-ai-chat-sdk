@@ -33,7 +33,7 @@ env:
 jobs:
   create-branch:
     environment:
-      name: admin
+      name: owner
       url: ${{ steps.environment.outputs.url }}
     name: Create release branch
     runs-on: ubuntu-latest
