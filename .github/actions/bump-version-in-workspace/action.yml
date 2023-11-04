@@ -20,6 +20,8 @@ runs:
 
     - id: path
       uses: ./.github/actions/look-up-package-path
+      with:
+        name: ${{ inputs.name }}
 
     - id: version
       name: Print version
