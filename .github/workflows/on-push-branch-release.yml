@@ -210,7 +210,7 @@ jobs:
   #   # TODO: Remove this. We are commenting out for testing.
   #   # if: github.repository_owner == 'microsoft'
   #   # Do not run if there are nothing to publish.
-  #   if: fromJSON(needs.prepare.outputs.matrix).packagesToGitHubRelease.length
+  #   if: fromJSON(needs.prepare.outputs.matrix).packagesToGitHubRelease
   #   name: Create release (${{ matrix.name }}@${{ matrix.production-version }})
   #   needs:
   #     - build
@@ -263,7 +263,7 @@ jobs:
     # if: github.repository_owner == 'microsoft'
 
     # Do not run if there are nothing to publish.
-    if: fromJSON(needs.prepare.outputs.matrix).packagesToNPM.length
+    if: fromJSON(needs.prepare.outputs.matrix).packagesToNPM
     name: 'NPM: publish ${{ matrix.name }}@${{ matrix.version }}'
     needs:
       - build
