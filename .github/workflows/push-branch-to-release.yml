@@ -424,7 +424,8 @@ jobs:
 
   delete-development-branch:
     environment: owner
-    if: "github.event_name != 'workflow_dispatch'"
+    # If job are not executed because their "if" is not satisfied, they are consider cancelled.
+    if: 'cancelled() || success()'
     name: Delete development branch
     needs:
       - github-pages-deployment
