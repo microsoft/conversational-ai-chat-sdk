@@ -279,6 +279,7 @@ jobs:
     strategy:
       matrix:
         include: ${{ fromJSON(needs.prepare.outputs.matrix).packagesToNPM }}
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -348,6 +349,7 @@ jobs:
       - github-pages-deployment
       - github-release-publish
       - npm-publishing
+      - prepare
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -417,7 +419,6 @@ jobs:
         run: git push
 
   pull-request-complete:
-    concurrency: pull-request-prepare/${{ github.run_id }}
     continue-on-error: true
     environment:
       # This environment need:
