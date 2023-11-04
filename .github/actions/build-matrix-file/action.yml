@@ -11,12 +11,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Print inputs
-      run: |
-        echo ${{ inputs.publishToGitHubRelease }}
-        echo ${{ inputs.publishToNPM }}
-      shell: bash
-
     - name: Build matrix
       run: |
         [[ ! -f ./matrix.json ]] && echo {} | tee --append ./matrix.json
