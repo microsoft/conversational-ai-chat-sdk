@@ -280,6 +280,10 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.prepare.outputs.matrix).packagesToNPM }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions/check-if-package-has-published
+
       - name: Download packages
         uses: actions/download-artifact@v3
         with:
