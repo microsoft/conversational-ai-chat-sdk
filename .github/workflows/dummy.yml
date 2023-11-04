@@ -9,35 +9,42 @@ defaults:
   run:
     shell: bash
 
-env:
-  branch: '{"abc":[1, true]}'
-
 # Disable all permissions and explicitly specific in the job.
 permissions: {}
 
 jobs:
+  prepare:
+    outputs:
+      value: '{"abc":[1, true]}'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo OK
+
   build:
     name: Build
+    needs: prepare
     runs-on: ubuntu-latest
     steps:
       - run: |
-          echo 1. ${{ env.branch }}
-          echo 2. ${{ toJSON(fromJSON(env.branch)) }}
-          echo 3. ${{ toJSON(fromJSON(env.branch).abc) }}
-          echo 4. ${{ toJSON(fromJSON(env.branch).xyz) }}
-          echo 5. ${{ toJSON(fromJSON(env.branch).xyz || '[]') }}
-          echo 6. ${{ toJSON(fromJSON(env.branch).xyz || '[]') == '[]' }}
+          echo 1. ${{ needs.prepare.outputs.value }}
+          echo 2. ${{ toJSON(fromJSON(needs.prepare.outputs.value)) }}
+          echo 3. ${{ toJSON(fromJSON(needs.prepare.outputs.value).abc) }}
+          echo 4. ${{ toJSON(fromJSON(needs.prepare.outputs.value).xyz) }}
+          echo 5. ${{ toJSON(fromJSON(needs.prepare.outputs.value).xyz || '[]') }}
+          echo 6. ${{ toJSON(fromJSON(needs.prepare.outputs.value).xyz || '[]') == '[]' }}
 
   test-1:
-    if: "toJSON(fromJSON(env.branch).abc || '[]') == '[]'"
+    if: "toJSON(fromJSON(needs.prepare.outputs.value).abc || '[]') == '[]'"
     name: Test 1
+    needs: prepare
     runs-on: ubuntu-latest
     steps:
       - run: echo OK
 
   test-2:
-    if: "toJSON(fromJSON(env.branch).xyz || '[]') == '[]'"
+    if: "toJSON(fromJSON(needs.prepare.outputs.value).xyz || '[]') == '[]'"
     name: Test 2
+    needs: prepare
     runs-on: ubuntu-latest
     steps:
       - run: echo OK
