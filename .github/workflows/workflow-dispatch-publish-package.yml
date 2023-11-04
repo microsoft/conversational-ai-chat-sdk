@@ -174,16 +174,6 @@ jobs:
           publishToGitHubRelease: ${{ inputs.name }}
           publishToNPM: ${{ inputs.name }}
 
-      - name: Mark package to publish to GitHub Release
-        run: |
-          cat ./matrix.json \
-            | jq \
-              --arg name "${{ inputs.name }}" \
-              -r \
-              '.publishToGitHubRelease += [$name]' \
-            | tee --append ./matrix.json.tmp
-          mv ./matrix.json.tmp ./matrix.json
-
       - name: Stage matrix.json
         run: git add ./matrix.json
 
