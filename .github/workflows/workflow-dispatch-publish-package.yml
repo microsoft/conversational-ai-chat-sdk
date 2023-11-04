@@ -137,8 +137,8 @@ jobs:
       # But we also need to be super careful we don't run any NPM commands that would fetch the registry. We are insecure here.
       - uses: actions/checkout@v4
         with:
-          # ssh-key: ${{ secrets.SSH_DEPLOY_KEY }}
-          token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
+          ssh-key: ${{ secrets.SSH_DEPLOY_KEY }}
+          # token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
 
       - name: Configure Git
         run: |
@@ -214,8 +214,6 @@ jobs:
       - approval
       - prepare
       - release-branch
-    permissions:
-      contents: read
     runs-on: ubuntu-latest
 
     steps:
@@ -236,7 +234,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.branch }}
-          token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
+          ssh-key: ${{ secrets.SSH_DEPLOY_KEY }}
+          # token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
 
       - name: Configure Git
         run: |
