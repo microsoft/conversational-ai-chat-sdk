@@ -54,7 +54,7 @@ runs:
           then
             echo ::error::Cannot publish private package "${name}" to NPM.
             exit 1
-          end
+          fi
 
           jq \
             --arg name "$name" \
