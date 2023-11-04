@@ -67,7 +67,7 @@ jobs:
 
       - id: published-version
         name: Get current released version from NPM
-        run: echo version=$(npm get --json ${{ inputs.name }} | jq -r '.version') | tee --append $GITHUB_OUTPUTS
+        run: echo version=$(npm get --json ${{ inputs.name }} | jq -r '.version') | tee --append $GITHUB_OUTPUT
 
       - id: version
         name: Compute production version

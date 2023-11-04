@@ -53,7 +53,7 @@ jobs:
 
           # Example: short_commitish=0bf2b81
           short_commitish=$(git log --pretty=format:'%h' -1)
-          echo short_commitish=$short_commitish | tee --append $GITHUB_OUTPUTS
+          echo short_commitish=$short_commitish | tee --append $GITHUB_OUTPUT
 
   create-branch:
     env:
