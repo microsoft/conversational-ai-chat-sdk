@@ -18,8 +18,10 @@ outputs:
 runs:
   using: composite
   steps:
+    # For unknown reasons, NPM can't update other packages in the workspace and will say the previous version was not found.
+    # This action is for updating other packages in the workspace manually.
     - name: Bump version
-      run: npm version --no-git-tag-version --package-lock-only --workspace=${{ inputs.name }} ${{ inputs.version }}
+      run: npm version --no-git-tag-version --no-workspaces-update --package-lock-only --workspace=${{ inputs.name }} ${{ inputs.version }}
       shell: bash
 
     - id: path
