@@ -145,7 +145,7 @@ jobs:
           git config user.name "@${{ github.actor }}"
 
       - id: version
-        uses: ./.github/bump-version-in-workspace
+        uses: ./.github/actions/bump-version-in-workspace
         with:
           name: ${{ inputs.name }}
           version: ${{ env.version }}
@@ -252,7 +252,7 @@ jobs:
         run: git add ${{ env.path }}/CHANGELOG.md
 
       - id: version
-        uses: ./.github/bump-version-in-workspace
+        uses: ./.github/actions/bump-version-in-workspace
         with:
           name: ${{ inputs.name }}
           version: prepatch
