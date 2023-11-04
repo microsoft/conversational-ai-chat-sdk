@@ -5,18 +5,6 @@ on:
   push:
     branches:
       - bot/release/**
-  workflow_dispatch:
-    inputs:
-      dry-run:
-        default: true # TODO: Turn this off.
-        description: Dry run
-        required: true
-        type: boolean
-      skip-secure-feed:
-        default: true # TODO: Turn this off.
-        description: Skip secure feed (only for development)
-        required: true
-        type: boolean
 
 concurrency: on-push-branch-release
 
@@ -25,6 +13,7 @@ defaults:
     shell: bash
 
 env:
+  dry-run: false
   node-version: lts/Iron # Node.js 20
   skip-secure-feed: true
 
@@ -199,7 +188,7 @@ jobs:
 
     steps:
       - id: deployment
-        if: '!inputs.dry-run'
+        if: '!env.dry-run'
         name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v2
 
@@ -236,7 +225,7 @@ jobs:
         # This is because, if last commit was modifying workflow, it will fail with permission issues.
         env:
           GH_TOKEN: ${{ github.token }}
-        if: '!inputs.dry-run'
+        if: '!env.dry-run'
         name: Push tag
         run: |
           gh api \
@@ -246,7 +235,7 @@ jobs:
 
       - env:
           GH_TOKEN: ${{ github.token }}
-        if: '!inputs.dry-run'
+        if: '!env.dry-run'
         name: Create release
         run: |
           date=$(date +%F)
@@ -310,7 +299,7 @@ jobs:
 
       - env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: '!steps.has-published.outputs.published && !inputs.dry-run'
+        if: '!steps.has-published.outputs.published && !env.dry-run'
         name: "Publish ${{ format('{0}@{1}', matrix.name, matrix.version) }}"
         # TODO: Remove "echo".
         run: echo npm publish --json ${{ matrix.tarball }} --provenance
@@ -341,7 +330,7 @@ jobs:
         with:
           node-version: ${{ env.node-version }}
 
-      - if: '!inputs.skip-secure-feed'
+      - if: '!env.skip-secure-feed'
         name: Set up secure feed
         run: npx https://aka.ms/EnableSecureFeed
 
@@ -404,14 +393,14 @@ jobs:
 
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
-        if: '!inputs.dry-run'
+        if: '!env.dry-run'
         name: Push branch
         run: git push -u origin ${{ env.branch }}
 
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
         id: create-pull-request
-        if: '!inputs.dry-run'
+        if: '!env.dry-run'
         name: Create pull request
         # TODO: Add "bot" label
         run: |
