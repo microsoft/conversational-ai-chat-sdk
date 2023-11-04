@@ -315,35 +315,18 @@ jobs:
         # TODO: Remove "echo".
         run: echo npm publish --json ${{ matrix.tarball }} --provenance
 
-  delete-development-branch:
-    environment: admin
-    if: "!startsWith(github.ref_name, 'bot/release/production/') && github.event_name != 'workflow_dispatch'"
-    name: Delete development branch
-    needs:
-      - github-pages-deployment
-      - github-release-publish
-      - npm-publishing
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
-
-      - name: Delete branch
-        run: git push -d origin ${{ github.ref_name }}
-
-  # TODO: We should move "create pull request" to "CD: Release" after we published successfully.
-  pull-request-prepare:
-    concurrency: pull-request-prepare/${{ github.run_id }}
+  pull-request-create:
     continue-on-error: true
+    env:
+      branch: ${{ format('bot/bump-after-release/{0}', github.run_number) }}
     environment:
-      # This environment need:
+      # This environment needs:
       # - pull-request: write
       # - workflows: write // PR may contains changes to workflow file
       name: owner
       url: ${{ steps.create-pull-request.outputs.url }}
-    if: startsWith(github.ref_name, 'bot/release/production/')
+    # Creates pull request branch only for production release.
+    if: "startsWith(github.ref_name, 'bot/release/production/')"
     name: "Pull request: ${{ format('{0}@{1}', matrix.name, matrix.version) }}"
     needs:
       - github-pages-deployment
@@ -351,9 +334,6 @@ jobs:
       - npm-publishing
       - prepare
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include: ${{ fromJSON(needs.prepare.outputs.matrix).packagesToNPM }}
 
     steps:
       - name: Set up Node.js ${{ env.node-version }}
@@ -377,74 +357,47 @@ jobs:
       - name: Add unreleased to CHANGELOG.md
         # We installed keep-a-changelog from secure feed, make sure we run offline and don't install another one.
         run: |
-          npx \
-            --offline \
-            --workspace=${{ matrix.name }} \
-            keep-a-changelog \
-            --create \
-            --file="CHANGELOG.md" \
-            --format=markdownlint \
-            --url="${{ format('{0}/{1}', github.server_url, github.repository) }}" || true
+          for entry in $(cat ./matrix.json | jq -cr '.packagesToNPM[]')
+          do
+            echo ::group::$name
 
-      - name: Stage CHANGELOG.md
-        run: git add ${{ matrix.path }}/CHANGELOG.md
+            name=$(echo $entry | jq -r '.name')
+            path=$(echo $entry | jq -r '.path')
+
+            npx \
+              --offline \
+              --workspace=$name \
+              keep-a-changelog \
+              --create \
+              --file="CHANGELOG.md" \
+              --format=markdownlint \
+              --url="${{ format('{0}/{1}', github.server_url, github.repository) }}" || true
+
+            git add $path/CHANGELOG.md
+
+            echo ::endgroup::
+          done
+
+      - id: packages
+        name: Get packages
+        run: echo name=$(cat ./matrix.json | jq -cr '.packagesToNPM[] | .name') | tee --append $GITHUB_OUTPUT
 
       - id: version
         uses: ./.github/actions/bump-version-in-workspace
         with:
-          name: ${{ matrix.name }}
+          name: ${{ steps.packages.outputs.name }}
           version: prepatch
 
-      - name: Print package.json
-        run: cat ${{ matrix.path }}/package.json | jq -r
-
-      - name: Stage package.json
-        run: git add ${{ matrix.path }}/package.json
-
-      - name: Stage package-lock.json
-        run: git add package-lock.json
-
-      - name: Configure Git
-        run: |
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
-          git config user.name "@${{ github.actor }}"
-
-      - name: Commit to branch
-        run: git commit --message="Bump after production release of ${{ format('{0}@{1}', matrix.name, matrix.version) }}"
-
-      - env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
-        if: '!inputs.dry-run'
-        name: Push branch
-        run: git push
-
-  pull-request-complete:
-    concurrency: pull-request-prepare/${{ github.run_id }}
-    continue-on-error: true
-    environment:
-      # This environment need:
-      # - pull-request: write
-      # - workflows: write // PR may contains changes to workflow file
-      name: owner
-      url: ${{ steps.create-pull-request.outputs.url }}
-    if: startsWith(github.ref_name, 'bot/release/production/')
-    name: "Pull request: ${{ format('{0}@{1}', matrix.name, matrix.version) }}"
-    needs:
-      - pull-request-prepare
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
-
       - name: Remove matrix.json
-        run: git rm ./matrix.json
+        run: git rm matrix.json
 
       - name: Configure Git
         run: |
           git config user.email "${{ github.actor }}@users.noreply.github.com"
           git config user.name "@${{ github.actor }}"
+
+      - name: Create branch
+        run: git checkout -b ${{ env.branch }}
 
       - name: Commit to branch
         run: git commit --message="Bump after production release"
@@ -453,7 +406,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
         if: '!inputs.dry-run'
         name: Push branch
-        run: git push
+        run: git push -u origin ${{ env.branch }}
 
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
@@ -468,3 +421,22 @@ jobs:
             --title "Bump after production release" \
             --repo ${{ github.repository }} \
           ) | tee --append $GITHUB_OUTPUT
+
+  delete-development-branch:
+    environment: admin
+    if: "github.event_name != 'workflow_dispatch'"
+    name: Delete development branch
+    needs:
+      - github-pages-deployment
+      - github-release-publish
+      - npm-publishing
+      - pull-request-create
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
+
+      - name: Delete branch
+        run: git push -d origin ${{ github.ref_name }}
