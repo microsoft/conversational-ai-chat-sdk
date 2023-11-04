@@ -31,10 +31,10 @@ jobs:
           echo 3. ${{ toJSON(fromJSON(needs.prepare.outputs.value).abc) }}
           echo 4. ${{ toJSON(fromJSON(needs.prepare.outputs.value).xyz) }}
           echo 5. ${{ toJSON(fromJSON(needs.prepare.outputs.value).xyz || '[]') }}
-          echo 6. ${{ toJSON(fromJSON(needs.prepare.outputs.value).xyz || '[]') == '[]' }}
+          echo 6. ${{ '' + toJSON(fromJSON(needs.prepare.outputs.value).xyz || '[]') == '[]' }}
 
   test-1:
-    if: "toJSON(fromJSON(needs.prepare.outputs.value).abc || '[]') == '[]'"
+    if: "'' + toJSON(fromJSON(needs.prepare.outputs.value).abc || '[]') == '[]'"
     name: Test 1
     needs: prepare
     runs-on: ubuntu-latest
@@ -42,7 +42,7 @@ jobs:
       - run: echo OK
 
   test-2:
-    if: "toJSON(fromJSON(needs.prepare.outputs.value).xyz || '[]') == '[]'"
+    if: "'' + toJSON(fromJSON(needs.prepare.outputs.value).xyz || '[]') == '[]'"
     name: Test 2
     needs: prepare
     runs-on: ubuntu-latest
