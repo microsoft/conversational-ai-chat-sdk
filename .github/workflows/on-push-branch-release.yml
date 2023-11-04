@@ -430,9 +430,6 @@ jobs:
     needs:
       - pull-request-prepare
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include: ${{ fromJSON(needs.prepare.outputs.matrix).packagesToNPM }}
 
     steps:
       - uses: actions/checkout@v4
