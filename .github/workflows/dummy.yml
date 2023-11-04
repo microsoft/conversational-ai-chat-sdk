@@ -1,0 +1,43 @@
+name: 'Dummy'
+
+on:
+  push:
+    branches:
+      - main
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  branch: '{"abc":[1, true]}'
+
+# Disable all permissions and explicitly specific in the job.
+permissions: {}
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo 1. ${{ env.branch }}
+          echo 2. ${{ toJSON(fromJSON(env.branch)) }}
+          echo 3. ${{ toJSON(fromJSON(env.branch).abc) }}
+          echo 4. ${{ toJSON(fromJSON(env.branch).xyz) }}
+          echo 5. ${{ toJSON(fromJSON(env.branch).xyz || '[]') }}
+          echo 6. ${{ toJSON(fromJSON(env.branch).xyz || '[]') == '[]' }}
+
+  test-1:
+    if: ${{ toJSON(fromJSON(env.branch).abc || '[]') == '[]' }}
+    name: Test 1
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo OK
+
+  test-2:
+    if: ${{ toJSON(fromJSON(env.branch).xyz || '[]') == '[]' }}
+    name: Test 2
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo OK
