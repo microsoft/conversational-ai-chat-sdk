@@ -299,7 +299,7 @@ jobs:
     needs:
       - github-pages-deployment
       # - github-release-publish
-      - npm-publish
+      - npm-publishing
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
