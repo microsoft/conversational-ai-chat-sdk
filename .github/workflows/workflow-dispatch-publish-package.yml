@@ -56,9 +56,6 @@ jobs:
       # This will speed up secure feed setup significantly as it don't need to patch package-lock.json.
       # But we also need to be super careful we don't run any NPM commands that would fetch the registry. We are insecure here.
       - uses: actions/checkout@v4
-        with:
-          # ssh-key: ${{ secrets.SSH_DEPLOY_KEY }}
-          token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
 
       - id: path
         uses: ./.github/actions/look-up-package-path
