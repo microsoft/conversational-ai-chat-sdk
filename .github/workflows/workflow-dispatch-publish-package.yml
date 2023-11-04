@@ -97,6 +97,7 @@ jobs:
   approval:
     environment: owner-approval
     needs: prepare
+    runs-on: ubuntu-latest
     steps:
       # GitHub Workflow requires at least one step.
       - name: Summary
