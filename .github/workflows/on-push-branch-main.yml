@@ -28,13 +28,35 @@ defaults:
     shell: bash
 
 env:
+  branch: bot/release/${{ github.ref_name }}/${{ github.run_number }}
   node-version: lts/Iron
 
+# Disable all permissions and explicitly specific in the job.
+permissions: {}
+
 jobs:
+  prepare:
+    name: Prepare
+    outputs:
+      short-commitish: ${{ steps.set-outputs.outputs.short-commitish }}
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: set-outputs
+        name: Set outputs
+        run: |
+          # The short commitish is at the root because the package can be influenced by /package-lock.json too.
+          # Example: short_commitish=0bf2b81
+          short_commitish=$(git log --pretty=format:'%h' -1)
+          echo short_commitish=$short_commitish | tee --append $GITHUB_OUTPUTS
+
   create-branch:
     environment:
       name: owner
-      url: ${{ steps.environment.outputs.url }}
+      url: ${{ github.server_url }}/${{ github.repository }}/tree/${{ env.branch }}
     name: Create release branch
     runs-on: ubuntu-latest
     steps:
@@ -42,40 +64,22 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.node-version }}
+
       - if: '!inputs.skip-secure-feed'
         name: Set up secure feed
         run: npx https://aka.ms/EnableSecureFeed
+
       - run: npm install --global --ignore-scripts semver@latest # Ignore scripts to prevent malicious scripts.
+
       # We intentionally checkout after enable secure feed.
       # This will speed up secure feed setup significantly as it don't need to patch package-lock.json.
       # But we also need to be super careful we don't run any NPM commands that would fetch the registry. We are insecure here.
       - uses: actions/checkout@v4
         with:
-          ssh-key: ${{ secrets.SSH_DEPLOY_KEY }}
-      - id: environment
-        name: Prepare environment
-        run: |
-          # Example: source_branch=main
-          source_branch=$(git branch --show-current)
-          echo source_branch=$source_branch | tee --append $GITHUB_ENV
+          fetch-depth: 0
+          # ssh-key: ${{ secrets.SSH_DEPLOY_KEY }}
+          token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
 
-          # The short commitish is at the root because the package can be influenced by /package-lock.json too.
-          # Example: short_commitish=0bf2b81
-          short_commitish=$(git log --pretty=format:'%h' -1)
-          echo short_commitish=$short_commitish | tee --append $GITHUB_ENV
-
-          # Example: target_branch=bot/release/main/0bf2b81
-          target_branch=bot/release/$source_branch/$short_commitish
-          echo target_branch=$target_branch | tee --append $GITHUB_ENV
-
-          # Example: https://github.com/compulim/conversational-ai-chat-sdk/tree/bot/release/main/0bf2b81
-          echo url=${{ github.server_url }}/${{ github.repository }}/tree/$target_branch | tee --append $GITHUB_OUTPUT
-      - name: Configure Git
-        run: |
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
-          git config user.name "@${{ github.actor }}"
-      - name: Create branch
-        run: git checkout -b ${{ env.target_branch }}
       - name: Bump version
         run: |
           for path in $(cat ./package.json | jq -cr '.workspaces | .[]')
@@ -93,23 +97,39 @@ jobs:
             # Example: current_version=0.0.0-0
             current_version=$(jq -r '.version' ./$path/package.json)
 
+            # We need to use "semver" instead of "npm version" because "semver" can omit prerelease number ("-n false").
             # Example: propose_version=0.0.0-main.20230815-110805.0bf2b81
-            propose_version=$(npm exec --offline -- semver --increment prerelease -n false --preid $source_branch.$committer_date.$short_commitish $current_version)
+            propose_version=$(npm exec --offline -- semver --increment prerelease -n false --preid ${{ github.ref_name }}.$committer_date.$short_commitish $current_version)
 
             npm version --no-git-tag-version --package-lock-only --workspace=$name $propose_version
+
+            # Stage package.json
             git add ./$path/package.json
 
             cat ./$path/package.json
 
             echo ::endgroup::
           done
-      - uses: ./.github/actions/build-matrix-file
-      - name: Stage matrix.json
-        run: git add ./matrix.json
+
       - name: Stage package-lock.json
         run: git add ./package-lock.json
+
+      - uses: ./.github/actions/build-matrix-file
+
+      - name: Stage matrix.json
+        run: git add ./matrix.json
+
+      - name: Configure Git
+        run: |
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git config user.name "@${{ github.actor }}"
+
+      - name: Create branch
+        run: git checkout -b ${{ env.branch }}
+
       - name: Commit
-        run: git commit --message "Create release for refs/heads/${{ env.source_branch }} of commit ${{ env.short_commitish }}"
+        run: git commit --message="Development release for ${{ github.ref }} with commit ${{ env.short_commitish }}"
+
       - if: '!inputs.dry-run'
         name: Push
-        run: git push --set-upstream origin ${{ env.target_branch }}
+        run: git push --set-upstream origin ${{ env.branch }}
