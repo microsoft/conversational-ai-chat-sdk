@@ -15,7 +15,7 @@ permissions: {}
 jobs:
   prepare:
     outputs:
-      value: '{"abc":[1, true]}'
+      value: '{"abc":[1, true], "def": []}'
     runs-on: ubuntu-latest
     steps:
       - run: echo OK
@@ -35,7 +35,7 @@ jobs:
           echo 7. ${{ format('{0}', toJSON(fromJSON(needs.prepare.outputs.value).xyz || fromJSON('[]'))) == '[]' }}
 
   test-1:
-    if: "format('{0}', toJSON(fromJSON(needs.prepare.outputs.value).abc) || '[]') == '[]'"
+    if: "toJSON(fromJSON(needs.prepare.outputs.value).abc || fromJSON('[]')) == '[]'"
     name: Test 1
     needs: prepare
     runs-on: ubuntu-latest
@@ -43,8 +43,16 @@ jobs:
       - run: echo OK
 
   test-2:
-    if: "format('{0}', toJSON(fromJSON(needs.prepare.outputs.value).xyz) || '[]') == '[]'"
+    if: "toJSON(fromJSON(needs.prepare.outputs.value).def || fromJSON('[]')) == '[]'"
     name: Test 2
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo OK
+
+  test-3:
+    if: "toJSON(fromJSON(needs.prepare.outputs.value).xyz || fromJSON('[]')) == '[]'"
+    name: Test 3
     needs: prepare
     runs-on: ubuntu-latest
     steps:
