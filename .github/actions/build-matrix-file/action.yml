@@ -73,7 +73,7 @@ runs:
             --argfile matrixJSON ./matrix.json \
             -n \
             -r \
-            '$matrixJSON | .packageToGitHubRelease += ($matrixJSON.packages | map(select(.name == $name)))' \
+            '$matrixJSON | .packagesToGitHubRelease += ($matrixJSON.packages | map(select(.name == $name)))' \
             | tee ./matrix.tmp.json
 
           mv ./matrix.tmp.json ./matrix.json
