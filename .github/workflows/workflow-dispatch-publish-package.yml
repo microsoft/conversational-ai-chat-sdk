@@ -33,7 +33,7 @@ permissions: {}
 
 jobs:
   prepare:
-    name: Approval
+    name: Prepare
     outputs:
       path: ${{ steps.path.outputs.path }}
       version: ${{ steps.version.outputs.version }}
@@ -70,14 +70,14 @@ jobs:
 
       - id: published-version
         name: Get current released version from NPM
-        run: echo version=$(npm get --json ${{ inputs.name }} | jq -r '.version') | tee --append $GITHUB_OUTPUT
+        run: echo version=$(npm view --json ${{ inputs.name }} | jq -r '.version') | tee --append $GITHUB_OUTPUT
 
       - id: version
         name: Compute production version
         run: |
           current_version=$(cat ${{ steps.path.outputs.path }}/package.json | jq -r '.version')
 
-          version=$(npx \
+          echo version=$(npx \
             --offline \
             --workspace=${{ inputs.name }} \
             semver \
@@ -98,6 +98,7 @@ jobs:
 
   approval:
     environment: owner-approval
+    name: Approval
     needs: prepare
     runs-on: ubuntu-latest
     steps:
