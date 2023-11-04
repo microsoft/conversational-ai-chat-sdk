@@ -294,7 +294,7 @@ jobs:
       - name: Print package.json
         run: tar --extract --file=.tmp/tarball/${{ matrix.tarball }} --to-stdout package/package.json
       - id: has-published
-        name: Checks if ${{ matrix.name }}@${{ matrix.version }} is already published
+        name: Checks if ${{ format('{0}@{1}', matrix.name, matrix.version) }} is already published
         uses: ./.github/actions/check-if-package-has-published
         with:
           name: ${{ matrix.name }}
@@ -302,7 +302,7 @@ jobs:
       - env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         if: '!steps.has-published.outputs.published && !inputs.dry-run'
-        name: Publish ${{ matrix.name }}@${{ matrix.version }}
+        name: Publish ${{ format('{0}@{1}', matrix.name, matrix.version) }}
         # TODO: Remove "echo".
         run: echo npm publish --json .tmp/tarball/${{ matrix.tarball }} --provenance
 
