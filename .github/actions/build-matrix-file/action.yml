@@ -68,8 +68,6 @@ runs:
 
           echo ::endgroup::
         done
-
-        cat ./matrix.json
       shell: bash
 
     - name: Build packages to publish to GitHub Release
@@ -90,9 +88,10 @@ runs:
 
           echo ::endgroup::
         done
-
-        cat ./matrix.json
       shell: bash
+
+    - name: Print matrix.json
+      run: cat ./matrix.json
 
     - name: 'Sanity check: matrix should list all workspaces'
       run: |
