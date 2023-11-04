@@ -206,6 +206,11 @@ jobs:
   #   environment:
   #     name: github-release
   #     url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.tag }}
+  #   # Skip publishing to NPM on forks.
+  #   # TODO: Remove this. We are commenting out for testing.
+  #   # if: github.repository_owner == 'microsoft'
+  #   # Do not run if there are nothing to publish.
+  #   if: fromJSON(needs.prepare.outputs.matrix).packagesToGitHubRelease.length
   #   name: Create release (${{ matrix.name }}@${{ matrix.production-version }})
   #   needs:
   #     - build
@@ -252,9 +257,13 @@ jobs:
       name: npm-publish
       # Example: https://npmjs.com/package/powerva-chat-adapter/v/0.0.0-0
       url: https://npmjs.com/package/${{ matrix.name }}/v/${{ matrix.version }}
+
     # Skip publishing to NPM on forks.
     # TODO: Remove this. We are commenting out for testing.
     # if: github.repository_owner == 'microsoft'
+
+    # Do not run if there are nothing to publish.
+    if: fromJSON(needs.prepare.outputs.matrix).packagesToNPM.length
     name: 'NPM: publish ${{ matrix.name }}@${{ matrix.version }}'
     needs:
       - build
