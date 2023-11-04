@@ -25,7 +25,6 @@ defaults:
     shell: bash
 
 env:
-  need-pull-request: ${{ startsWith(github.ref_name, 'bot/release/production/') }}
   node-version: lts/Iron # Node.js 20
   skip-secure-feed: true
 
@@ -313,7 +312,7 @@ jobs:
 
   delete-development-branch:
     environment: admin
-    if: "!env.need-pull-request && github.event_name != 'workflow_dispatch'"
+    if: "!startsWith(github.ref_name, 'bot/release/production/') && github.event_name != 'workflow_dispatch'"
     name: Delete development branch
     needs:
       - github-pages-deployment
@@ -339,7 +338,7 @@ jobs:
       # - workflows: write // PR may contains changes to workflow file
       name: owner
       url: ${{ steps.create-pull-request.outputs.url }}
-    if: env.need-pull-request
+    if: startsWith(github.ref_name, 'bot/release/production/')
     name: "Pull request: ${{ format('{0}@{1}', matrix.name, matrix.version) }}"
     needs:
       - github-pages-deployment
@@ -422,7 +421,7 @@ jobs:
       # - workflows: write // PR may contains changes to workflow file
       name: owner
       url: ${{ steps.create-pull-request.outputs.url }}
-    if: env.need-pull-request
+    if: startsWith(github.ref_name, 'bot/release/production/')
     name: "Pull request: ${{ format('{0}@{1}', matrix.name, matrix.version) }}"
     needs:
       - pull-request-prepare
