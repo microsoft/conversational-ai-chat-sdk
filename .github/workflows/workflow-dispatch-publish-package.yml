@@ -1,0 +1,281 @@
+name: 'On-demand: Create production release'
+run-name: 'Production release: "${{ inputs.name }}"'
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        default: false
+        description: Dry run
+        required: true
+        type: boolean
+      # In pull-request-validation.yml, we enforce that the package name must equals to the package path.
+      name:
+        description: Package name
+        options:
+          - powerva-chat-adapter
+          - powerva-chat-adapter-test-util
+          - powerva-turn-based-chat-adapter-framework
+        required: true
+        type: choice
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  branch: format('bot/release/production/{0}', github.run_id)
+  node-version: lts/Iron
+
+# Disable all permissions and explicitly specific in the job.
+permissions: {}
+
+jobs:
+  prepare:
+    name: Approval
+    outputs:
+      path: ${{ steps.path.outputs.path }}
+      version: ${{ steps.version.outputs.version }}
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Node.js ${{ env.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.node-version }}
+
+      - if: '!inputs.skip-secure-feed'
+        name: Set up secure feed
+        run: npx https://aka.ms/EnableSecureFeed
+
+      - run: npm install --global --ignore-scripts semver@latest # Ignore scripts to prevent malicious scripts.
+
+      # We intentionally checkout after enable secure feed.
+      # This will speed up secure feed setup significantly as it don't need to patch package-lock.json.
+      # But we also need to be super careful we don't run any NPM commands that would fetch the registry. We are insecure here.
+      - uses: actions/checkout@v4
+        with:
+          # ssh-key: ${{ secrets.SSH_DEPLOY_KEY }}
+          ssh-key: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
+
+      - id: path
+        uses: ./.github/actions/look-up-package-path
+
+      - name: Print package.json
+        run: cat ${{ steps.path.outputs.path }}/package.json | jq
+
+      - id: published-version
+        name: Get current released version from NPM
+        run: echo version=$(npm get --json ${{ inputs.name }} | jq -r '.version') | tee --append $GITHUB_OUTPUTS
+
+      - id: version
+        name: Compute production version
+        run: |
+          current_version=$(cat ${{ steps.path.outputs.path }}/package.json | jq -r '.version')
+
+          version=$(npx \
+            --offline \
+            --workspace=${{ inputs.name }} \
+            semver \
+            --no-git \
+            --increment patch $current_version) \
+            | tee --append $GITHUB_OUTPUT
+
+      - name: Print unreleased CHANGELOG
+        run: 'echo To be implemented.'
+
+      - name: Summary
+        run: |
+          echo Current published version on NPM is ${{ inputs.name }}@${{ steps.published-version.outputs.version }} | tee --append $GITHUB_STEP_SUMMARY
+          echo | tee --append $GITHUB_STEP_SUMMARY
+          echo This workflow will release ${{ inputs.name }}@${{ steps.version.outputs.version }}. | tee --append $GITHUB_STEP_SUMMARY
+
+  approval:
+    environment: owner-approval
+    needs: prepare
+    steps:
+      # GitHub Workflow requires at least one step.
+      - name: Summary
+        run: echo Approved.
+
+  release-branch:
+    env:
+      path: ${{ needs.prepare.outputs.path }}
+      version: ${{ needs.prepare.outputs.version }}
+    environment:
+      name: owner
+      url: ${{ github.server_url }}/${{ github.repository }}/tree/${{ env.branch }}
+    name: Create release branch
+    needs:
+      - approval
+      - prepare
+    outputs:
+      branch: ${{ env.branch }}
+      version: ${{ steps.version.outputs.version }}
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Node.js ${{ env.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.node-version }}
+
+      - if: '!inputs.skip-secure-feed'
+        name: Set up secure feed
+        run: npx https://aka.ms/EnableSecureFeed
+
+      - run: npm install --global --ignore-scripts keep-a-changelog@latest # Ignore scripts to prevent malicious scripts.
+
+      # We intentionally checkout after enable secure feed.
+      # This will speed up secure feed setup significantly as it don't need to patch package-lock.json.
+      # But we also need to be super careful we don't run any NPM commands that would fetch the registry. We are insecure here.
+      - uses: actions/checkout@v4
+        with:
+          # ssh-key: ${{ secrets.SSH_DEPLOY_KEY }}
+          ssh-key: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
+
+      - name: Configure Git
+        run: |
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git config user.name "@${{ github.actor }}"
+
+      - id: version
+        name: Bump version ${{ inputs.name }}@${{ env.version }}
+        run: npm version --no-git-tag-version --package-lock-only --workspace=${{ inputs.name }} ${{ env.version }}
+
+      - name: Print package.json
+        run: cat ${{ env.path }}/package.json | jq -r
+
+      - name: Stage package-lock.json
+        run: git add ./package-lock.json
+
+      - name: Bump CHANGELOG.md to ${{ env.version }}
+        # We installed keep-a-changelog from secure feed, make sure we run offline and don't install another one.
+        run: |
+          npx \
+            --offline \
+            --workspace=${{ inputs.name }} \
+            keep-a-changelog \
+            --file="./CHANGELOG.md" \
+            --format=markdownlint \
+            --release="${{ env.version }}" \
+            --url="${{ github.server_url }}/${{ github.repository }}" || true
+
+      - name: Stage CHANGELOG.md
+        run: git add ${{ env.path }}/CHANGELOG.md
+
+      - uses: ./.github/actions/build-matrix-file
+
+      - name: Stage matrix.json
+        run: git add ./matrix.json
+
+      - name: Create branch
+        run: git checkout -b ${{ env.branch }}
+
+      - name: Commit
+        run: git commit --message "Create production release for ${{ inputs.name }}@${{ env.version }}"
+
+      - if: '!inputs.dry-run'
+        name: Push
+        run: git push --set-upstream origin ${{ env.branch }}
+
+  pull-request:
+    continue-on-error: true
+    env:
+      path: ${{ needs.prepare.outputs.path }}
+      version: ${{ needs.prepare.outputs.version }}
+    environment:
+      # This environment need:
+      # - pull-request: write
+      # - workflows: write // PR may contains changes to workflow file
+      name: owner
+      url: ${{ steps.create-pull-request.outputs.url }}
+    name: Create pull request
+    needs:
+      - approval
+      - prepare
+      - release-branch
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Node.js ${{ env.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.node-version }}
+
+      - if: '!inputs.skip-secure-feed'
+        name: Set up secure feed
+        run: npx https://aka.ms/EnableSecureFeed
+
+      - run: npm install --global --ignore-scripts keep-a-changelog@latest # Ignore scripts to prevent malicious scripts.
+
+      # We intentionally checkout after enable secure feed.
+      # This will speed up secure feed setup significantly as it don't need to patch package-lock.json.
+      # But we also need to be super careful we don't run any NPM commands that would fetch the registry. We are insecure here.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.branch }}
+          token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
+
+      - name: Configure Git
+        run: |
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git config user.name "@${{ github.actor }}"
+
+      - name: Add unreleased to CHANGELOG.md
+        # We installed keep-a-changelog from secure feed, make sure we run offline and don't install another one.
+        run: |
+          npx \
+            --offline
+            --workspace=${{ inputs.name }}
+            keep-a-changelog \
+            --create \
+            --file="CHANGELOG.md" \
+            --format=markdownlint \
+            --url="${{ github.server_url }}/${{ github.repository }}" || true
+
+      - name: Stage CHANGELOG.md
+        run: git add ${{ env.path }}/CHANGELOG.md
+
+      - id: version
+        name: Bump version for package "${{ inputs.name }}"
+        run: npm version --no-git-tag-version --package-lock-only --workspace=${{ inputs.name }} prepatch
+
+      - name: Print package.json
+        run: cat ${{ env.path }}/package.json | jq -r
+
+      - name: Stage package.json
+        run: git add ${{ env.path }}/package.json
+
+      - name: Stage package-lock.json
+        run: git add package-lock.json
+
+      - name: Create branch
+        run: git checkout -b ${{ env.branch-name }}
+
+      - name: Commit branch
+        run: git commit --message="Bump after production release of ${{ inputs.name }}@${{ env.version }}"
+
+      - env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
+        if: '!inputs.dry-run'
+        name: Push branch
+        run: git push --set-upstream origin ${{ env.branch-name }}
+
+      - env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
+        id: create-pull-request
+        if: '!inputs.dry-run'
+        name: Create pull request
+        # TODO: Add "bot" label
+        run: |
+          echo url=$(gh pr create \
+            --assignee @me \
+            --body "> [Workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})." \
+            --fill \
+            --repo ${{ github.repository }} \
+          ) | tee --append $GITHUB_OUTPUT
