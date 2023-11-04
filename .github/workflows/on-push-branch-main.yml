@@ -27,7 +27,7 @@ defaults:
     shell: bash
 
 env:
-  branch: bot/release/${{ github.ref_name }}/${{ github.run_number }}
+  branch: format('bot/release/{0}/{1}', github.ref_name, github.run_number) }}
   node-version: lts/Iron
 
 # Disable all permissions and explicitly specific in the job.
@@ -59,7 +59,7 @@ jobs:
       short_commitish: ${{ needs.prepare.outputs.short_commitish }}
     environment:
       name: owner
-      url: ${{ github.server_url }}/${{ github.repository }}/tree/${{ env.branch }}
+      url: ${{ format('{0}/{1}/tree/{2}', github.server_url, github.repository, env.branch) }}
     name: Create release branch
     needs: prepare
     runs-on: ubuntu-latest

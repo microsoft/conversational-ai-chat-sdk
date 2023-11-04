@@ -205,10 +205,10 @@ jobs:
 
   github-release-publish:
     env:
-      tag: release/${{ matrix.name }}/v${{ matrix.version }}
+      tag: ${{ format('release/{0}/v{1}', matrix.name, matrix.version) }}
     environment:
       name: github-release
-      url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.tag }}
+      url: ${{ format('{0}/{1}/releases/tag/{2}', github.server_url, github.repository, env.tag) }}
     # Skip publishing to NPM on forks.
     # TODO: Remove this. We are commenting out for testing.
     # if: github.repository_owner == 'microsoft'
@@ -254,15 +254,15 @@ jobs:
           gh release create \
             ${{ env.tag }} \
             ${{ matrix.tarball }} \
-            --notes "> [Workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" \
-            --title "${{ matrix.name }}@${{ matrix.version }} - $date" \
-            --repo ${{ github.server_url }}/${{ github.repository }}
+            --notes "> [Workflow run](${{ format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) }})" \
+            --title "${{ format('{0}@{1}', matrix.name, matrix.version) }} - $date" \
+            --repo ${{ format('{0}/{1}', github.server_url, github.repository) }}
 
   npm-publishing:
     environment:
       name: npm-publish
       # Example: https://npmjs.com/package/powerva-chat-adapter/v/0.0.0-0
-      url: https://npmjs.com/package/${{ matrix.name }}/v/${{ matrix.version }}
+      url: ${{ format('https://npmjs.com/package/{0}/v/{1}', matrix.name, matrix.version) }}
 
     # Skip publishing to NPM on forks.
     # TODO: Remove this. We are commenting out for testing.
