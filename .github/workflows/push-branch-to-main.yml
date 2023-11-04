@@ -9,18 +9,7 @@ on:
       - '.azdo/**'
       - '.devcontainer/**'
       - '.github/**'
-  workflow_dispatch:
-    inputs:
-      dry-run:
-        default: false
-        description: Dry run
-        required: true
-        type: boolean
-      skip-secure-feed:
-        default: true # TODO: Turn this off.
-        description: Skip secure feed (only for development)
-        required: true
-        type: boolean
+  workflow_dispatch: {}
 
 defaults:
   run:
@@ -28,7 +17,9 @@ defaults:
 
 env:
   branch: ${{ format('bot/release/{0}/{1}', github.ref_name, github.run_number) }}
-  node-version: lts/Iron
+  dry-run: false
+  node-version: lts/Iron # Node.js 20
+  skip-secure-feed: true # TODO: Turn this off.
 
 # Disable all permissions and explicitly specific in the job.
 permissions: {}
@@ -69,7 +60,7 @@ jobs:
         with:
           node-version: ${{ env.node-version }}
 
-      - if: '!inputs.skip-secure-feed'
+      - if: '!env.skip-secure-feed'
         name: Set up secure feed
         run: npx https://aka.ms/EnableSecureFeed
 
@@ -161,6 +152,6 @@ jobs:
       - name: Commit
         run: git commit --message="Development release for ${{ github.ref }} with commit ${{ env.short_commitish }}"
 
-      - if: '!inputs.dry-run'
+      - if: '!env.dry-run'
         name: Push
         run: git push --set-upstream origin ${{ env.branch }}

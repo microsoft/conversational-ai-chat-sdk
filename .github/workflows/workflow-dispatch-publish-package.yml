@@ -4,11 +4,6 @@ run-name: 'Production release: ${{ inputs.name }}'
 on:
   workflow_dispatch:
     inputs:
-      dry-run:
-        default: false
-        description: Dry run
-        required: true
-        type: boolean
       # In pull-request-validation.yml, we enforce that the package name must equals to the package path.
       name:
         description: Package name
@@ -24,9 +19,11 @@ defaults:
     shell: bash
 
 env:
+  dry-run: false
   node-version: lts/Iron
   pull_request_branch: ${{ format('bot/bump-after-release/{0}', github.run_number) }}
   release_branch: ${{ format('bot/release/production/{0}', github.run_number) }}
+  skip-secure-feed: true # TODO: Turn this off.
 
 # Disable all permissions and explicitly specific in the job.
 permissions: {}
@@ -46,7 +43,7 @@ jobs:
         with:
           node-version: ${{ env.node-version }}
 
-      - if: '!inputs.skip-secure-feed'
+      - if: '!env.skip-secure-feed'
         name: Set up secure feed
         run: npx https://aka.ms/EnableSecureFeed
 
@@ -123,7 +120,7 @@ jobs:
         with:
           node-version: ${{ env.node-version }}
 
-      - if: '!inputs.skip-secure-feed'
+      - if: '!env.skip-secure-feed'
         name: Set up secure feed
         run: npx https://aka.ms/EnableSecureFeed
 
@@ -185,6 +182,6 @@ jobs:
       - name: Commit to branch
         run: git commit --message "Create production release for ${{ format('{0}@{1}', inputs.name, env.version) }}"
 
-      - if: '!inputs.dry-run'
+      - if: '!env.dry-run'
         name: Push branch
         run: git push --set-upstream origin ${{ env.release_branch }}

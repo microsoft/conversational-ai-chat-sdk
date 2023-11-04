@@ -15,7 +15,7 @@ defaults:
 env:
   dry-run: false
   node-version: lts/Iron # Node.js 20
-  skip-secure-feed: true
+  skip-secure-feed: true # TODO: Turn this off.
 
 # Disable all permissions and explicitly specific in the job.
 permissions: {}
