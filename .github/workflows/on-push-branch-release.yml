@@ -419,6 +419,7 @@ jobs:
         run: git push
 
   pull-request-complete:
+    concurrency: pull-request-prepare/${{ github.run_id }}
     continue-on-error: true
     environment:
       # This environment need:
