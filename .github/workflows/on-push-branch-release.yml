@@ -223,7 +223,8 @@ jobs:
       contents: write # Required for creating release
     runs-on: ubuntu-latest
     strategy:
-      matrix: ${{ fromJSON(needs.prepare.outputs.matrix).packagesToGitHubRelease }}
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.matrix).packagesToGitHubRelease }}
 
     steps:
       - name: Download tarball artifact
