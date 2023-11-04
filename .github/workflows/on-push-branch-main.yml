@@ -54,10 +54,13 @@ jobs:
           echo short_commitish=$short_commitish | tee --append $GITHUB_OUTPUTS
 
   create-branch:
+    env:
+      short_commitish: ${{ needs.prepare.outputs.short_commitish }}
     environment:
       name: owner
       url: ${{ github.server_url }}/${{ github.repository }}/tree/${{ env.branch }}
     name: Create release branch
+    needs: prepare
     runs-on: ubuntu-latest
     steps:
       - name: Set up Node.js ${{ env.node-version }}
