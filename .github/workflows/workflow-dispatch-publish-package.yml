@@ -109,7 +109,7 @@ jobs:
       version: ${{ needs.prepare.outputs.version }}
     environment:
       name: owner
-      url: ${{ format('{0}/{1}/tree/{2}', github.server_url, github.repository, env.release_branch }}
+      url: ${{ format('{0}/{1}/tree/{2}', github.server_url, github.repository, env.release_branch) }}
     name: Create release branch
     needs:
       - approval
