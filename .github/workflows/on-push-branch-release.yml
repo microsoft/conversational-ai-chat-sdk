@@ -230,7 +230,7 @@ jobs:
       - name: Download tarball artifact
         uses: actions/download-artifact@v3
         with:
-          name: tarball
+          name: packages
 
       - # We need to use "gh api" to create a tag/ref, instead of "git push" tag.
         # This is because, if last commit was modifying workflow, it will fail with permission issues.
@@ -280,7 +280,7 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.prepare.outputs.matrix).packagesToNPM }}
     steps:
-      - uses: actions/checkout@v3
+      # - uses: actions/checkout@v3
       - name: Download packages
         uses: actions/download-artifact@v3
         with:
