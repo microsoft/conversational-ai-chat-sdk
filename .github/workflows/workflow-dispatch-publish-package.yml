@@ -24,8 +24,9 @@ defaults:
     shell: bash
 
 env:
-  branch: ${{ format('bot/release/production/{0}', github.run_number) }}
   node-version: lts/Iron
+  pull_request_branch: ${{ format('bot/bump-after-release/{0}', github.run_number) }}
+  release_branch: ${{ format('bot/release/production/{0}', github.run_number) }}
 
 # Disable all permissions and explicitly specific in the job.
 permissions: {}
@@ -108,14 +109,11 @@ jobs:
       version: ${{ needs.prepare.outputs.version }}
     environment:
       name: owner
-      url: ${{ github.server_url }}/${{ github.repository }}/tree/${{ env.branch }}
+      url: ${{ format('{0}/{1}/tree/{2}', github.server_url, github.repository, env.release_branch }}
     name: Create release branch
     needs:
       - approval
       - prepare
-    outputs:
-      branch: ${{ env.branch }}
-      version: ${{ steps.version.outputs.version }}
     permissions:
       contents: read
     runs-on: ubuntu-latest
@@ -183,14 +181,14 @@ jobs:
         run: git add ./matrix.json
 
       - name: Create branch
-        run: git checkout -b ${{ env.branch }}
+        run: git checkout -b ${{ env.release_branch }}
 
-      - name: Commit
+      - name: Commit to branch
         run: git commit --message "Create production release for ${{ inputs.name }}@${{ env.version }}"
 
       - if: '!inputs.dry-run'
-        name: Push
-        run: git push --set-upstream origin ${{ env.branch }}
+        name: Push branch
+        run: git push --set-upstream origin ${{ env.release_branch }}
 
   pull-request:
     continue-on-error: true
@@ -227,7 +225,7 @@ jobs:
       # But we also need to be super careful we don't run any NPM commands that would fetch the registry. We are insecure here.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.branch }}
+          ref: ${{ env.release_branch }}
           # ssh-key: ${{ secrets.SSH_DEPLOY_KEY }}
           token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
 
@@ -267,16 +265,16 @@ jobs:
         run: git add package-lock.json
 
       - name: Create branch
-        run: git checkout -b ${{ env.branch-name }}
+        run: git checkout -b ${{ env.pull_request_branch }}
 
-      - name: Commit branch
+      - name: Commit to branch
         run: git commit --message="Bump after production release of ${{ inputs.name }}@${{ env.version }}"
 
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
         if: '!inputs.dry-run'
         name: Push branch
-        run: git push --set-upstream origin ${{ env.branch-name }}
+        run: git push --set-upstream origin ${{ env.pull_request_branch }}
 
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
