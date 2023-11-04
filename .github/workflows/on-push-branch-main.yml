@@ -27,7 +27,7 @@ defaults:
     shell: bash
 
 env:
-  branch: format('bot/release/{0}/{1}', github.ref_name, github.run_number) }}
+  branch: ${{ format('bot/release/{0}/{1}', github.ref_name, github.run_number) }}
   node-version: lts/Iron
 
 # Disable all permissions and explicitly specific in the job.
