@@ -4,6 +4,7 @@ inputs:
   publishingPackages:
     description: Packages to publish, each separated by a newline.
     required: false
+    type: string
   publishToGitHubRelease:
     default: false
     description: Publish to GitHub Release.
