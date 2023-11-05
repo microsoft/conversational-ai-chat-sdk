@@ -220,7 +220,8 @@ jobs:
       - name: Propagate and reify versions
         uses: ./.github/actions/propagate-and-reify-versions
 
-      - uses: ./.github/actions/build-matrix-file
+      - name: Build and stage matrix.json
+        uses: ./.github/actions/build-matrix-file
         with:
           publishingPackages: ${{ inputs.name }}
           publishToNPM: true

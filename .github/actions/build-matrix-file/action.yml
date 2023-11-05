@@ -1,7 +1,7 @@
 name: Build matrix.json
 description: Build matrix.json from current checkout
 inputs:
-  packagesToPublish:
+  publishingPackages:
     description: Packages to publish, each separated by a newline.
     required: false
   publishToGitHubRelease:
@@ -48,7 +48,7 @@ runs:
 
     - name: Build packages to publish
       run: |
-        for name in $(echo '${{ toJSON(inputs.packagesToPublish) }}' | jq -r)
+        for name in $(echo '${{ toJSON(inputs.publishingPackages) }}' | jq -r)
         do
           echo ::group::Add $name to "publishingPackages"
 
@@ -76,14 +76,22 @@ runs:
 
     - name: Mark as publish to NPM
       run: |
+        echo ::group::Mark as publish to NPM
+
         cat ./matrix.json | jq -r '.publishToNPM = ${{ inputs.publishToNPM }}' | tee ./matrix.json.tmp
         mv ./matrix.json.tmp ./matrix.json
+
+        echo ::endgroup::
       shell: bash
 
     - name: Mark as publish to GitHub Release
       run: |
+        echo ::group::Mark as publish to GitHub Release
+
         cat ./matrix.json | jq -r '.publishToGitHubRelease = ${{ inputs.publishToGitHubRelease }}' | tee ./matrix.json.tmp
         mv ./matrix.json.tmp ./matrix.json
+
+        echo ::endgroup::
       shell: bash
 
     - name: Print matrix.json
