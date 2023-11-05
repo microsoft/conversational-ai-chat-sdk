@@ -107,7 +107,9 @@ jobs:
   #       run: echo Approved.
 
   prepare:
+    name: Prepare
     outputs:
+      json-name: ${{ steps.set-output.outputs.name }}
       name: ${{ steps.set-output.outputs.name }}
     runs-on: ubuntu-latest
     steps:
@@ -132,6 +134,8 @@ jobs:
             cat name.json | jq -r '.[]'
             echo EOF
           } | tee --append $GITHUB_OUTPUT
+
+          echo json-name=$(cat name.json | jq -cr) | tee --append $GITHUB_OUTPUT
 
   release-branch:
     environment:
@@ -187,7 +191,7 @@ jobs:
 
           git add ./package-lock.json
 
-      - name: Bump CHANGELOG
+      - name: Bump CHANGELOGs
         run: |
           for name in $(echo '${{ toJSON(needs.prepare.outputs.name) }}' | jq -r)
           do
@@ -223,7 +227,7 @@ jobs:
       - name: Build and stage matrix.json
         uses: ./.github/actions/build-matrix-file
         with:
-          publishingPackages: ${{ inputs.name }}
+          publishingPackages: ${{ need.prepare.outputs.name }}
           publishToNPM: true
           publishToGitHubRelease: true
           stage: true
@@ -240,7 +244,7 @@ jobs:
           git config user.name "@${{ github.actor }}"
 
       - name: Commit to branch
-        run: git commit --message "Create production release for ${{ format('{0}@{1}', inputs.name, env.version) }}"
+        run: git commit --message "Create production release for ${{ join(needs.prepare.outputs.json-name, ', ') }}"
 
       - name: Push branch
         run: git push --set-upstream origin ${{ env.release_branch }}
