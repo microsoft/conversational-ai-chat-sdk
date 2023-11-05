@@ -115,7 +115,7 @@ jobs:
         run: |
           [[ \
             "${{ inputs.powerva-chat-adapter }}" == "true" || \
-            "${{ inputs.powerva-chat-adapter-test-util }}" == "true" \
+            "${{ inputs.powerva-chat-adapter-test-util }}" == "true" || \
             "${{ inputs.powerva-turn-based-chat-adapter-framework }}" == "true" \
           ]]
       - id: set-output
