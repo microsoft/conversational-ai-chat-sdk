@@ -129,7 +129,7 @@ jobs:
 
           {
             echo 'name<<EOF'
-            echo $(cat name.json | jq -r '.[]')
+            cat name.json | jq -r '.[]'
             echo EOF
           } | tee --append $GITHUB_OUTPUT
 
