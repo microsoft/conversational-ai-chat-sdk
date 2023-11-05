@@ -108,7 +108,7 @@ jobs:
 
   prepare:
     outputs:
-      name: steps.set-output.outputs.name
+      name: ${{ steps.set-output.outputs.name }}
     runs-on: ubuntu-latest
     steps:
       - name: 'Sanity check: at least one package must be marked for release'
@@ -179,7 +179,7 @@ jobs:
 
             npx \
               --offline \
-              --workspace="$name" \
+              --workspace=$name \
               keep-a-changelog \
               --file="./CHANGELOG.md" \
               --format=markdownlint \
