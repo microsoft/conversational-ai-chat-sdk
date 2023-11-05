@@ -4,7 +4,8 @@ run-name: "${{ startsWith(github.ref_name, 'bot/release/production/') && format(
 on:
   push:
     branches:
-      - bot/release/**
+      - bot/release/main/*
+      - bot/release/production/*
 
 concurrency: on-push-branch-release
 
@@ -13,7 +14,7 @@ defaults:
     shell: bash
 
 env:
-  dry-run: false
+  dry-run: true
   node-version: lts/Iron # Node.js 20
   skip-secure-feed: true # TODO: Turn this off.
 
@@ -290,6 +291,8 @@ jobs:
       - name: Print package.json
         run: tar --extract --file=${{ matrix.tarball }} --to-stdout package/package.json
 
+      # Make sure the package.json/dependencies+devDependencies does not contains any prerelease.
+
       - id: has-published
         name: Checks if ${{ format('{0}@{1}', matrix.name, matrix.version) }} is already published
         uses: ./.github/actions/check-if-package-has-published
@@ -392,14 +395,12 @@ jobs:
 
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
-        if: '!env.dry-run'
         name: Push branch
         run: git push -u origin ${{ env.branch }}
 
       - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
         id: create-pull-request
-        if: '!env.dry-run'
         name: Create pull request
         # TODO: Add "bot" label
         run: |
@@ -410,7 +411,7 @@ jobs:
             --repo ${{ github.repository }} \
           ) | tee --append $GITHUB_OUTPUT
 
-  delete-development-branch:
+  delete-branch:
     environment: owner
     if: "!cancelled() && needs.github-release-publish.result != 'failure' && needs.npm-publishing.result != 'failure' && needs.pull-request-create.result != 'failure'"
     name: Delete development branch

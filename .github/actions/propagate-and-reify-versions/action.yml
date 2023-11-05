@@ -1,0 +1,80 @@
+name: Propagate and reify versions
+description:
+inputs:
+  stage:
+    default: true
+    description: Stage modified package.json
+    type: boolean
+  version-range-modifier:
+    default: '^'
+    description: Version range modifier
+    required: true
+    type: string
+
+runs:
+  using: composite
+  steps:
+    # For unknown reasons, NPM can't update other packages in the workspace and will say the previous version was not found.
+
+    # Running "npm version" will run subsequent "npm update".
+    # If running "npm update" on a package with dependency which do not have version on NPM but local workspace, it will fail.
+
+    # Repro:
+    #   1. Run "npm version prepatch --workspace=powerva-chat-adapter"
+    #   2. Do step 1 again
+    # Expect: it should not fail and will update pages/package.json to the version bumped in step 2.
+    # Actual: it fail saying powerva-chat-adapter@0.0.2-0 does not exists.
+
+    - run: |
+        for path in $(cat ./package.json | jq -r '.workspaces[]')
+        do
+          name=$(cat $path/package.json | jq -r '.name')
+          committed_version=$(cat $path/package.json | jq -r '.version')
+
+          if [[ $committed_version == '*-*' ]]
+          then
+            version=$(npm view $name --json | jq -r '.version')
+
+            echo $name@$committed_version -> $name@$version: Package is a prerelease package, using version number from NPM instead.
+          else
+            version=$committed_version
+
+            echo $name@$version: Package is a production package.
+          fi
+
+          for dependent_path in $(cat ./package.json | jq -r '.workspaces[]')
+          do
+            dependent_name=$(cat $dependent_path/package.json | jq -r '.name')
+
+            if [[ "$(cat $dependent_path/package.json | jq --arg name "$name" -r 'if (.dependencies + .devDependencies)[$name] then true else false end')" == "true" ]]
+            then
+              # We should do audit at another time, not when bumping versions.
+              npm install --no-audit --workspace=$dependent_name $name@${{ inputs.version-range-modifier }}$version
+            fi
+          done
+        done
+      shell: bash
+
+    - name: Print package.json
+      run: |
+        for path in $(cat ./package.json | jq -r '.workspaces[]')
+        do
+          name=$(cat $path/package.json | jq -r '.name')
+
+          echo ::group::$name
+          cat $path/package.json | jq -r '{ name: .name, version: .version, dependencies: .dependencies, devDependencies: .devDependencies }'
+          echo ::endgroup::
+        done
+      shell: bash
+
+    - if: inputs.stage
+      name: Stage package.json
+      run: |
+        for path in $(cat ./package.json | jq -r '.workspaces[]')
+        do
+          git add $path/package.json
+        done
+
+    - if: inputs.stage
+      name: Stage package-lock.json
+      run: git add package-lock.json

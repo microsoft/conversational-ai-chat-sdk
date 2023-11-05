@@ -1,25 +1,31 @@
 name: 'On-demand: Create production release'
-run-name: 'Production release: ${{ inputs.name }}'
+run-name: "Production release"
 
 on:
   workflow_dispatch:
     inputs:
-      # In pull-request-validation.yml, we enforce that the package name must equals to the package path.
-      name:
-        description: Package name
-        options:
-          - powerva-chat-adapter
-          - powerva-chat-adapter-test-util
-          - powerva-turn-based-chat-adapter-framework
+      # Until GitHub Workflow supports checkboxes, we need to do this.
+      powerva-chat-adapter:
+        default: false
+        description: powerva-chat-adapter
         required: true
-        type: choice
+        type: boolean
+      powerva-chat-adapter-test-util:
+        default: false
+        description: powerva-chat-adapter-test-util
+        required: true
+        type: boolean
+      powerva-turn-based-chat-adapter-framework:
+        default: false
+        description: powerva-turn-based-chat-adapter-framework
+        required: true
+        type: boolean
 
 defaults:
   run:
     shell: bash
 
 env:
-  dry-run: false
   node-version: lts/Iron
   pull_request_branch: ${{ format('bot/bump-after-release/{0}', github.run_number) }}
   release_branch: ${{ format('bot/release/production/{0}', github.run_number) }}
@@ -29,90 +35,111 @@ env:
 permissions: {}
 
 jobs:
+  # prepare:
+  #   name: Prepare
+  #   outputs:
+  #     path: ${{ steps.path.outputs.path }}
+  #     version: ${{ steps.version.outputs.version }}
+  #   permissions:
+  #     contents: read
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Set up Node.js ${{ env.node-version }}
+  #       uses: actions/setup-node@v3
+  #       with:
+  #         node-version: ${{ env.node-version }}
+
+  #     - if: '!env.skip-secure-feed'
+  #       name: Set up secure feed
+  #       run: npx https://aka.ms/EnableSecureFeed
+
+  #     - run: npm install --global --ignore-scripts semver@latest # Ignore scripts to prevent malicious scripts.
+
+  #     # We intentionally checkout after enable secure feed.
+  #     # This will speed up secure feed setup significantly as it don't need to patch package-lock.json.
+  #     # But we also need to be super careful we don't run any NPM commands that would fetch the registry. We are insecure here.
+  #     - uses: actions/checkout@v4
+
+  #     # - id: path
+  #     #   uses: ./.github/actions/look-up-package-path
+  #     #   with:
+  #     #     name: ${{ inputs.name }}
+
+  #     - name: Print package.json
+  #       run: cat ${{ steps.path.outputs.path }}/package.json | jq
+
+  #     - id: published-version
+  #       name: Get current released version from NPM
+  #       run: echo version=$(npm view --json ${{ inputs.name }} | jq -r '.version') | tee --append $GITHUB_OUTPUT
+
+  #     - id: version
+  #       name: Compute production version
+  #       run: |
+  #         current_version=$(cat ${{ steps.path.outputs.path }}/package.json | jq -r '.version')
+
+  #         echo version=$(npx \
+  #           --offline \
+  #           --workspace=${{ inputs.name }} \
+  #           semver \
+  #           --no-git \
+  #           --increment patch $current_version) \
+  #           | tee --append $GITHUB_OUTPUT
+
+  #     - name: Print unreleased CHANGELOG
+  #       run: 'echo To be implemented.'
+
+  #     - name: Summary
+  #       run: |
+  #         {
+  #           echo 'Current published version on NPM is `${{ format('{0}@{1}', inputs.name, steps.published-version.outputs.version) }}`.'
+  #           echo
+  #           echo 'This workflow will release `${{ format('{0}@{1}', inputs.name, steps.version.outputs.version) }}`.'
+  #         } | tee --append $GITHUB_STEP_SUMMARY
+
+  # approval:
+  #   environment: approval-production
+  #   name: Approval
+  #   needs: prepare
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     # GitHub Workflow requires at least one step.
+  #     - name: Summary
+  #       run: echo Approved.
+
   prepare:
-    name: Prepare
     outputs:
-      path: ${{ steps.path.outputs.path }}
-      version: ${{ steps.version.outputs.version }}
-    permissions:
-      contents: read
+      name: steps.set-output.outputs.name
     runs-on: ubuntu-latest
     steps:
-      - name: Set up Node.js ${{ env.node-version }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ env.node-version }}
-
-      - if: '!env.skip-secure-feed'
-        name: Set up secure feed
-        run: npx https://aka.ms/EnableSecureFeed
-
-      - run: npm install --global --ignore-scripts semver@latest # Ignore scripts to prevent malicious scripts.
-
-      # We intentionally checkout after enable secure feed.
-      # This will speed up secure feed setup significantly as it don't need to patch package-lock.json.
-      # But we also need to be super careful we don't run any NPM commands that would fetch the registry. We are insecure here.
-      - uses: actions/checkout@v4
-
-      - id: path
-        uses: ./.github/actions/look-up-package-path
-        with:
-          name: ${{ inputs.name }}
-
-      - name: Print package.json
-        run: cat ${{ steps.path.outputs.path }}/package.json | jq
-
-      - id: published-version
-        name: Get current released version from NPM
-        run: echo version=$(npm view --json ${{ inputs.name }} | jq -r '.version') | tee --append $GITHUB_OUTPUT
-
-      - id: version
-        name: Compute production version
+      - name: 'Sanity check: at least one package must be marked for release'
         run: |
-          current_version=$(cat ${{ steps.path.outputs.path }}/package.json | jq -r '.version')
-
-          echo version=$(npx \
-            --offline \
-            --workspace=${{ inputs.name }} \
-            semver \
-            --no-git \
-            --increment patch $current_version) \
-            | tee --append $GITHUB_OUTPUT
-
-      - name: Print unreleased CHANGELOG
-        run: 'echo To be implemented.'
-
-      - name: Summary
+          [[ \
+            "${{ inputs.powerva-chat-adapter }}" == "true" || \
+            "${{ inputs.powerva-chat-adapter-test-util }}" == "true" \
+            "${{ inputs.powerva-turn-based-chat-adapter-framework }}" == "true" \
+          ]]
+      - id: set-output
+        name: Set outputs
         run: |
+          echo [] > name.json
+
+          [[ "${{ inputs.powerva-chat-adapter }}" == "true" ]] && cat name.json | jq -r '. + "powerva-chat-adapter"' > name.json.tmp && mv name.json.tmp name.json
+          [[ "${{ inputs.powerva-chat-adapter-test-util }}" == "true" ]] && cat name.json | jq -r '. + "powerva-chat-adapter-test-util"' > name.json.tmp && mv name.json.tmp name.json
+          [[ "${{ inputs.powerva-turn-based-chat-adapter-framework }}" == "true" ]] && cat name.json | jq -r '. + "powerva-turn-based-chat-adapter-framework"' > name.json.tmp && mv name.json.tmp name.json
+
           {
-            echo 'Current published version on NPM is `${{ format('{0}@{1}', inputs.name, steps.published-version.outputs.version) }}`.'
-            echo
-            echo 'This workflow will release `${{ format('{0}@{1}', inputs.name, steps.version.outputs.version) }}`.'
-          } | tee --append $GITHUB_STEP_SUMMARY
-
-  approval:
-    environment: approval-production
-    name: Approval
-    needs: prepare
-    runs-on: ubuntu-latest
-    steps:
-      # GitHub Workflow requires at least one step.
-      - name: Summary
-        run: echo Approved.
+            echo 'name<<EOF'
+            echo $(cat name.json | jq -r '.[]')
+            echo EOF
+          } | tee --append $GITHUB_OUTPUT
 
   release-branch:
-    env:
-      path: ${{ needs.prepare.outputs.path }}
-      version: ${{ needs.prepare.outputs.version }}
     environment:
       name: owner
       url: ${{ format('{0}/{1}/tree/{2}', github.server_url, github.repository, env.release_branch) }}
     name: Create release branch
     needs:
-      - approval
       - prepare
-    permissions:
-      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Set up Node.js ${{ env.node-version }}
@@ -133,40 +160,38 @@ jobs:
         with:
           token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
 
-      - name: Configure Git
+      - name: Bump versions
         run: |
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
-          git config user.name "@${{ github.actor }}"
+          for name in $(echo '${{ toJSON(needs.prepare.outputs.name) }}' | jq -r)
+          do
+            npm version \
+              --no-git-tag-version \
+              --no-workspaces-update \
+              --package-lock-only \
+              --workspace=$name patch
 
-      - id: version
-        uses: ./.github/actions/bump-version-in-workspace
-        with:
-          name: ${{ inputs.name }}
-          version: ${{ env.version }}
+            path=$(npm query [name=$name].workspace | jq -r .[0].path)
+            version=$(cat $path/package.json | jq -r '.version')
 
-      - name: Print package.json
-        run: cat ${{ env.path }}/package.json | jq -r
+            git add $path/package.json
 
-      - name: Stage package.json
-        run: git add ${{ env.path }}/package.json
+            echo $name@$version
 
-      - name: Stage package-lock.json
-        run: git add ./package-lock.json
+            npx \
+              --offline \
+              --workspace="$name" \
+              keep-a-changelog \
+              --file="./CHANGELOG.md" \
+              --format=markdownlint \
+              --release="$version" \
+              --url="${{ format('{0}/{1}', github.server_url, github.repository) }}" || true
 
-      - name: Bump CHANGELOG.md to ${{ env.version }}
-        # We installed keep-a-changelog from secure feed, make sure we run offline and don't install another one.
-        run: |
-          npx \
-            --offline \
-            --workspace=${{ inputs.name }} \
-            keep-a-changelog \
-            --file="./CHANGELOG.md" \
-            --format=markdownlint \
-            --release="${{ env.version }}" \
-            --url="${{ format('{0}/{1}', github.server_url, github.repository) }}" || true
+            git add $path/CHANGELOG.md
+          done
 
-      - name: Stage CHANGELOG.md
-        run: git add ${{ env.path }}/CHANGELOG.md
+          git add ./package-lock.json
+
+      - uses: ./.github/actions/propagate-and-reify-versions
 
       - uses: ./.github/actions/build-matrix-file
         with:
@@ -179,9 +204,15 @@ jobs:
       - name: Create branch
         run: git checkout -b ${{ env.release_branch }}
 
+      - name: Configure Git
+        run: |
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git config user.name "@${{ github.actor }}"
+
       - name: Commit to branch
         run: git commit --message "Create production release for ${{ format('{0}@{1}', inputs.name, env.version) }}"
 
-      - if: '!env.dry-run'
-        name: Push branch
+      - name: Push branch
         run: git push --set-upstream origin ${{ env.release_branch }}
+
+# TODO: Should run build/test to make sure versions are compatible.
