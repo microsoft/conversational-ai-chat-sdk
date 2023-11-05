@@ -93,9 +93,22 @@ jobs:
 
             # We need to use "semver" instead of "npm version" because "semver" can omit prerelease number ("-n false").
             # Example: propose_version=0.0.0-main.20230815-110805.0bf2b81
-            propose_version=$(npm exec --offline -- semver --increment prerelease -n false --preid ${{ github.ref_name }}.$committer_date.${{ env.short_commitish }} $current_version)
+            propose_version=$(\
+              npm exec \
+                --offline \
+                -- \
+                semver \
+                --increment prerelease \
+                -n false \
+                --preid ${{ github.ref_name }}.$committer_date.${{ env.short_commitish }} \
+                $current_version \
+            )
 
-            npm version --no-git-tag-version --package-lock-only --workspace=$name $propose_version
+            npm version \
+              --no-git-tag-version \
+              --no-workspace-update \
+              --package-lock-only \
+              --workspace=$name $propose_version
 
             # Stage package.json
             git add ./$path/package.json
@@ -136,7 +149,9 @@ jobs:
 
       - uses: ./.github/actions/build-matrix-file
         with:
-          publishToNPM: ${{ steps.npm-packages.outputs.json }}
+          publishingPackages: ${{ steps.npm-packages.outputs.json }}
+          publishToNPM: true
+          publishToGitHubRelease: false
 
       - name: Stage matrix.json
         run: git add ./matrix.json
