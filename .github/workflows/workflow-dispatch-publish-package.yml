@@ -191,8 +191,13 @@ jobs:
         run: |
           for name in $(echo '${{ toJSON(needs.prepare.outputs.name) }}' | jq -r)
           do
+            echo ::group::$name
+
             path=$(npm query [name="$name"] | jq -r .[0].path)
+            echo path=$path
+
             version=$(cat $path/package.json | jq -r '.version')
+            echo version=$version
 
             echo $name@$version
 
@@ -206,6 +211,8 @@ jobs:
               --url="${{ format('{0}/{1}', github.server_url, github.repository) }}" || true
 
             git add $path/CHANGELOG.md
+
+            echo ::endgroup::
           done
 
           git add ./package-lock.json
