@@ -339,7 +339,6 @@ jobs:
       - github-release-publish
       - npm-publishing
       - prepare
-      - pull-request-create
       - sanity-check
     runs-on: ubuntu-latest
 
