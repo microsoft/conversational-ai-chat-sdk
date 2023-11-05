@@ -74,7 +74,9 @@ runs:
         do
           git add $path/package.json
         done
+      shell: bash
 
     - if: inputs.stage
       name: Stage package-lock.json
       run: git add package-lock.json
+      shell: bash
