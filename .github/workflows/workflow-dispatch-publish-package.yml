@@ -217,7 +217,8 @@ jobs:
 
           git add ./package-lock.json
 
-      - uses: ./.github/actions/propagate-and-reify-versions
+      - name: Propagate and reify versions
+        uses: ./.github/actions/propagate-and-reify-versions
 
       - uses: ./.github/actions/build-matrix-file
         with:
