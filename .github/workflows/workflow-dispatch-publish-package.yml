@@ -227,7 +227,7 @@ jobs:
       - name: Build and stage matrix.json
         uses: ./.github/actions/build-matrix-file
         with:
-          publishingPackages: ${{ need.prepare.outputs.name }}
+          publishingPackages: ${{ needs.prepare.outputs.name }}
           publishToNPM: true
           publishToGitHubRelease: true
           stage: true
