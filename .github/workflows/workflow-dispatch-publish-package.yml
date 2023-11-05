@@ -227,6 +227,9 @@ jobs:
       - name: Stage matrix.json
         run: git add ./matrix.json
 
+      - name: Print changes
+        run: git status --verbose
+
       - name: Create branch
         run: git checkout -b ${{ env.release_branch }}
 
