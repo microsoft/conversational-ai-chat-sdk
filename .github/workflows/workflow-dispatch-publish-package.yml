@@ -6,12 +6,12 @@ on:
     inputs:
       # Until GitHub Workflow supports checkboxes, we need to do this.
       powerva-chat-adapter:
-        default: false
+        default: true
         description: powerva-chat-adapter
         required: true
         type: boolean
       powerva-chat-adapter-test-util:
-        default: false
+        default: true
         description: powerva-chat-adapter-test-util
         required: true
         type: boolean
@@ -123,9 +123,9 @@ jobs:
         run: |
           echo [] > name.json
 
-          [[ "${{ inputs.powerva-chat-adapter }}" == "true" ]] && cat name.json | jq -r '. + "powerva-chat-adapter"' > name.json.tmp && mv name.json.tmp name.json
-          [[ "${{ inputs.powerva-chat-adapter-test-util }}" == "true" ]] && cat name.json | jq -r '. + "powerva-chat-adapter-test-util"' > name.json.tmp && mv name.json.tmp name.json
-          [[ "${{ inputs.powerva-turn-based-chat-adapter-framework }}" == "true" ]] && cat name.json | jq -r '. + "powerva-turn-based-chat-adapter-framework"' > name.json.tmp && mv name.json.tmp name.json
+          [[ "${{ inputs.powerva-chat-adapter }}" == "true" ]] && cat name.json | jq -r '. + ["powerva-chat-adapter"]' > name.json.tmp && mv name.json.tmp name.json
+          [[ "${{ inputs.powerva-chat-adapter-test-util }}" == "true" ]] && cat name.json | jq -r '. + ["powerva-chat-adapter-test-util"]' > name.json.tmp && mv name.json.tmp name.json
+          [[ "${{ inputs.powerva-turn-based-chat-adapter-framework }}" == "true" ]] && cat name.json | jq -r '. + "powerva-turn-based-chat-adapter-framework"]' > name.json.tmp && mv name.json.tmp name.json
 
           {
             echo 'name<<EOF'
@@ -168,7 +168,7 @@ jobs:
               --no-git-tag-version \
               --no-workspaces-update \
               --package-lock-only \
-              --workspace=$name patch
+              --workspace="$name" patch
 
             path=$(npm query [name=$name].workspace | jq -r .[0].path)
             version=$(cat $path/package.json | jq -r '.version')
@@ -176,10 +176,22 @@ jobs:
             git add $path/package.json
 
             echo $name@$version
+          done
+
+          git add ./package-lock.json
+
+      - name: Bump CHANGELOG
+        run: |
+          for name in $(echo '${{ toJSON(needs.prepare.outputs.name) }}' | jq -r)
+          do
+            path=$(npm query [name=$name].workspace | jq -r .[0].path)
+            version=$(cat $path/package.json | jq -r '.version')
+
+            echo $name@$version
 
             npx \
               --offline \
-              --workspace=$name \
+              --workspace="$name" \
               keep-a-changelog \
               --file="./CHANGELOG.md" \
               --format=markdownlint \
