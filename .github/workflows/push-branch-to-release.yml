@@ -322,13 +322,25 @@ jobs:
       name: owner
       url: ${{ steps.create-pull-request.outputs.url }}
     # Creates pull request branch only for production release.
-    if: "!cancelled() && needs.github-release-publish.result != 'failure' && needs.npm-publishing.result != 'failure' && startsWith(github.ref_name, 'bot/release/production/')"
+    if: |
+      startsWith(github.ref_name, 'bot/release/production/') &&
+        !cancelled() &&
+        needs.prepare.result == 'success' &&
+        needs.build.result == 'success' &&
+        needs.sanity-check.result == 'success' &&
+        needs.github-pages-deployment.result != 'failure' &&
+        needs.github-release-publish.result != 'failure' &&
+        needs.npm-publishing.result != 'failure'
+
     name: Pull request
     needs:
+      - build
       - github-pages-deployment
       - github-release-publish
       - npm-publishing
       - prepare
+      - pull-request-create
+      - sanity-check
     runs-on: ubuntu-latest
 
     steps:
@@ -435,13 +447,24 @@ jobs:
 
   delete-branch:
     environment: owner
-    if: "!cancelled() && needs.github-release-publish.result != 'failure' && needs.npm-publishing.result != 'failure' && needs.pull-request-create.result != 'failure'"
+    if: |
+      !cancelled() &&
+        needs.prepare.result == 'success' &&
+        needs.build.result == 'success' &&
+        needs.sanity-check.result == 'success' &&
+        needs.github-pages-deployment.result != 'failure' &&
+        needs.github-release-publish.result != 'failure' &&
+        needs.npm-publishing.result != 'failure' &&
+        needs.pull-request-create.result != 'failure'
     name: Delete development branch
     needs:
+      - build
       - github-pages-deployment
       - github-release-publish
       - npm-publishing
+      - prepare
       - pull-request-create
+      - sanity-check
     runs-on: ubuntu-latest
 
     steps:
