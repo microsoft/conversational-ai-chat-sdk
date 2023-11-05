@@ -14,6 +14,11 @@ inputs:
     description: Publish to NPM.
     required: false
     type: boolean
+  stage:
+    default: true
+    description: Stage to Git.
+    required: true
+    type: boolean
 
 runs:
   using: composite
@@ -73,11 +78,13 @@ runs:
       run: |
         cat ./matrix.json | jq -r '.publishToNPM = ${{ inputs.publishToNPM }}' | tee ./matrix.json.tmp
         mv ./matrix.json.tmp ./matrix.json
+      shell: bash
 
-    - name: Mark as publish to GitHubRelease
+    - name: Mark as publish to GitHub Release
       run: |
         cat ./matrix.json | jq -r '.publishToGitHubRelease = ${{ inputs.publishToGitHubRelease }}' | tee ./matrix.json.tmp
         mv ./matrix.json.tmp ./matrix.json
+      shell: bash
 
     - name: Print matrix.json
       run: cat ./matrix.json
@@ -104,4 +111,9 @@ runs:
 
     - name: 'Sanity check: all entries must have "version" field'
       run: cat ./matrix.json | jq 'if .packages | map(select(.version | not)) | length == 0 then empty else halt_error(1) end'
+      shell: bash
+
+    - if: inputs.stage
+      name: Stage matrix.json
+      run: git add ./matrix.json
       shell: bash

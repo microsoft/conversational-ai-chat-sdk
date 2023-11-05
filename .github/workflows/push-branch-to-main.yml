@@ -152,9 +152,7 @@ jobs:
           publishingPackages: ${{ steps.npm-packages.outputs.json }}
           publishToNPM: true
           publishToGitHubRelease: false
-
-      - name: Stage matrix.json
-        run: git add ./matrix.json
+          stage: true
 
       - name: Configure Git
         run: |

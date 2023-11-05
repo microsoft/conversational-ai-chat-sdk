@@ -221,11 +221,10 @@ jobs:
 
       - uses: ./.github/actions/build-matrix-file
         with:
-          publishToGitHubRelease: ${{ inputs.name }}
-          publishToNPM: ${{ inputs.name }}
-
-      - name: Stage matrix.json
-        run: git add ./matrix.json
+          publishingPackages: ${{ inputs.name }}
+          publishToNPM: true
+          publishToGitHubRelease: true
+          stage: true
 
       - name: Print changes
         run: git status --verbose
