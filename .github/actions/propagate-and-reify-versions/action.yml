@@ -262,6 +262,7 @@ runs:
               --ignore-scripts \
               --no-audit \
               --package-lock-only \
+              --save \
               $local_prod_packages \
               $name@$version
           fi
@@ -278,6 +279,7 @@ runs:
               --ignore-scripts \
               --no-audit \
               --package-lock-only \
+              --save-dev \
               $local_dev_packages \
               $name@$version
           fi
