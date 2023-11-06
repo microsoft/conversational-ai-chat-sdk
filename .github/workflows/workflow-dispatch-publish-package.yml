@@ -46,7 +46,7 @@ jobs:
         with:
           sparse-checkout: .github/actions/dummy
 
-      - uses: .github/actions/dummy
+      - uses: ./.github/actions/dummy
 
       - name: 'Sanity check: at least one package must be marked for release'
         run: |
