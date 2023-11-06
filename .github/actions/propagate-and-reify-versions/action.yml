@@ -208,11 +208,11 @@ runs:
             depends_on=$(cat $path/package.json | jq --arg name $name --argjson version $output -r 'if (.dependencies + .devDependencies)[$name] then true else false end')
 
             if [[ "$depends_on" == "true" ]]
-            do
+            then
               name=$(cat $path/package.json | jq -r '.name')
 
               dependents=$(echo $dependents | jq --arg name $name -cr '. + [$name]')
-            done
+            fi
           done
 
           echo Dependents of $name: $dependents.
