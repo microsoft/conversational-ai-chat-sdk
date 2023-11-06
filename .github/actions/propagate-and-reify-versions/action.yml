@@ -219,7 +219,7 @@ runs:
 
           echo Dependents of $name: $dependents.
 
-          all_dependents = $(echo $all_dependents | jq --arg dependents $dependents -cr '. + { $name: $dependents }')
+          all_dependents = $(echo $all_dependents | jq --arg dependents $dependents -cr '.[$name] = $dependents')
         done
 
         echo --- all_dependents ---
