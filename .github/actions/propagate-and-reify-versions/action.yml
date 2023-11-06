@@ -54,9 +54,10 @@ runs:
 
             if [[ "$(cat $dependent_path/package.json | jq --arg name "$name" -r 'if (.dependencies + .devDependencies)[$name] then true else false end')" == "true" ]]
             then
-              # We should do audit at another time, not when bumping versions.
+              # We should not talk to NPM while propagating versions locally.
               npm install \
                 --no-audit \
+                --package-lock-only \
                 --workspace=$dependent_name \
                 $name@${{ inputs.version-range-modifier }}$version
             fi
