@@ -1,3 +1,6 @@
+# This action assumes local packages have their version changed.
+# When running this action, the version number of local packages will propagate to their depending local packages.
+
 name: Propagate and reify versions
 description:
 inputs:
@@ -5,6 +8,8 @@ inputs:
     default: true
     description: Stage modified package.json
     type: boolean
+  # If we are preparing packages for production (publish to NPMJS), we must use non-prerelease version in all packages. We may need to go to NPMJS to grab latest version.
+  # If we are preparing packages for development (put back to GitHub), we should put prerelease in all packages.
   prefer-production-version:
     default: true
     description: Prefer production version from NPM
@@ -18,8 +23,6 @@ inputs:
 runs:
   using: composite
   steps:
-    # For unknown reasons, NPM can't update other packages in the workspace and will say the previous version was not found.
-
     # Running "npm version" will run subsequent "npm update".
     # If running "npm update" on a package with dependency which do not have version on NPM but local workspace, it will fail.
 
@@ -28,139 +31,6 @@ runs:
     #   2. Do step 1 again
     # Expect: it should not fail and will update pages/package.json to the version bumped in step 2.
     # Actual: it fail saying powerva-chat-adapter@0.0.2-0 does not exists.
-
-    # - run: |
-    #     for path in $(cat ./package.json | jq -r '.workspaces[]')
-    #     do
-    #       name=$(cat $path/package.json | jq -r '.name')
-    #       committed_version=$(cat $path/package.json | jq -r '.version')
-
-    #       if [[ $committed_version == *'-'* ]]
-    #       then
-    #         if [[ "${{ inputs.prefer-production-version }}" == "true" ]]
-    #         then
-    #           echo Getting version number from NPM for package $name.
-
-    #           version=$(npm view $name --json | jq -r '.version')
-
-    #           echo $name@$committed_version -> $name@$version: Package is a prerelease package, using version number from NPM instead.
-    #         else
-    #           version=$committed_version
-
-    #           echo $name@$version: Package is a prerelease package in the workspace.
-    #         fi
-    #       else
-    #         version=$committed_version
-
-    #         echo $name@$version: Package is a production package.
-    #       fi
-
-    #       for dependent_path in $(cat ./package.json | jq -r '.workspaces[]')
-    #       do
-    #         dependent_name=$(cat $dependent_path/package.json | jq -r '.name')
-
-    #         if [[ "$(cat $dependent_path/package.json | jq --arg name "$name" -r 'if (.dependencies + .devDependencies)[$name] then true else false end')" == "true" ]]
-    #         then
-    #           echo npm install --workspace=$dependent_name $name@${{ inputs.version-range-modifier }}$version
-
-    #           npm uninstall \
-    #             --ignore-scripts \
-    #             --no-audit \
-    #             --package-lock-only \
-    #             --prefer-dedupe \
-    #             --workspace=$dependent_name \
-    #             $name
-
-    #           npm install \
-    #             --ignore-scripts \
-    #             --no-audit \
-    #             --package-lock-only \
-    #             --prefer-dedupe \
-    #             --workspace=$dependent_name \
-    #             $name@${{ inputs.version-range-modifier }}$version
-
-    #           # npm update \
-    #           #   --ignore-scripts \
-    #           #   --no-audit \
-    #           #   --save \
-    #           #   --workspace=$dependent_name \
-    #           #   $name
-    #         fi
-    #       done
-    #     done
-    #   shell: bash
-
-    # - id: version
-    #   run: |
-    #     output={}
-
-    #     for path in $(cat ./package.json | jq -r '.workspaces[]')
-    #     do
-    #       name=$(cat $path/package.json | jq -r '.name')
-    #       committed_version=$(cat $path/package.json | jq -r '.version')
-
-    #       if [[ $committed_version == *'-'* ]]
-    #       then
-    #         if [[ "${{ inputs.prefer-production-version }}" == "true" ]]
-    #         then
-    #           echo Getting version number from NPM for package $name.
-
-    #           version=$(npm view $name --json | jq -r '.version')
-
-    #           echo $name@$committed_version -> $name@$version: Package is a prerelease package, using version number from NPM instead.
-    #         else
-    #           version=$committed_version
-
-    #           echo $name@$version: Package is a prerelease package in the workspace.
-    #         fi
-    #       else
-    #         version=$committed_version
-
-    #         echo $name@$version: Package is a production package.
-    #       fi
-
-    #       output=$(echo $output | jq --arg name "$name" --arg version "$version" -cr '.[$name] = $version')
-    #     done
-
-    #     echo $output | jq -r
-
-    #     for path in $(cat ./package.json | jq -r '.workspaces[]')
-    #     do
-    #       name=$(cat $path/package.json | jq -r '.name')
-
-    #       # Example: "powerva-chat-adapter@0.0.1-0 powerva-chat-adapter-test-util@0.0.1-0"
-    #       workspace_dependencies=$(cat $path/package.json | \
-    #         jq \
-    #           --argjson version $output \
-    #           -r \
-    #           '
-    #             (.dependencies + .devDependencies)
-    #               | to_entries
-    #               | map(
-    #                   if $version[.key] then
-    #                     .key + "@" + $version[.key]
-    #                   else
-    #                     empty
-    #                   end
-    #                 )
-    #               | join(" ")
-    #           ')
-
-    #       echo name=$name
-    #       echo workspace_dependencies=$workspace_dependencies
-
-    #       if [[ ! -z $workspace_dependencies ]]
-    #       then
-    #         npm install \
-    #           --ignore-scripts \
-    #           --no-audit \
-    #           --package-lock-only \
-    #           --prefer-dedupe \
-    #           --workspace=$name \
-    #           $workspace_dependencies
-    #       fi
-    #     done
-    #   shell: bash
 
     - run: |
         version_map={}
@@ -193,6 +63,9 @@ runs:
           version_map=$(echo $version_map | jq --arg name "$name" --arg version "$version" -cr '.[$name] = $version')
         done
 
+        # This is the versions we want to propagate out to other local packages.
+        # If "prefer production version" is set, they may include versions from NPMJS registry, instead of local packages.
+
         # Example:
         # {
         #   "powerva-chat-adapter-test-util": "0.0.1",
@@ -204,45 +77,63 @@ runs:
 
         all_dependents={}
 
+        # Find out which local packages directly depends on this package, group them into "dependencies" and "devDependencies".
+
         for path in $(cat ./package.json | jq -r '.workspaces[]')
         do
           name=$(cat $path/package.json | jq -r '.name')
 
-          # Find out who depends on this package.
+          # npm query ":attr(dependencies, [powerva-chat-adapter])" | jq -cr 'map(.name)'
+          dependents=$(echo \":attr\(dependencies, [$name]\)\" | xargs npm query | jq -cr 'map(.name)')
 
-          dependents='{"dependencies":[],"devDependencies":[]}'
+          # npm query ":attr(devDependencies, [powerva-chat-adapter])" | jq -cr 'map(.name)'
+          dev_dependents=$(echo \":attr\(devDependencies, [$name]\)\" | xargs npm query | jq -cr 'map(.name)')
 
-          for path in $(cat ./package.json | jq -r '.workspaces[]')
-          do
-            dependent_name=$(cat $path/package.json | jq -r '.name')
-
-            appears_in_dependencies=$(cat $path/package.json | jq --arg name $name --argjson version $version_map -r '.dependencies[$name] and true')
-
-            appears_in_dev_dependencies=$(cat $path/package.json | jq --arg name $name --argjson version $version_map -r '.devDependencies[$name] and true')
-
-            if [[ "$appears_in_dependencies" == "true" ]]
-            then
-              dependents=$(echo $dependents | jq --arg name $dependent_name -cr '.dependencies += [$name]')
-            elif [[ "$appears_in_dev_dependencies" == "true" ]]
-            then
-              dependents=$(echo $dependents | jq --arg name $dependent_name -cr '.devDependencies += [$name]')
-            fi
-          done
-
-          echo Dependents of $name: $dependents.
-
-          all_dependents=$(echo $all_dependents | jq --argjson dependents $dependents --arg name $name -cr '.[$name] = $dependents')
+          all_dependents=$(
+            echo $all_dependents | \
+              jq \
+                --arg name $name \
+                --argjson dependents $dependents \
+                --argjson devDependents $dev_dependents \
+                -cr \
+                '.[$name] = { dependents: $dependents, devDependents: $devDependents }'
+          )
         done
 
         # Example:
+        # {
+        #   "powerva-chat-adapter-test-util": {
+        #     "dependents": [],
+        #     "devDependents": [
+        #       "powerva-turn-based-chat-adapter-framework",
+        #       "powerva-chat-adapter"
+        #     ]
+        #   },
+        #   "powerva-turn-based-chat-adapter-framework": {
+        #     "dependents": [
+        #       "powerva-chat-adapter"
+        #     ],
+        #     "devDependents": []
+        #   },
+        #   "powerva-chat-adapter": {
+        #     "dependents": [
+        #       "pages"
+        #     ],
+        #     "devDependents": []
+        #   },
+        #   "pages": {
+        #     "dependents": [],
+        #     "devDependents": []
+        #   }
+        # }
         echo $all_dependents | jq -r
 
         # Uninstall all local packages before installing newer version. We must uninstall all at once.
         # If we have 2+ packages that are not published, `npm install` one of them will say the other one is not found.
-        uninstall_name=$(echo $version_map | jq -r '. | keys | join(" ")')
+        local_packages_name=$(echo $version_map | jq -r '. | keys | join(" ")')
 
-        echo npm uninstall $uninstall_name --workspaces
-        npm uninstall $uninstall_name --workspaces
+        echo npm uninstall $local_packages_name --workspaces
+        npm uninstall $local_packages_name --workspaces
 
         # Reinstall dependencies with newer version.
         for path in $(cat ./package.json | jq -r '.workspaces[]')
@@ -251,9 +142,9 @@ runs:
           version=$(echo $version_map | jq --arg name $name -r '.[$name]')
 
           # Example: "--workspace=pages --workspace=powerva-chat-adapter"
-          local_prod_packages=$(echo $all_dependents | jq --arg name $name -r '.[$name].dependencies | map("--workspace=" + .) | join(" ")')
+          local_prod_packages=$(echo $all_dependents | jq --arg name $name -r '.[$name].dependents | map("--workspace=" + .) | join(" ")')
 
-          # Install the package if there are any dependents
+          # Install the package if there are any dependents.
           if [[ ! -z "$local_prod_packages" ]]
           then
             echo npm install $local_prod_packages $name@$version
@@ -268,9 +159,9 @@ runs:
           fi
 
           # Example: "--workspace=pages --workspace=powerva-chat-adapter"
-          local_dev_packages=$(echo $all_dependents | jq --arg name $name -r '.[$name].devDependencies | map("--workspace=" + .) | join(" ")')
+          local_dev_packages=$(echo $all_dependents | jq --arg name $name -r '.[$name].devDependents | map("--workspace=" + .) | join(" ")')
 
-          # Install the package if there are any dependents
+          # Install the package if there are any dependents.
           if [[ ! -z "$local_dev_packages" ]]
           then
             echo npm install $local_dev_packages $name@$version
