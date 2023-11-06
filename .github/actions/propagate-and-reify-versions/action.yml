@@ -5,6 +5,10 @@ inputs:
     default: true
     description: Stage modified package.json
     type: boolean
+  prefer-production-version:
+    default: true
+    description: Prefer production version from NPM
+    type: boolean
   version-range-modifier:
     default: '^'
     description: Version range modifier
@@ -31,8 +35,10 @@ runs:
           name=$(cat $path/package.json | jq -r '.name')
           committed_version=$(cat $path/package.json | jq -r '.version')
 
-          if [[ $committed_version == *'-'* ]]
+          if [[ "${{ inputs.prefer-production-version }}" == "true" && $committed_version == *'-'* ]]
           then
+            echo Getting version number from NPM for package $name.
+
             version=$(npm view $name --json | jq -r '.version')
 
             echo $name@$committed_version -> $name@$version: Package is a prerelease package, using version number from NPM instead.
