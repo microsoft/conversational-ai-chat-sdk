@@ -61,21 +61,30 @@ runs:
 
             if [[ "$(cat $dependent_path/package.json | jq --arg name "$name" -r 'if (.dependencies + .devDependencies)[$name] then true else false end')" == "true" ]]
             then
-              # We should not talk to NPM while propagating versions locally.
-              # npm install \
-              #   --ignore-scripts \
-              #   --no-audit \
-              #   --package-lock-only \
-              #   --prefer-dedupe \
-              #   --workspace=$dependent_name \
-              #   $name@${{ inputs.version-range-modifier }}$version
+              echo npm install --workspace=$dependent_name $name@${{ inputs.version-range-modifier }}$version
 
-              npm update \
+              npm uninstall \
                 --ignore-scripts \
                 --no-audit \
-                --save \
+                --package-lock-only \
+                --prefer-dedupe \
                 --workspace=$dependent_name \
                 $name
+
+              npm install \
+                --ignore-scripts \
+                --no-audit \
+                --package-lock-only \
+                --prefer-dedupe \
+                --workspace=$dependent_name \
+                $name@${{ inputs.version-range-modifier }}$version
+
+              # npm update \
+              #   --ignore-scripts \
+              #   --no-audit \
+              #   --save \
+              #   --workspace=$dependent_name \
+              #   $name
             fi
           done
         done
