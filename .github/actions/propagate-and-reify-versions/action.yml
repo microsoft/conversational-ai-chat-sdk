@@ -210,17 +210,21 @@ runs:
 
           # Find out who depends on this package.
 
-          dependents=[]
+          dependents='{"dependencies":[],"devDependencies":[]}'
 
           for path in $(cat ./package.json | jq -r '.workspaces[]')
           do
-            depends_on=$(cat $path/package.json | jq --arg name $name --argjson version $version_map -r 'if (.dependencies + .devDependencies)[$name] then true else false end')
+            dependent_name=$(cat $path/package.json | jq -r '.name')
 
-            if [[ "$depends_on" == "true" ]]
+            appears_in_dependencies=$(cat $path/package.json | jq --arg name $name --argjson version $version_map -r '.dependencies[$name] and true')
+
+            appears_in_dev_dependencies=$(cat $path/package.json | jq --arg name $name --argjson version $version_map -r '.devDependencies[$name] and true')
+
+            if [[ "$appears_in_dependencies" == "true" ]]
             then
-              dependent_name=$(cat $path/package.json | jq -r '.name')
-
-              dependents=$(echo $dependents | jq --arg name $dependent_name -cr '. + [$name]')
+              dependents=$(echo $dependents | jq --arg name $dependent_name -cr '.dependencies += [$name]')
+            elif [[ "$appears_in_dev_dependencies" == "true" ]]
+              dependents=$(echo $dependents | jq --arg name $dependent_name -cr '.devDependencies += [$name]')
             fi
           done
 
@@ -230,37 +234,13 @@ runs:
         done
 
         # Example:
-        # {
-        #   "powerva-chat-adapter-test-util": [
-        #     "powerva-turn-based-chat-adapter-framework",
-        #     "powerva-chat-adapter"
-        #   ],
-        #   "powerva-turn-based-chat-adapter-framework": [
-        #     "powerva-chat-adapter"
-        #   ],
-        #   "powerva-chat-adapter": [
-        #     "pages"
-        #   ],
-        #   "pages": []
-        # }
         echo $all_dependents | jq -r
 
-        # Uninstall all dependencies before install newer version.
-        # If we have 2+ packages that are not published, `npm install` one of them will say the other one is not found
-        # Setting `--package-lock-only` has no effect.
-        # for path in $(cat ./package.json | jq -r '.workspaces[]')
-        # do
-        #   name=$(cat $path/package.json | jq -r '.name')
-
-        #   echo npm uninstall $name --workspaces
-
-        #   npm uninstall $name --workspaces
-        # done
-
+        # Uninstall all local packages before installing newer version. We must uninstall all at once.
+        # If we have 2+ packages that are not published, `npm install` one of them will say the other one is not found.
         uninstall_name=$(echo $version_map | jq -r '. | keys | join(" ")')
 
         echo npm uninstall $uninstall_name --workspaces
-
         npm uninstall $uninstall_name --workspaces
 
         # Reinstall dependencies with newer version.
@@ -270,18 +250,34 @@ runs:
           version=$(echo $version_map | jq --arg name $name -r '.[$name]')
 
           # Example: "--workspace=pages --workspace=powerva-chat-adapter"
-          dependent_name=$(echo $all_dependents | jq --arg name $name -r '.[$name] | map("--workspace=" + .) | join(" ")')
+          local_prod_packages=$(echo $all_dependents | jq --arg name $name -r '.[$name].dependencies | map("--workspace=" + .) | join(" ")')
 
           # Install the package if there are any dependents
-          if [[ ! -z "$dependent_name" ]]
+          if [[ ! -z "$local_prod_packages" ]]
           then
-            echo npm install $dependent_name $name@$version
+            echo npm install $local_prod_packages $name@$version
 
             npm install \
               --ignore-scripts \
               --no-audit \
               --package-lock-only \
-              $dependent_name \
+              $local_prod_packages \
+              $name@$version
+          fi
+
+          # Example: "--workspace=pages --workspace=powerva-chat-adapter"
+          local_dev_packages=$(echo $all_dependents | jq --arg name $name -r '.[$name].devDependencies | map("--workspace=" + .) | join(" ")')
+
+          # Install the package if there are any dependents
+          if [[ ! -z "$local_dev_packages" ]]
+          then
+            echo npm install $local_dev_packages $name@$version
+
+            npm install \
+              --ignore-scripts \
+              --no-audit \
+              --package-lock-only \
+              $local_dev_packages \
               $name@$version
           fi
         done
