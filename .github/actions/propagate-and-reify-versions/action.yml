@@ -148,14 +148,14 @@ runs:
 
           echo workspace_dependencies=$workspace_dependencies
 
-          if [[ -z $workspace_dependencies ]]
+          if [[ ! -z $workspace_dependencies ]]
           then
             npm install \
               --ignore-scripts \
               --no-audit \
               --package-lock-only \
               --prefer-dedupe \
-              --workspace=$dependent_name \
+              --workspace=$name \
               $workspace_dependencies
           fi
         done
