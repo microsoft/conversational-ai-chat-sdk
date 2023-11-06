@@ -173,8 +173,8 @@ jobs:
 
             # We will do workspaces-update later via propagate-reify.
             npm version \
-              --no-workspaces-update
               --no-git-tag-version \
+              --no-workspaces-update \
               --package-lock-only \
               --workspace="$name" patch
 
