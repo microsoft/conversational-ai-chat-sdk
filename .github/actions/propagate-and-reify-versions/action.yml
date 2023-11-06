@@ -162,8 +162,7 @@ runs:
     #     done
     #   shell: bash
 
-
-      run: |
+    - run: |
         output={}
 
         for path in $(cat ./package.json | jq -r '.workspaces[]')
