@@ -171,8 +171,9 @@ jobs:
           do
             echo ::group::$name
 
-            # --no-workspaces-update
+            # We will do workspaces-update later via propagate-reify.
             npm version \
+              --no-workspaces-update
               --no-git-tag-version \
               --package-lock-only \
               --workspace="$name" patch
@@ -192,7 +193,7 @@ jobs:
 
           git add ./package-lock.json
 
-      - name: Bump CHANGELOGs
+      - name: Bump CHANGELOG
         run: |
           for name in $(echo '${{ toJSON(needs.prepare.outputs.name) }}' | jq -r)
           do

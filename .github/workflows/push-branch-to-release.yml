@@ -369,9 +369,10 @@ jobs:
 
             echo ::group::$name
 
-            # --no-workspaces-update \
+            # We will do workspaces-update later via propagate-reify.
             npm version \
               --no-git-tag-version \
+              --no-workspaces-update \
               --package-lock-only \
               --workspace="$name" prepatch
 

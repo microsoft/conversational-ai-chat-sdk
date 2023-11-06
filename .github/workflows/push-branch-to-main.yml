@@ -104,6 +104,7 @@ jobs:
                 $current_version \
             )
 
+            # We will do workspaces-update later via propagate-reify.
             npm version \
               --no-git-tag-version \
               --no-workspaces-update \
@@ -120,6 +121,11 @@ jobs:
 
             echo ::endgroup::
           done
+
+      - name: Propagate and reify versions
+        uses: ./.github/actions/propagate-and-reify-versions
+        with:
+          prefer-production-version: false # Use versions in workspace
 
       - name: Stage package-lock.json
         run: git add ./package-lock.json
