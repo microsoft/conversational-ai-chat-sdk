@@ -125,7 +125,7 @@ jobs:
       - name: Propagate and reify versions
         uses: ./.github/actions/propagate-and-reify-versions
         with:
-          prefer-production-version: false # Use versions in workspace
+          disallow-prerelease-version: false # Use versions in workspace
 
       - name: Stage package-lock.json
         run: git add ./package-lock.json

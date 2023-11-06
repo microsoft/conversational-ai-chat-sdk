@@ -4,15 +4,15 @@
 name: Propagate and reify versions
 description:
 inputs:
+  # If we are preparing packages for production (publish to NPMJS), we must use non-prerelease version in all packages. We may need to go to NPMJS to grab latest version.
+  # If we are preparing packages for development (put back to GitHub), we should put prerelease in all packages.
+  disallow-prerelease-version:
+    default: true
+    description: Disallow prerelease version and use NPM
+    type: boolean
   stage:
     default: true
     description: Stage modified package.json
-    type: boolean
-  # If we are preparing packages for production (publish to NPMJS), we must use non-prerelease version in all packages. We may need to go to NPMJS to grab latest version.
-  # If we are preparing packages for development (put back to GitHub), we should put prerelease in all packages.
-  prefer-production-version:
-    default: true
-    description: Prefer production version from NPM
     type: boolean
   version-range-modifier:
     default: '^'
@@ -42,11 +42,11 @@ runs:
 
           if [[ $committed_version == *'-'* ]]
           then
-            if [[ "${{ inputs.prefer-production-version }}" == "true" ]]
+            if [[ "${{ inputs.disallow-prerelease-version }}" == "true" ]]
             then
-              echo Getting version number from NPM for package $name.
+              echo Getting version number from NPM for package $name@latest.
 
-              version=$(npm view $name --json | jq -r '.version')
+              version=$(npm view $name@latest --json | jq -r '.version')
 
               echo $name@$committed_version -> $name@$version: Package is a prerelease package, using version number from NPM instead.
             else
@@ -64,7 +64,8 @@ runs:
         done
 
         # This is the versions we want to propagate out to other local packages.
-        # If "prefer production version" is set, they may include versions from NPMJS registry, instead of local packages.
+        # If "disallow prerelease version" is set, we will not use prerelease version in local packages.
+        # Instead, we will query production versions from NPMJS registry, instead of local packages.
 
         # Example:
         # {

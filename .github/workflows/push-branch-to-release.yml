@@ -410,7 +410,7 @@ jobs:
       - name: Propagate and reify versions
         uses: ./.github/actions/propagate-and-reify-versions
         with:
-          prefer-production-version: false # Use versions in workspace
+          disallow-prerelease-version: false # Use versions in workspace
 
       - name: Remove matrix.json
         run: git rm matrix.json

@@ -35,77 +35,6 @@ env:
 permissions: {}
 
 jobs:
-  # prepare:
-  #   name: Prepare
-  #   outputs:
-  #     path: ${{ steps.path.outputs.path }}
-  #     version: ${{ steps.version.outputs.version }}
-  #   permissions:
-  #     contents: read
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Set up Node.js ${{ env.node-version }}
-  #       uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ env.node-version }}
-
-  #     - if: '!env.skip-secure-feed'
-  #       name: Set up secure feed
-  #       run: npx https://aka.ms/EnableSecureFeed
-
-  #     - run: npm install --global --ignore-scripts semver@latest # Ignore scripts to prevent malicious scripts.
-
-  #     # We intentionally checkout after enable secure feed.
-  #     # This will speed up secure feed setup significantly as it don't need to patch package-lock.json.
-  #     # But we also need to be super careful we don't run any NPM commands that would fetch the registry. We are insecure here.
-  #     - uses: actions/checkout@v4
-
-  #     # - id: path
-  #     #   uses: ./.github/actions/look-up-package-path
-  #     #   with:
-  #     #     name: ${{ inputs.name }}
-
-  #     - name: Print package.json
-  #       run: cat ${{ steps.path.outputs.path }}/package.json | jq
-
-  #     - id: published-version
-  #       name: Get current released version from NPM
-  #       run: echo version=$(npm view --json ${{ inputs.name }} | jq -r '.version') | tee --append $GITHUB_OUTPUT
-
-  #     - id: version
-  #       name: Compute production version
-  #       run: |
-  #         current_version=$(cat ${{ steps.path.outputs.path }}/package.json | jq -r '.version')
-
-  #         echo version=$(npx \
-  #           --offline \
-  #           --workspace=${{ inputs.name }} \
-  #           semver \
-  #           --no-git \
-  #           --increment patch $current_version) \
-  #           | tee --append $GITHUB_OUTPUT
-
-  #     - name: Print unreleased CHANGELOG
-  #       run: 'echo To be implemented.'
-
-  #     - name: Summary
-  #       run: |
-  #         {
-  #           echo 'Current published version on NPM is `${{ format('{0}@{1}', inputs.name, steps.published-version.outputs.version) }}`.'
-  #           echo
-  #           echo 'This workflow will release `${{ format('{0}@{1}', inputs.name, steps.version.outputs.version) }}`.'
-  #         } | tee --append $GITHUB_STEP_SUMMARY
-
-  # approval:
-  #   environment: approval-production
-  #   name: Approval
-  #   needs: prepare
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     # GitHub Workflow requires at least one step.
-  #     - name: Summary
-  #       run: echo Approved.
-
   prepare:
     name: Prepare
     outputs:
@@ -226,7 +155,7 @@ jobs:
       - name: Propagate and reify versions
         uses: ./.github/actions/propagate-and-reify-versions
         with:
-          prefer-production-version: true # All releasing packages should depends on production version.
+          disallow-prerelease-version: true # All releasing packages should depends on production version.
 
       - name: Build and stage matrix.json
         uses: ./.github/actions/build-matrix-file
