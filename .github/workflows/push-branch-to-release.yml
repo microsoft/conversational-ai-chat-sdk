@@ -407,7 +407,8 @@ jobs:
             echo ::endgroup::
           done
 
-      - uses: ./.github/actions/propagate-and-reify-versions
+      - name: Propagate and reify versions
+        uses: ./.github/actions/propagate-and-reify-versions
 
       - name: Remove matrix.json
         run: git rm matrix.json
