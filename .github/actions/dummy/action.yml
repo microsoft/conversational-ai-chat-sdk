@@ -1,0 +1,39 @@
+# This action assumes local packages have their version changed.
+# When running this action, the version number of local packages will propagate to their depending local packages.
+
+name: Bump version in workspace
+# inputs:
+#   name-version:
+#     required: false
+#   stage:
+#     default: true
+#     description: Stage modified package.json
+#     type: boolean
+#   version-range-modifier:
+#     default: '^'
+#     description: Version range modifier
+#     required: true
+#     type: string
+
+runs:
+  using: composite
+
+  steps:
+    step-a:
+      run: echo value=123 | tee --append $GITHUB_OUTPUT
+      shell: bash
+
+    step-b:
+      run: echo ${{ steps.step-a.outputs.value }}
+      shell: bash
+
+    step-c:
+      run: |
+        cat ./non-existent.json
+
+        ls -la
+      shell: bash
+
+    step-d:
+      run: exit 1
+      shell: bash

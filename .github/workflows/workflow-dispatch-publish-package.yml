@@ -42,6 +42,8 @@ jobs:
       name: ${{ steps.set-output.outputs.name }}
     runs-on: ubuntu-latest
     steps:
+      - uses: .github/actions/dummy
+
       - name: 'Sanity check: at least one package must be marked for release'
         run: |
           [[ \
