@@ -163,7 +163,7 @@ runs:
     #   shell: bash
 
     - run: |
-        output={}
+        version_map={}
 
         for path in $(cat ./package.json | jq -r '.workspaces[]')
         do
@@ -190,10 +190,17 @@ runs:
             echo $name@$version: Package is a production package.
           fi
 
-          output=$(echo $output | jq --arg name "$name" --arg version "$version" -cr '.[$name] = $version')
+          version_map=$(echo $version_map | jq --arg name "$name" --arg version "$version" -cr '.[$name] = $version')
         done
 
-        echo $output | jq -r
+        # Example:
+        # {
+        #   "powerva-chat-adapter-test-util": "0.0.1",
+        #   "powerva-turn-based-chat-adapter-framework": "0.0.0",
+        #   "powerva-chat-adapter": "0.0.1",
+        #   "pages": "0.0.16"
+        # }
+        echo $version_map | jq -r
 
         all_dependents={}
 
@@ -222,19 +229,41 @@ runs:
           all_dependents=$(echo $all_dependents | jq --argjson dependents $dependents --arg name $name -cr '.[$name] = $dependents')
         done
 
-        echo --- all_dependents ---
+        # Example:
+        # {
+        #   "powerva-chat-adapter-test-util": [
+        #     "powerva-turn-based-chat-adapter-framework",
+        #     "powerva-chat-adapter"
+        #   ],
+        #   "powerva-turn-based-chat-adapter-framework": [
+        #     "powerva-chat-adapter"
+        #   ],
+        #   "powerva-chat-adapter": [
+        #     "pages"
+        #   ],
+        #   "pages": []
+        # }
         echo $all_dependents | jq -r
 
         for path in $(cat ./package.json | jq -r '.workspaces[]')
         do
           name=$(cat $path/package.json | jq -r '.name')
-          version=$(echo $output | jq --arg name $name -r '.[$name]')
+          version=$(echo $version_map | jq --arg name $name -r '.[$name]')
 
-          npm install \
-            --no-audit \
-            --package-lock-only \
-            $(echo $all_dependents | jq --arg name $name -r '.[$name] | map("--workspace=" + .) | join(" ")') \
-            $name@$version
+          # Example: "--workspace=pages --workspace=powerva-chat-adapter"
+          dependent_name=$(echo $all_dependents | jq --arg name $name -r '.[$name] | map("--workspace=" + .) | join(" ")')
+
+          # Install the package if there are any dependents
+          if [[ ! -z "$dependent_name" ]]
+          then
+            echo npm install $dependent_name $name@$version
+
+            npm install \
+              --no-audit \
+              --package-lock-only \
+              $dependent_name \
+              $name@$version
+          fi
         done
       shell: bash
 
