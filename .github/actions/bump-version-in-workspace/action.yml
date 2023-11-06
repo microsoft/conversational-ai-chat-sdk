@@ -49,7 +49,7 @@ runs:
             if [[ "$(cat $path/package.json | jq --arg name "$name" -r 'if (.dependencies + .devDependencies)[$name] then true else false end')" == "true" ]]
             then
               # We should do audit at another time, not when bumping versions.
-              npm install --no-audit --package-lock-only --workspace=$dependent_name $name@$version
+              npm install --no-audit --ignore-scripts --package-lock-only --workspace=$dependent_name $name@$version
 
               [[ "${{ inputs.stage }}" == "true" ]] && git add $path/package.json
             fi

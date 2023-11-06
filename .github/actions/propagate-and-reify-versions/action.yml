@@ -245,6 +245,19 @@ runs:
         # }
         echo $all_dependents | jq -r
 
+        # Uninstall all dependencies before install newer version.
+        # If we have 2+ packages that are not published, `npm install` one of them will say the other one is not found
+        # Setting `--package-lock-only` has no effect.
+        for path in $(cat ./package.json | jq -r '.workspaces[]')
+        do
+          name=$(cat $path/package.json | jq -r '.name')
+
+          echo npm uninstall $name --workspaces
+
+          npm uninstall $name --workspaces
+        done
+
+        # Reinstall dependencies with newer version.
         for path in $(cat ./package.json | jq -r '.workspaces[]')
         do
           name=$(cat $path/package.json | jq -r '.name')
@@ -259,6 +272,7 @@ runs:
             echo npm install $dependent_name $name@$version
 
             npm install \
+              --ignore-scripts
               --no-audit \
               --package-lock-only \
               $dependent_name \
