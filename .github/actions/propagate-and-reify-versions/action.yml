@@ -225,7 +225,17 @@ runs:
         echo --- all_dependents ---
         echo $all_dependents | jq -r
 
-        exit 1
+        for path in $(cat ./package.json | jq -r '.workspaces[]')
+        do
+          name=$(cat $path/package.json | jq -r '.name')
+          version=$(echo $output | jq --arg name $name -r '.[$name]')
+
+          npm install \
+            --no-audit \
+            --package-lock-only \
+            $(echo $all_dependents | jq --arg name $name -r '.[$name] | map("--workspace=" + .) | join(" ")') \
+            $name@$version
+        done
       shell: bash
 
     - name: Print package.json
@@ -238,6 +248,8 @@ runs:
           cat $path/package.json | jq -r '{ name: .name, version: .version, dependencies: .dependencies, devDependencies: .devDependencies }'
           echo ::endgroup::
         done
+
+        exit 1
       shell: bash
 
     - if: inputs.stage
