@@ -146,6 +146,7 @@ runs:
                   | join(" ")
               ')
 
+          echo name=$name
           echo workspace_dependencies=$workspace_dependencies
 
           if [[ ! -z $workspace_dependencies ]]
