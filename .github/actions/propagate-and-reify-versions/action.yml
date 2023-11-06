@@ -272,7 +272,7 @@ runs:
             echo npm install $dependent_name $name@$version
 
             npm install \
-              --ignore-scripts
+              --ignore-scripts \
               --no-audit \
               --package-lock-only \
               $dependent_name \
