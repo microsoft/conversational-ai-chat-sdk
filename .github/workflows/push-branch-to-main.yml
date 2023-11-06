@@ -115,6 +115,9 @@ jobs:
 
             cat ./$path/package.json
 
+            # We don't need to propagate and reify because we are depending on ^0.0.1-0.
+            # It will resolve to latest prerelease of 0.0.1, or the production of 0.0.1.
+
             echo ::endgroup::
           done
 
