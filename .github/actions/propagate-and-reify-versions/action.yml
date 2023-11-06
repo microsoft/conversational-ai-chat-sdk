@@ -209,9 +209,9 @@ runs:
 
             if [[ "$depends_on" == "true" ]]
             then
-              name=$(cat $path/package.json | jq -r '.name')
+              dependent_name=$(cat $path/package.json | jq -r '.name')
 
-              dependents=$(echo $dependents | jq --arg name $name -cr '. + [$name]')
+              dependents=$(echo $dependents | jq --arg name $dependent_name -cr '. + [$name]')
             fi
           done
 
