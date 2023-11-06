@@ -195,6 +195,8 @@ runs:
 
         echo $output | jq -r
 
+        all_dependents={}
+
         for path in $(cat ./package.json | jq -r '.workspaces[]')
         do
           name=$(cat $path/package.json | jq -r '.name')
@@ -216,7 +218,12 @@ runs:
           done
 
           echo Dependents of $name: $dependents.
+
+          all_dependents = $(echo $all_dependents | jq --arg dependents $dependents -cr '. + { [$name]: $dependents }')
         done
+
+        echo --- all_dependents ---
+        echo $all_dependents | jq -r
 
         exit 1
       shell: bash
