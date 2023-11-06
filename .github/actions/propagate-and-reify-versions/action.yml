@@ -90,7 +90,79 @@ runs:
     #     done
     #   shell: bash
 
-    - id: version
+    # - id: version
+    #   run: |
+    #     output={}
+
+    #     for path in $(cat ./package.json | jq -r '.workspaces[]')
+    #     do
+    #       name=$(cat $path/package.json | jq -r '.name')
+    #       committed_version=$(cat $path/package.json | jq -r '.version')
+
+    #       if [[ $committed_version == *'-'* ]]
+    #       then
+    #         if [[ "${{ inputs.prefer-production-version }}" == "true" ]]
+    #         then
+    #           echo Getting version number from NPM for package $name.
+
+    #           version=$(npm view $name --json | jq -r '.version')
+
+    #           echo $name@$committed_version -> $name@$version: Package is a prerelease package, using version number from NPM instead.
+    #         else
+    #           version=$committed_version
+
+    #           echo $name@$version: Package is a prerelease package in the workspace.
+    #         fi
+    #       else
+    #         version=$committed_version
+
+    #         echo $name@$version: Package is a production package.
+    #       fi
+
+    #       output=$(echo $output | jq --arg name "$name" --arg version "$version" -cr '.[$name] = $version')
+    #     done
+
+    #     echo $output | jq -r
+
+    #     for path in $(cat ./package.json | jq -r '.workspaces[]')
+    #     do
+    #       name=$(cat $path/package.json | jq -r '.name')
+
+    #       # Example: "powerva-chat-adapter@0.0.1-0 powerva-chat-adapter-test-util@0.0.1-0"
+    #       workspace_dependencies=$(cat $path/package.json | \
+    #         jq \
+    #           --argjson version $output \
+    #           -r \
+    #           '
+    #             (.dependencies + .devDependencies)
+    #               | to_entries
+    #               | map(
+    #                   if $version[.key] then
+    #                     .key + "@" + $version[.key]
+    #                   else
+    #                     empty
+    #                   end
+    #                 )
+    #               | join(" ")
+    #           ')
+
+    #       echo name=$name
+    #       echo workspace_dependencies=$workspace_dependencies
+
+    #       if [[ ! -z $workspace_dependencies ]]
+    #       then
+    #         npm install \
+    #           --ignore-scripts \
+    #           --no-audit \
+    #           --package-lock-only \
+    #           --prefer-dedupe \
+    #           --workspace=$name \
+    #           $workspace_dependencies
+    #       fi
+    #     done
+    #   shell: bash
+
+
       run: |
         output={}
 
@@ -128,38 +200,26 @@ runs:
         do
           name=$(cat $path/package.json | jq -r '.name')
 
-          # Example: "powerva-chat-adapter@0.0.1-0 powerva-chat-adapter-test-util@0.0.1-0"
-          workspace_dependencies=$(cat $path/package.json | \
-            jq \
-              --argjson version $output \
-              -r \
-              '
-                (.dependencies + .devDependencies)
-                  | to_entries
-                  | map(
-                      if $version[.key] then
-                        .key + "@" + $version[.key]
-                      else
-                        empty
-                      end
-                    )
-                  | join(" ")
-              ')
+          # Find out who depends on this package.
 
-          echo name=$name
-          echo workspace_dependencies=$workspace_dependencies
+          dependents=[]
 
-          if [[ ! -z $workspace_dependencies ]]
-          then
-            npm install \
-              --ignore-scripts \
-              --no-audit \
-              --package-lock-only \
-              --prefer-dedupe \
-              --workspace=$name \
-              $workspace_dependencies
-          fi
+          for path in $(cat ./package.json | jq -r '.workspaces[]')
+          do
+            depends_on=$(cat $path/package.json | jq --arg name $name --argjson version $output -r 'if (.dependencies + .devDependencies)[$name] then true else false end')
+
+            if [[ "$depends_on" == "true" ]]
+            do
+              name=$(cat $path/package.json | jq -r '.name')
+
+              dependents=$(echo $dependents | jq --arg name $name -cr '. + [$name]')
+            done
+          done
+
+          echo Dependents of $name: $dependents.
         done
+
+        exit 1
       shell: bash
 
     - name: Print package.json
