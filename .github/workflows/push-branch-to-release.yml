@@ -312,7 +312,6 @@ jobs:
         run: echo npm publish --json ${{ matrix.tarball }} --provenance
 
   pull-request-create:
-    continue-on-error: true
     env:
       branch: ${{ format('bot/bump-after-release/{0}', github.run_number) }}
     environment:

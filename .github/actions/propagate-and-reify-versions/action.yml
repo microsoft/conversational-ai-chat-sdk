@@ -47,7 +47,7 @@ runs:
             else
               version=$committed_version
 
-              echo $name@$version: Package is a prerelease package from workspace.
+              echo $name@$version: Package is a prerelease package in the workspace.
             fi
           else
             version=$committed_version
@@ -62,11 +62,20 @@ runs:
             if [[ "$(cat $dependent_path/package.json | jq --arg name "$name" -r 'if (.dependencies + .devDependencies)[$name] then true else false end')" == "true" ]]
             then
               # We should not talk to NPM while propagating versions locally.
-              npm install \
+              # npm install \
+              #   --ignore-scripts \
+              #   --no-audit \
+              #   --package-lock-only \
+              #   --prefer-dedupe \
+              #   --workspace=$dependent_name \
+              #   $name@${{ inputs.version-range-modifier }}$version
+
+              npm update \
+                --ignore-scripts \
                 --no-audit \
-                --package-lock-only \
+                --save \
                 --workspace=$dependent_name \
-                $name@${{ inputs.version-range-modifier }}$version
+                $name
             fi
           done
         done
