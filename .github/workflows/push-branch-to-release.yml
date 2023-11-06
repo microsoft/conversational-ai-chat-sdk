@@ -362,9 +362,9 @@ jobs:
 
             echo ::group::$name
 
-            # --no-workspaces-update
             npm version \
               --no-git-tag-version \
+              --no-workspaces-update \
               --package-lock-only \
               --workspace="$name" prepatch
 
@@ -441,7 +441,15 @@ jobs:
 
   delete-branch:
     environment: owner
-    if: "!cancelled() && needs.prepare.result == 'success' && needs.build.result == 'success' && needs.sanity-check.result == 'success' && needs.github-pages-deployment.result != 'failure' && needs.github-release-publish.result != 'failure' && needs.npm-publishing.result != 'failure' && needs.pull-request-create.result != 'failure'"
+    if: |
+      !cancelled() && \
+      needs.prepare.result == 'success' && \
+      needs.build.result == 'success' && \
+      needs.sanity-check.result == 'success' && \
+      needs.github-pages-deployment.result != 'failure' && \
+      needs.github-release-publish.result != 'failure' && \
+      needs.npm-publishing.result != 'failure' && \
+      needs.pull-request-create.result != 'failure'
     name: Delete development branch
     needs:
       - build
@@ -454,6 +462,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Debug
+        run: |
+          echo needs.prepare.result=${{ needs.prepare.result }}
+          echo needs.build.result=${{ needs.build.result }}
+          echo needs.sanity-check.result=${{ needs.sanity-check.result }}
+          echo needs.github-pages-deployment.result=${{ needs.github-pages-deployment.result }}
+          echo needs.github-release-publish.result=${{ needs.github-release-publish.result }}
+          echo needs.npm-publishing.result=${{ needs.npm-publishing.result }}
+          echo needs.pull-request-create.result=${{ needs.pull-request-create.result }}
+
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
