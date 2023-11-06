@@ -125,9 +125,10 @@ jobs:
         run: |
           echo [] > name.json
 
-          [[ "${{ inputs.powerva-chat-adapter }}" == "true" ]] && cat name.json | jq -r '. + ["powerva-chat-adapter"]' > name.json.tmp && mv name.json.tmp name.json
+          # Packages must follow the order as appear in package.json/workspaces.
           [[ "${{ inputs.powerva-chat-adapter-test-util }}" == "true" ]] && cat name.json | jq -r '. + ["powerva-chat-adapter-test-util"]' > name.json.tmp && mv name.json.tmp name.json
           [[ "${{ inputs.powerva-turn-based-chat-adapter-framework }}" == "true" ]] && cat name.json | jq -r '. + "powerva-turn-based-chat-adapter-framework"]' > name.json.tmp && mv name.json.tmp name.json
+          [[ "${{ inputs.powerva-chat-adapter }}" == "true" ]] && cat name.json | jq -r '. + ["powerva-chat-adapter"]' > name.json.tmp && mv name.json.tmp name.json
 
           {
             echo 'name<<EOF'
@@ -172,7 +173,7 @@ jobs:
 
             npm version \
               --no-git-tag-version \
-              --no-workspaces-update \
+              # --no-workspaces-update \
               --package-lock-only \
               --workspace="$name" patch
 

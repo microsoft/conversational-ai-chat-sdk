@@ -364,7 +364,7 @@ jobs:
 
             npm version \
               --no-git-tag-version \
-              --no-workspaces-update \
+              # --no-workspaces-update \
               --package-lock-only \
               --workspace="$name" prepatch
 
