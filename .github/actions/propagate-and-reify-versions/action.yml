@@ -224,6 +224,7 @@ runs:
             then
               dependents=$(echo $dependents | jq --arg name $dependent_name -cr '.dependencies += [$name]')
             elif [[ "$appears_in_dev_dependencies" == "true" ]]
+            then
               dependents=$(echo $dependents | jq --arg name $dependent_name -cr '.devDependencies += [$name]')
             fi
           done
