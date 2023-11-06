@@ -123,6 +123,7 @@ runs:
         done
 
         echo version=$output | tee --append $GITHUB_OUTPUT
+      shell: bash
 
     - run: |
         for path in $(cat ./package.json | jq -r '.workspaces[]')
