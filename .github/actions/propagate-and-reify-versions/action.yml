@@ -277,8 +277,6 @@ runs:
           cat $path/package.json | jq -r '{ name: .name, version: .version, dependencies: .dependencies, devDependencies: .devDependencies }'
           echo ::endgroup::
         done
-
-        exit 1
       shell: bash
 
     - if: inputs.stage
