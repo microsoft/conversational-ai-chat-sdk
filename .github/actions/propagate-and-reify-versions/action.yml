@@ -128,6 +128,7 @@ runs:
         do
           name=$(cat $path/package.json | jq -r '.name')
 
+          # Example: "powerva-chat-adapter@0.0.1-0 powerva-chat-adapter-test-util@0.0.1-0"
           workspace_dependencies=$(cat $path/package.json | \
             jq \
               --argjson version $output \
@@ -147,14 +148,16 @@ runs:
 
           echo workspace_dependencies=$workspace_dependencies
 
-          # Example: "powerva-chat-adapter@0.0.1-0 powerva-chat-adapter-test-util@0.0.1-0"
-          npm install \
-            --ignore-scripts \
-            --no-audit \
-            --package-lock-only \
-            --prefer-dedupe \
-            --workspace=$dependent_name \
-            $workspace_dependencies
+          if [[ -z $workspace_dependencies ]]
+          then
+            npm install \
+              --ignore-scripts \
+              --no-audit \
+              --package-lock-only \
+              --prefer-dedupe \
+              --workspace=$dependent_name \
+              $workspace_dependencies
+          fi
         done
       shell: bash
 
