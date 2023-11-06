@@ -362,9 +362,9 @@ jobs:
 
             echo ::group::$name
 
+            # --no-workspaces-update
             npm version \
               --no-git-tag-version \
-              # --no-workspaces-update \
               --package-lock-only \
               --workspace="$name" prepatch
 
