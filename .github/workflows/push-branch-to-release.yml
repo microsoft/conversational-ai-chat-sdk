@@ -322,7 +322,15 @@ jobs:
       name: owner
       url: ${{ steps.create-pull-request.outputs.url }}
     # Creates pull request branch only for production release.
-    if: "startsWith(github.ref_name, 'bot/release/production/') && !cancelled() && needs.prepare.result == 'success' && needs.build.result == 'success' && needs.sanity-check.result == 'success' && needs.github-pages-deployment.result != 'failure' && needs.github-release-publish.result != 'failure' && needs.npm-publishing.result != 'failure'"
+    if: |
+      startsWith(github.ref_name, 'bot/release/production/') &&
+      !cancelled() &&
+      needs.prepare.result == 'success' &&
+      needs.build.result == 'success' &&
+      needs.sanity-check.result == 'success' &&
+      needs.github-pages-deployment.result != 'failure' &&
+      needs.github-release-publish.result != 'failure' &&
+      needs.npm-publishing.result != 'failure'
 
     name: Pull request
     needs:
@@ -442,13 +450,13 @@ jobs:
   delete-branch:
     environment: owner
     if: |
-      !cancelled() && \
-      needs.prepare.result == 'success' && \
-      needs.build.result == 'success' && \
-      needs.sanity-check.result == 'success' && \
-      needs.github-pages-deployment.result != 'failure' && \
-      needs.github-release-publish.result != 'failure' && \
-      needs.npm-publishing.result != 'failure' && \
+      !cancelled() &&
+      needs.prepare.result == 'success' &&
+      needs.build.result == 'success' &&
+      needs.sanity-check.result == 'success' &&
+      needs.github-pages-deployment.result != 'failure' &&
+      needs.github-release-publish.result != 'failure' &&
+      needs.npm-publishing.result != 'failure' &&
       needs.pull-request-create.result != 'failure'
     name: Delete development branch
     needs:
