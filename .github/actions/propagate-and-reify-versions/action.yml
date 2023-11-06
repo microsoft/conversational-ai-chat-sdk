@@ -214,7 +214,7 @@ runs:
 
           for path in $(cat ./package.json | jq -r '.workspaces[]')
           do
-            depends_on=$(cat $path/package.json | jq --arg name $name --argjson version $output -r 'if (.dependencies + .devDependencies)[$name] then true else false end')
+            depends_on=$(cat $path/package.json | jq --arg name $name --argjson version $version_map -r 'if (.dependencies + .devDependencies)[$name] then true else false end')
 
             if [[ "$depends_on" == "true" ]]
             then
