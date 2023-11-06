@@ -129,21 +129,21 @@ runs:
           name=$(cat $path/package.json | jq -r '.name')
 
           workspace_dependencies=$(cat $path/package.json | \
-              jq \
-                --argjson version '$output' \
-                -r \
-                '
-                  (.dependencies + .devDependencies)
-                    | to_entries
-                    | map(
-                        if $version[.key] then
-                          .key + "@" + $version[.key]
-                        else
-                          empty
-                        end
-                      )
-                    | join(" ")
-                ')
+            jq \
+              --argjson version $output \
+              -r \
+              '
+                (.dependencies + .devDependencies)
+                  | to_entries
+                  | map(
+                      if $version[.key] then
+                        .key + "@" + $version[.key]
+                      else
+                        empty
+                      end
+                    )
+                  | join(" ")
+              ')
 
           echo workspace_dependencies=$workspace_dependencies
 
