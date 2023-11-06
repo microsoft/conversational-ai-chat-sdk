@@ -19,21 +19,21 @@ runs:
   using: composite
 
   steps:
-    step-a:
+    - id: step-a
       run: echo value=123 | tee --append $GITHUB_OUTPUT
       shell: bash
 
-    step-b:
+    - id: step-b
       run: echo ${{ steps.step-a.outputs.value }}
       shell: bash
 
-    step-c:
+    - id: step-c
       run: |
         cat ./non-existent.json
 
         ls -la
       shell: bash
 
-    step-d:
+    - id: step-d
       run: exit 1
       shell: bash
