@@ -106,7 +106,7 @@ jobs:
 
             npm version \
               --no-git-tag-version \
-              --no-workspace-update \
+              --no-workspaces-update \
               --package-lock-only \
               --workspace=$name $propose_version
 
