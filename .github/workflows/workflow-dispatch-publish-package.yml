@@ -42,6 +42,10 @@ jobs:
       name: ${{ steps.set-output.outputs.name }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions/dummy
+
       - uses: .github/actions/dummy
 
       - name: 'Sanity check: at least one package must be marked for release'
