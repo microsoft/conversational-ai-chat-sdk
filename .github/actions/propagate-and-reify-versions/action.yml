@@ -29,7 +29,71 @@ runs:
     # Expect: it should not fail and will update pages/package.json to the version bumped in step 2.
     # Actual: it fail saying powerva-chat-adapter@0.0.2-0 does not exists.
 
-    - run: |
+    # - run: |
+    #     for path in $(cat ./package.json | jq -r '.workspaces[]')
+    #     do
+    #       name=$(cat $path/package.json | jq -r '.name')
+    #       committed_version=$(cat $path/package.json | jq -r '.version')
+
+    #       if [[ $committed_version == *'-'* ]]
+    #       then
+    #         if [[ "${{ inputs.prefer-production-version }}" == "true" ]]
+    #         then
+    #           echo Getting version number from NPM for package $name.
+
+    #           version=$(npm view $name --json | jq -r '.version')
+
+    #           echo $name@$committed_version -> $name@$version: Package is a prerelease package, using version number from NPM instead.
+    #         else
+    #           version=$committed_version
+
+    #           echo $name@$version: Package is a prerelease package in the workspace.
+    #         fi
+    #       else
+    #         version=$committed_version
+
+    #         echo $name@$version: Package is a production package.
+    #       fi
+
+    #       for dependent_path in $(cat ./package.json | jq -r '.workspaces[]')
+    #       do
+    #         dependent_name=$(cat $dependent_path/package.json | jq -r '.name')
+
+    #         if [[ "$(cat $dependent_path/package.json | jq --arg name "$name" -r 'if (.dependencies + .devDependencies)[$name] then true else false end')" == "true" ]]
+    #         then
+    #           echo npm install --workspace=$dependent_name $name@${{ inputs.version-range-modifier }}$version
+
+    #           npm uninstall \
+    #             --ignore-scripts \
+    #             --no-audit \
+    #             --package-lock-only \
+    #             --prefer-dedupe \
+    #             --workspace=$dependent_name \
+    #             $name
+
+    #           npm install \
+    #             --ignore-scripts \
+    #             --no-audit \
+    #             --package-lock-only \
+    #             --prefer-dedupe \
+    #             --workspace=$dependent_name \
+    #             $name@${{ inputs.version-range-modifier }}$version
+
+    #           # npm update \
+    #           #   --ignore-scripts \
+    #           #   --no-audit \
+    #           #   --save \
+    #           #   --workspace=$dependent_name \
+    #           #   $name
+    #         fi
+    #       done
+    #     done
+    #   shell: bash
+
+    - id: version
+      run: |
+        output={}
+
         for path in $(cat ./package.json | jq -r '.workspaces[]')
         do
           name=$(cat $path/package.json | jq -r '.name')
@@ -55,38 +119,43 @@ runs:
             echo $name@$version: Package is a production package.
           fi
 
-          for dependent_path in $(cat ./package.json | jq -r '.workspaces[]')
-          do
-            dependent_name=$(cat $dependent_path/package.json | jq -r '.name')
+          output=$(echo $output | jq --arg name "$name" --arg version "$version" -cr '.[$name] = $version')
+        done
 
-            if [[ "$(cat $dependent_path/package.json | jq --arg name "$name" -r 'if (.dependencies + .devDependencies)[$name] then true else false end')" == "true" ]]
-            then
-              echo npm install --workspace=$dependent_name $name@${{ inputs.version-range-modifier }}$version
+        echo version=$output | tee --append $GITHUB_OUTPUT
 
-              npm uninstall \
-                --ignore-scripts \
-                --no-audit \
-                --package-lock-only \
-                --prefer-dedupe \
-                --workspace=$dependent_name \
-                $name
+    - run: |
+        for path in $(cat ./package.json | jq -r '.workspaces[]')
+        do
+          name=$(cat $path/package.json | jq -r '.name')
 
-              npm install \
-                --ignore-scripts \
-                --no-audit \
-                --package-lock-only \
-                --prefer-dedupe \
-                --workspace=$dependent_name \
-                $name@${{ inputs.version-range-modifier }}$version
+          workspace_dependencies=$(cat $path/package.json | \
+              jq \
+                --argjson version '${{ steps.id.outputs.version }}' \
+                -r \
+                '
+                  (.dependencies + .devDependencies)
+                    | to_entries
+                    | map(
+                        if $version[.key] then
+                          .key + "@" + $version[.key]
+                        else
+                          empty
+                        end
+                      )
+                    | join(" ")
+                ')
 
-              # npm update \
-              #   --ignore-scripts \
-              #   --no-audit \
-              #   --save \
-              #   --workspace=$dependent_name \
-              #   $name
-            fi
-          done
+          echo workspace_dependencies=$workspace_dependencies
+
+          # Example: "powerva-chat-adapter@0.0.1-0 powerva-chat-adapter-test-util@0.0.1-0"
+          npm install \
+            --ignore-scripts \
+            --no-audit \
+            --package-lock-only \
+            --prefer-dedupe \
+            --workspace=$dependent_name \
+            $workspace_dependencies
         done
       shell: bash
 
