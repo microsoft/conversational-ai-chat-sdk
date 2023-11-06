@@ -122,17 +122,15 @@ runs:
           output=$(echo $output | jq --arg name "$name" --arg version "$version" -cr '.[$name] = $version')
         done
 
-        echo version=$output | tee --append $GITHUB_OUTPUT
-      shell: bash
+        echo $output | jq -r
 
-    - run: |
         for path in $(cat ./package.json | jq -r '.workspaces[]')
         do
           name=$(cat $path/package.json | jq -r '.name')
 
           workspace_dependencies=$(cat $path/package.json | \
               jq \
-                --argjson version '${{ steps.id.outputs.version }}' \
+                --argjson version '$output' \
                 -r \
                 '
                   (.dependencies + .devDependencies)
