@@ -42,6 +42,7 @@ runs:
                 '.[$name] = $versionSpec'
           )
 
+          echo $json | jq -r
           echo
         done
 
@@ -49,7 +50,8 @@ runs:
         # {
         #   "powerva-turn-based-chat-adapter-framework": "0.0.0"
         # }
-        echo json=$json | tee --append $GITHUB_OUTPUT
+        echo json=$json >> $GITHUB_OUTPUT
+        echo $json | jq -r
 
         echo ::endgroup::
       shell: bash
@@ -66,7 +68,7 @@ runs:
           name=$(cat $path/package.json | jq -r '.name')
           echo name=$name
 
-          override_version=$(echo ${{ inputs.version-overrides.outputs.json }} | jq --arg name $name -r '.[$name]')
+          override_version=$(echo ${{ steps.version-overrides.outputs.json }} | jq --arg name $name -r '.[$name]')
           echo override_version=$override_version
 
           [[ -z "$override_version" ]] && package_spec=$name || package_spec=$name@$override_version
@@ -91,8 +93,7 @@ runs:
                 '.[$name] = { dependents: $dependents, devDependents: $devDependents, packageSpec: $packageSpec }' \
           )
 
-          echo json=$json
-
+          echo $json | jq -r
           echo
         done
 
@@ -127,7 +128,8 @@ runs:
         #   }
         # }
 
-        echo json=$json | tee --append $GITHUB_OUTPUT | jq -r
+        echo json=$json >> $GITHUB_OUTPUT
+        echo $json | jq -r
 
         echo ::endgroup::
       shell: bash
