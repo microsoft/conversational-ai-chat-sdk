@@ -30,6 +30,9 @@ runs:
             version_spec=$(echo $spec | awk -F@ '{ print $2 }')
           fi
 
+          echo name=$name
+          echo version_spec=$version_spec
+
           json=$(
             echo $json | \
               jq \
@@ -59,24 +62,29 @@ runs:
         for path in $(cat ./package.json | jq -r '.workspaces[]')
         do
           name=$(cat $path/package.json | jq -r '.name')
+          echo name=$name
+
           override_version=$(echo ${{ inputs.version-overrides.outputs.json }} | jq --arg name $name -r '.[$name]')
+          echo override_version=$override_version
 
           [[ -z "$override_version" ]] && package_spec=$name || package_spec=$name@$override_version
+          echo package_spec=$package_spec
 
           # npm query ":attr(dependencies, [powerva-chat-adapter])" | jq -cr 'map(.name)'
           dependents=$(echo \":attr\(dependencies, [$name]\)\" | xargs npm query | jq -cr 'map(.name)')
+          echo dependents=$dependents
 
           # npm query ":attr(devDependencies, [powerva-chat-adapter])" | jq -cr 'map(.name)'
           dev_dependents=$(echo \":attr\(devDependencies, [$name]\)\" | xargs npm query | jq -cr 'map(.name)')
+          echo dev_dependents=$dev_dependents
 
           json=$(
             echo $json | \
               jq \
                 --arg name $name \
+                --arg packageSpec $package_spec \
                 --argjson dependents $dependents \
                 --argjson devDependents $dev_dependents \
-                --argjson overrideVersion $override_version \
-                --argjson packageSpec $package_spec \
                 -cr \
                 '.[$name] = { dependents: $dependents, devDependents: $devDependents, packageSpec: $packageSpec }' \
           )
