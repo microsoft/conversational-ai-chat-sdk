@@ -178,7 +178,7 @@ jobs:
                   jq \
                     --arg name $name \
                     --arg versionInRegistry $version_in_registry \
-                    --cr \
+                    -cr \
                     '. + [$name + "@^" + $version_in_registry]' \
               )
             fi
