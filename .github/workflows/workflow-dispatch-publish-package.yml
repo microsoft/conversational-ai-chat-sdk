@@ -186,7 +186,7 @@ jobs:
           done
 
           # Example:
-          # [
+          # overrides_json=[
           #   "powerva-chat-adapter-test-util@0.0.1",
           #   "powerva-chat-adapter@0.0.1"
           # ]

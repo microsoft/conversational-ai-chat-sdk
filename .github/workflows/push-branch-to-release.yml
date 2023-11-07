@@ -469,16 +469,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Debug
-        run: |
-          echo needs.prepare.result=${{ needs.prepare.result }}
-          echo needs.build.result=${{ needs.build.result }}
-          echo needs.sanity-check.result=${{ needs.sanity-check.result }}
-          echo needs.github-pages-deployment.result=${{ needs.github-pages-deployment.result }}
-          echo needs.github-release-publish.result=${{ needs.github-release-publish.result }}
-          echo needs.npm-publishing.result=${{ needs.npm-publishing.result }}
-          echo needs.pull-request-create.result=${{ needs.pull-request-create.result }}
-
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GH_TOKEN_PULL_REQUEST }}
