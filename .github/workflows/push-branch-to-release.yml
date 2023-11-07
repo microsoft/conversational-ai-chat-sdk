@@ -58,7 +58,7 @@ jobs:
           cache: npm
           node-version: ${{ env.node-version }}
 
-      - if: "env.skip-secure-feed != 'false'"
+      - if: "env.skip-secure-feed != 'true'"
         name: Set up secure feed
         run: npx https://aka.ms/EnableSecureFeed
 
@@ -346,7 +346,7 @@ jobs:
         with:
           node-version: ${{ env.node-version }}
 
-      - if: "env.skip-secure-feed != 'false'"
+      - if: "env.skip-secure-feed != 'true'"
         name: Set up secure feed
         run: npx https://aka.ms/EnableSecureFeed
 
