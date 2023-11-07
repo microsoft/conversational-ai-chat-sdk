@@ -1,39 +1,188 @@
-# This action assumes local packages have their version changed.
-# When running this action, the version number of local packages will propagate to their depending local packages.
-
-name: Bump version in workspace
-# inputs:
-#   name-version:
-#     required: false
-#   stage:
-#     default: true
-#     description: Stage modified package.json
-#     type: boolean
-#   version-range-modifier:
-#     default: '^'
-#     description: Version range modifier
-#     required: true
-#     type: string
+name: Reinstall local packages
+inputs:
+  overrides:
+    description: Name of local packages and their specific version to install. Separate each package with a new line.
+    required: false
+  stage:
+    default: true
+    description: Stage modified package.json
+    type: boolean
 
 runs:
   using: composite
 
   steps:
-    - id: step-a
-      run: echo value=123 | tee --append $GITHUB_OUTPUT
-      shell: bash
-
-    - id: step-b
-      run: echo ${{ steps.step-a.outputs.value }}
-      shell: bash
-
-    - id: step-c
+    - id: version-overrides
+      name: Build version overrides plan
       run: |
-        cat ./non-existent.json
+        json={}
 
-        ls -la
+        for spec in $(echo '${{ toJSON(inputs.overrides) }}' | jq -r)
+        do
+          if [[ $spec == '@'* ]]
+          then
+            name=$(echo $spec | awk -F@ '{ print $2 }')
+            version=$(echo $spec | awk -F@ '{ print $3 }')
+          else
+            name=$(echo $spec | awk -F@ '{ print $1 }')
+            version=$(echo $spec | awk -F@ '{ print $2 }')
+          fi
+
+          json=$(
+            echo $json | \
+              jq \
+                --arg name $name \
+                --arg version $version \
+                -cr \
+                '.[$name] = $version'
+          )
+        done
+
+        # Example:
+        # {
+        #   "powerva-turn-based-chat-adapter-framework": "0.0.0"
+        # }
+        echo json=$json | tee --append $GITHUB_OUTPUT
       shell: bash
 
-    - id: step-d
-      run: exit 1
+    - id: install-plan
+      name: Build install plan
+      run: |
+        json={}
+
+        for path in $(cat ./package.json | jq -r '.workspaces[]')
+        do
+          name=$(cat $path/package.json | jq -r '.name')
+          override_version=$(echo ${{ inputs.version-overrides.outputs.json }} | jq --arg name $name -r '.[$name]')
+
+          [[ -z "$override_version" ]] && package-spec=$name || package-spec=$name@$override_version
+
+          # npm query ":attr(dependencies, [powerva-chat-adapter])" | jq -cr 'map(.name)'
+          dependents=$(echo \":attr\(dependencies, [$name]\)\" | xargs npm query | jq -cr 'map(.name)')
+
+          # npm query ":attr(devDependencies, [powerva-chat-adapter])" | jq -cr 'map(.name)'
+          dev_dependents=$(echo \":attr\(devDependencies, [$name]\)\" | xargs npm query | jq -cr 'map(.name)')
+
+          json=$(
+            echo $json | \
+              jq \
+                --arg name $name \
+                --argjson dependents $dependents \
+                --argjson devDependents $dev_dependents \
+                --argjson overrideVersion $override_version \
+                --argjson packageSpec $package_spec \
+                -cr \
+                '.[$name] = { dependents: $dependents, devDependents: $devDependents, packageSpec: $packageSpec }'
+          )
+        done
+
+        # Example:
+        # {
+        #   "powerva-chat-adapter-test-util": {
+        #     "dependents": [],
+        #     "devDependents": [
+        #       "powerva-turn-based-chat-adapter-framework",
+        #       "powerva-chat-adapter"
+        #     ],
+        #     "packageSpec": "powerva-chat-adapter-test-util@0.0.1"
+        #   },
+        #   "powerva-turn-based-chat-adapter-framework": {
+        #     "dependents": [
+        #       "powerva-chat-adapter"
+        #     ],
+        #     "devDependents": [],
+        #     "packageSpec": "powerva-turn-based-chat-adapter-framework",
+        #   },
+        #   "powerva-chat-adapter": {
+        #     "dependents": [
+        #       "pages"
+        #     ],
+        #     "devDependents": [],
+        #     "packageSpec": "powerva-chat-adapter@0.0.1"
+        #   },
+        #   "pages": {
+        #     "dependents": [],
+        #     "devDependents": [],
+        #     "packageSpec": "pages"
+        #   }
+        # }
+
+        echo json=$json | tee --append $GITHUB_OUTPUT | jq -r
+      shell: bash
+
+    - name: Uninstall all local packages
+      run: |
+        # Uninstall all local packages before installing newer version. We must uninstall all at once.
+        # If we have 2+ packages that are not published, `npm install` one of them will say the other one is not found.
+
+        # Example: local_names="powerva-chat-adapter-test-util powerva-turn-based-chat-adapter-framework powerva-chat-adapter pages"
+        local_names=$(echo ${{ inputs.install-plan.outputs.json }} | jq -r '. | keys | join(" ")')
+        echo local_names=$local_names
+
+        echo npm uninstall $local_names --workspaces
+        npm uninstall $local_names --workspaces
+      shell: bash
+
+    - name: Reinstall all local packages
+      run: |
+        # Reinstall dependencies with newer version according to the order in package.json/workspaces.
+        for path in $(cat ./package.json | jq -r '.workspaces[]')
+        do
+          name=$(cat $path/package.json | jq -r '.name')
+          package_spec=$(echo ${{ steps.install-plan.outputs.json }} | jq --arg name $name -r '.[$name].packageSpec')
+
+          # "package_spec" must exists in the install plan.
+          [[ ! -z "$package_spec" ]]
+
+          # Example: "--workspace=pages --workspace=powerva-chat-adapter"
+          local_prod_packages=$(echo ${{ inputs.install-plan.outputs.json }} | jq --arg name $name -r '.[$name].dependents | map("--workspace=" + .) | join(" ")')
+
+          # Install the package if there are any dependents.
+          if [[ ! -z "$local_prod_packages" ]]
+          then
+            echo npm install $package_spec --save $local_prod_packages
+
+            npm install \
+              --ignore-scripts \
+              --no-audit \
+              --package-lock-only \
+              --save \
+              $local_prod_packages \
+              $package_spec
+          fi
+
+          # Example: "--workspace=pages --workspace=powerva-chat-adapter"
+          local_dev_packages=$(echo $all_dependents | jq --arg name $name -r '.[$name].devDependents | map("--workspace=" + .) | join(" ")')
+
+          # Install the package if there are any dependents.
+          if [[ ! -z "$local_dev_packages" ]]
+          then
+            echo npm install --save-dev $local_dev_packages $package_spec
+
+            npm install \
+              --ignore-scripts \
+              --no-audit \
+              --package-lock-only \
+              --save-dev \
+              $local_dev_packages \
+              $package_spec
+          fi
+        done
+      shell: bash
+
+    - if: inputs.stage
+      name: Stage package.json
+      run: |
+        for path in $(cat ./package.json | jq -r '.workspaces[]')
+        do
+          git add $path/package.json
+        done
+      shell: bash
+
+    - if: inputs.stage
+      name: Stage package-lock.json
+      run: git add package-lock.json
+      shell: bash
+
+    - run: exit 1
       shell: bash

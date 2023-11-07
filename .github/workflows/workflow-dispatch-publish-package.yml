@@ -42,12 +42,6 @@ jobs:
       name: ${{ steps.set-output.outputs.name }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          sparse-checkout: .github/actions/dummy
-
-      - uses: ./.github/actions/dummy
-
       - name: 'Sanity check: at least one package must be marked for release'
         run: |
           [[ \
@@ -158,10 +152,58 @@ jobs:
 
           git add ./package-lock.json
 
-      - name: Propagate and reify versions
-        uses: ./.github/actions/propagate-and-reify-versions
+      - id: version-overrides
+        name: Get version overrides
+        run: |
+          # When publishing production packages to NPM, the package should only use non-prerelease version.
+
+          # If we are not publishing all packages at the same time, we will need to rollback
+          # the version of non-publishing packages to what we current have on NPM registry.
+
+          overrides_json=[]
+
+          for path in $(cat ./package.json | jq -r '.workspaces[]')
+          do
+            name=$(cat $path/package.json | jq -r '.name')
+            version=$(cat $path/package.json | jq -r '.version')
+
+            if [[ $version == *'-'* ]]
+            then
+              echo Getting version number from NPM for package $name@latest.
+
+              version_in_registry=$(npm view $name@latest --json | jq -r '.version')
+
+              overrides_json=$(
+                echo $overrides_json | \
+                  jq \
+                    --arg name $name \
+                    --arg versionInRegistry $version_in_registry \
+                    --cr \
+                    '. + [$name + "@^" + $version_in_registry]'
+            fi
+          done
+
+          # Example:
+          # [
+          #   "powerva-chat-adapter-test-util@0.0.1",
+          #   "powerva-chat-adapter@0.0.1"
+          # ]
+          echo overrides_json=$overrides_json
+
+          {
+            echo 'overrides<<EOF'
+            echo $overrides_json | jq -r '.[]'
+            echo EOF
+          } | tee --append $GITHUB_OUTPUT
+
+      - uses: ./.github/actions/dummy
         with:
-          disallow-prerelease-version: true # All releasing packages should depends on production version.
+          package-spec: ${{ steps.version-overrides.outputs.overrides }}
+
+      # - name: Propagate and reify versions
+      #   uses: ./.github/actions/propagate-and-reify-versions
+      #   with:
+      #     disallow-prerelease-version: true # All releasing packages should depends on production version.
 
       - name: Build and stage matrix.json
         uses: ./.github/actions/build-matrix-file
