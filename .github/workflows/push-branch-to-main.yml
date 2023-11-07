@@ -60,7 +60,7 @@ jobs:
         with:
           node-version: ${{ env.node-version }}
 
-      - if: 'env.skip-secure-feed == "true"'
+      - if: "env.skip-secure-feed == 'true'"
         name: Set up secure feed
         run: npx https://aka.ms/EnableSecureFeed
 
@@ -169,6 +169,6 @@ jobs:
       - name: Commit
         run: git commit --message="Development release for ${{ github.ref }} with commit ${{ env.short_commitish }}"
 
-      - if: 'env.dry-run != "true"'
+      - if: "env.dry-run != 'true'"
         name: Push
         run: git push --set-upstream origin ${{ env.branch }}
