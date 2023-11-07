@@ -74,7 +74,7 @@ runs:
           # [[ -z "$override_version" ]] && package_spec=$name || package_spec=$name@$override_version
           # echo package_spec=$package_spec
 
-          package_spec=$(echo '${{ steps.version-overrides.outputs.json }}' | jq --arg name $name -r '.[$name] | if . then $name + "@" + . else "" end')
+          package_spec=$(echo '${{ steps.version-overrides.outputs.json }}' | jq --arg name $name -r '.[$name] | if . then $name + "@" + . else $name end')
           echo package_spec=$package_spec
 
           # npm query ":attr(dependencies, [powerva-chat-adapter])" | jq -cr 'map(.name)'
@@ -184,7 +184,7 @@ runs:
           fi
 
           # Example: "--workspace=pages --workspace=powerva-chat-adapter"
-          local_dev_packages=$(echo $all_dependents | jq --arg name $name -r '.[$name].devDependents | map("--workspace=" + .) | join(" ")')
+          local_dev_packages=$(echo '${{ steps.install-plan.outputs.json }}' | jq --arg name $name -r '.[$name].devDependents | map("--workspace=" + .) | join(" ")')
 
           # Install the package if there are any dependents.
           if [[ ! -z "$local_dev_packages" ]]
