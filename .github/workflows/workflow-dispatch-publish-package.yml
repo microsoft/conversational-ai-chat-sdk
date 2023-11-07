@@ -180,7 +180,7 @@ jobs:
                     --arg name $name \
                     --arg versionInRegistry $version_in_registry \
                     -cr \
-                    '. + [$name + "@^" + $versionInRegistry]' \
+                    '. + [$name + "@" + $versionInRegistry]' \
               )
             fi
           done

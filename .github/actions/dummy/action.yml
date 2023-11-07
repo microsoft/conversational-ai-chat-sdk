@@ -24,22 +24,22 @@ runs:
           if [[ $spec == '@'* ]]
           then
             name=$(echo $spec | awk -F@ '{ print $2 }')
-            version_spec=$(echo $spec | awk -F@ '{ print $3 }')
+            version=$(echo $spec | awk -F@ '{ print $3 }')
           else
             name=$(echo $spec | awk -F@ '{ print $1 }')
-            version_spec=$(echo $spec | awk -F@ '{ print $2 }')
+            version=$(echo $spec | awk -F@ '{ print $2 }')
           fi
 
           echo name=$name
-          echo version_spec=$version_spec
+          echo version=$version
 
           json=$(
             echo $json | \
               jq \
                 --arg name $name \
-                --arg versionSpec $version_spec \
+                --arg version $version \
                 -cr \
-                '.[$name] = $versionSpec'
+                '.[$name] = $version'
           )
 
           echo $json | jq -r
@@ -50,8 +50,7 @@ runs:
         # {
         #   "powerva-turn-based-chat-adapter-framework": "0.0.0"
         # }
-        echo json=$json >> $GITHUB_OUTPUT
-        echo $json | jq -r
+        echo json=$json | tee --append $GITHUB_OUTPUT
 
         echo ::endgroup::
       shell: bash
@@ -128,8 +127,7 @@ runs:
         #   }
         # }
 
-        echo json=$json >> $GITHUB_OUTPUT
-        echo $json | jq -r
+        echo json=$json | tee --append $GITHUB_OUTPUT
 
         echo ::endgroup::
       shell: bash
@@ -142,7 +140,7 @@ runs:
         # If we have 2+ packages that are not published, `npm install` one of them will say the other one is not found.
 
         # Example: local_names="powerva-chat-adapter-test-util powerva-turn-based-chat-adapter-framework powerva-chat-adapter pages"
-        local_names=$(echo ${{ inputs.install-plan.outputs.json }} | jq -r '. | keys | join(" ")')
+        local_names=$(echo ${{ steps.install-plan.outputs.json }} | jq -r '. | keys | join(" ")')
         echo local_names=$local_names
 
         echo npm uninstall $local_names --workspaces
@@ -165,7 +163,7 @@ runs:
           [[ ! -z "$package_spec" ]]
 
           # Example: "--workspace=pages --workspace=powerva-chat-adapter"
-          local_prod_packages=$(echo ${{ inputs.install-plan.outputs.json }} | jq --arg name $name -r '.[$name].dependents | map("--workspace=" + .) | join(" ")')
+          local_prod_packages=$(echo ${{ steps.install-plan.outputs.json }} | jq --arg name $name -r '.[$name].dependents | map("--workspace=" + .) | join(" ")')
 
           # Install the package if there are any dependents.
           if [[ ! -z "$local_prod_packages" ]]
