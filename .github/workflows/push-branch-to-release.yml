@@ -288,6 +288,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.node-version }}
+          registry-url: https://registry.npmjs.org/
 
       - name: List package
         run: ls -l ${{ matrix.tarball }}
@@ -308,7 +309,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         if: "steps.has-published.outputs.published == 'false' && env.dry-run != 'true'"
         name: "Publish ${{ format('{0}@{1}', matrix.name, matrix.version) }}"
-        run: npm publish --access public --json ${{ matrix.tarball }} --provenance
+        run: npm publish --access public --json --provenance ${{ matrix.tarball }}
 
   pull-request-create:
     env:
