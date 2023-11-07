@@ -369,7 +369,7 @@ jobs:
 
             echo ::group::$name
 
-            # We will do workspaces-update later via propagate-reify.
+            # We will do workspaces-update later via npm-update-workspace-packages action
             npm version \
               --no-git-tag-version \
               --no-workspaces-update \
@@ -407,10 +407,13 @@ jobs:
             echo ::endgroup::
           done
 
-      - name: Propagate and reify versions
-        uses: ./.github/actions/propagate-and-reify-versions
-        with:
-          disallow-prerelease-version: false # Use versions in workspace
+      - name: Run npm update on workspace packages
+        uses: ./.github/actions/npm-update-workspace-packages
+
+      # - name: Propagate and reify versions
+      #   uses: ./.github/actions/propagate-and-reify-versions
+      #   with:
+      #     disallow-prerelease-version: false # Use versions in workspace
 
       - name: Remove matrix.json
         run: git rm matrix.json

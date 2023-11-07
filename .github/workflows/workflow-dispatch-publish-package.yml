@@ -100,7 +100,7 @@ jobs:
           do
             echo ::group::$name
 
-            # We will do workspaces-update later via propagate-reify.
+            # We will do workspaces-update later via npm-update-workspace-packages action
             npm version \
               --no-git-tag-version \
               --no-workspaces-update \
@@ -198,7 +198,8 @@ jobs:
             echo EOF
           } | tee --append $GITHUB_OUTPUT
 
-      - uses: ./.github/actions/dummy
+      - name: Run npm update on workspace packages
+        uses: ./.github/actions/npm-update-workspace-packages
         with:
           overrides: ${{ steps.version-overrides.outputs.overrides }}
 

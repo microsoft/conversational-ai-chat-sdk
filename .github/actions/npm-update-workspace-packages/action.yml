@@ -220,12 +220,9 @@ runs:
     - if: inputs.stage
       name: Stage package-lock.json
       run: |
-        echo ::group::Stage package-loc.json
+        echo ::group::Stage package-lock.json
 
         git add package-lock.json
 
         echo ::endgroup::
-      shell: bash
-
-    - run: exit 1
       shell: bash
