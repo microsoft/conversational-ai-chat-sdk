@@ -74,7 +74,7 @@ runs:
           # [[ -z "$override_version" ]] && package_spec=$name || package_spec=$name@$override_version
           # echo package_spec=$package_spec
 
-          package_spec=$(echo '${{ steps.version-overrides.outputs.json }}' | jq --arg name $name -r '.[$name] | ("@" + .) // ""')
+          package_spec=$(echo '${{ steps.version-overrides.outputs.json }}' | jq --arg name $name -r '.[$name] | if . then $name + "@" + . else "" end')
           echo package_spec=$package_spec
 
           # npm query ":attr(dependencies, [powerva-chat-adapter])" | jq -cr 'map(.name)'
