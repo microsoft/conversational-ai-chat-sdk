@@ -14,7 +14,7 @@ defaults:
     shell: bash
 
 env:
-  dry-run: true
+  dry-run: false
   node-version: lts/Iron # Node.js 20
   skip-secure-feed: true # TODO: Turn this off.
 
@@ -193,7 +193,7 @@ jobs:
 
     steps:
       - id: deployment
-        if: '!env.dry-run'
+        if: "env.dry-run != 'true'"
         name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v2
 
@@ -230,7 +230,7 @@ jobs:
         # This is because, if last commit was modifying workflow, it will fail with permission issues.
         env:
           GH_TOKEN: ${{ github.token }}
-        if: '!env.dry-run'
+        if: "env.dry-run != 'true'"
         name: Push tag
         run: |
           gh api \
@@ -240,7 +240,7 @@ jobs:
 
       - env:
           GH_TOKEN: ${{ github.token }}
-        if: '!env.dry-run'
+        if: "env.dry-run != 'true'"
         name: Create release
         run: |
           date=$(date +%F)
@@ -306,7 +306,7 @@ jobs:
 
       - env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: '!steps.has-published.outputs.published && !env.dry-run'
+        if: "!steps.has-published.outputs.published && env.dry-run != 'true'"
         name: "Publish ${{ format('{0}@{1}', matrix.name, matrix.version) }}"
         # TODO: Remove echo.
         run: echo npm publish --json ${{ matrix.tarball }} --provenance
