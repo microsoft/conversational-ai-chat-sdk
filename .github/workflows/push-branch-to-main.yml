@@ -122,11 +122,6 @@ jobs:
       - name: Run npm update on workspace packages
         uses: ./.github/actions/npm-update-workspace-packages
 
-      # - name: Propagate and reify versions
-      #   uses: ./.github/actions/propagate-and-reify-versions
-      #   with:
-      #     disallow-prerelease-version: false # Use versions in workspace
-
       - name: Stage package-lock.json
         run: git add ./package-lock.json
 

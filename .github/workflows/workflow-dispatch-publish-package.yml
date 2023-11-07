@@ -203,11 +203,6 @@ jobs:
         with:
           overrides: ${{ steps.version-overrides.outputs.overrides }}
 
-      # - name: Propagate and reify versions
-      #   uses: ./.github/actions/propagate-and-reify-versions
-      #   with:
-      #     disallow-prerelease-version: true # All releasing packages should depends on production version.
-
       - name: Build and stage matrix.json
         uses: ./.github/actions/build-matrix-file
         with:

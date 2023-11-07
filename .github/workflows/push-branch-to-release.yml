@@ -384,7 +384,6 @@ jobs:
           done
 
       - name: Add unreleased to CHANGELOG.md
-        # We installed keep-a-changelog from secure feed, make sure we run offline and don't install another one.
         run: |
           for entry in $(cat ./matrix.json | jq -cr '.publishingPackages[]')
           do
@@ -393,6 +392,8 @@ jobs:
 
             echo ::group::$name
 
+            # We installed keep-a-changelog from secure feed.
+            # Make sure we run offline and don't install another one.
             npx \
               --offline \
               --workspace="$name" \
@@ -409,11 +410,6 @@ jobs:
 
       - name: Run npm update on workspace packages
         uses: ./.github/actions/npm-update-workspace-packages
-
-      # - name: Propagate and reify versions
-      #   uses: ./.github/actions/propagate-and-reify-versions
-      #   with:
-      #     disallow-prerelease-version: false # Use versions in workspace
 
       - name: Remove matrix.json
         run: git rm matrix.json
