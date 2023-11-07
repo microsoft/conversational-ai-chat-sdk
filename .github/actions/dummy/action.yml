@@ -41,6 +41,8 @@ runs:
                 -cr \
                 '.[$name] = $versionSpec'
           )
+
+          echo
         done
 
         # Example:
@@ -88,6 +90,10 @@ runs:
                 -cr \
                 '.[$name] = { dependents: $dependents, devDependents: $devDependents, packageSpec: $packageSpec }' \
           )
+
+          echo json=$json
+
+          echo
         done
 
         # Example:
