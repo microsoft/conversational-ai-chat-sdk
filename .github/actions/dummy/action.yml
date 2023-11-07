@@ -67,10 +67,14 @@ runs:
           name=$(cat $path/package.json | jq -r '.name')
           echo name=$name
 
-          override_version=$(echo '${{ steps.version-overrides.outputs.json }}' | jq --arg name $name -r '.[$name]')
-          echo override_version=$override_version
+          # override_version=$(echo '${{ steps.version-overrides.outputs.json }}' | jq --arg name $name -r '.[$name] // ""')
 
-          [[ -z "$override_version" ]] && package_spec=$name || package_spec=$name@$override_version
+          # echo override_version=$override_version
+
+          # [[ -z "$override_version" ]] && package_spec=$name || package_spec=$name@$override_version
+          # echo package_spec=$package_spec
+
+          package_spec=$(echo '${{ steps.version-overrides.outputs.json }}' | jq --arg name $name -r '.[$name] | ("@" + .) // ""')
           echo package_spec=$package_spec
 
           # npm query ":attr(dependencies, [powerva-chat-adapter])" | jq -cr 'map(.name)'
