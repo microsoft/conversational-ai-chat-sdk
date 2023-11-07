@@ -15,6 +15,8 @@ runs:
     - id: version-overrides
       name: Build version overrides plan
       run: |
+        echo ::group::Build version overrides plan
+
         json={}
 
         for spec in $(echo '${{ toJSON(inputs.overrides) }}' | jq -r)
@@ -22,19 +24,19 @@ runs:
           if [[ $spec == '@'* ]]
           then
             name=$(echo $spec | awk -F@ '{ print $2 }')
-            version=$(echo $spec | awk -F@ '{ print $3 }')
+            version_spec=$(echo $spec | awk -F@ '{ print $3 }')
           else
             name=$(echo $spec | awk -F@ '{ print $1 }')
-            version=$(echo $spec | awk -F@ '{ print $2 }')
+            version_spec=$(echo $spec | awk -F@ '{ print $2 }')
           fi
 
           json=$(
             echo $json | \
               jq \
                 --arg name $name \
-                --arg version $version \
+                --arg versionSpec $version_spec \
                 -cr \
-                '.[$name] = $version'
+                '.[$name] = $versionSpec'
           )
         done
 
@@ -43,11 +45,15 @@ runs:
         #   "powerva-turn-based-chat-adapter-framework": "0.0.0"
         # }
         echo json=$json | tee --append $GITHUB_OUTPUT
+
+        echo ::endgroup::
       shell: bash
 
     - id: install-plan
       name: Build install plan
       run: |
+        echo ::group::Build install plan
+
         json={}
 
         for path in $(cat ./package.json | jq -r '.workspaces[]')
@@ -72,7 +78,7 @@ runs:
                 --argjson overrideVersion $override_version \
                 --argjson packageSpec $package_spec \
                 -cr \
-                '.[$name] = { dependents: $dependents, devDependents: $devDependents, packageSpec: $packageSpec }'
+                '.[$name] = { dependents: $dependents, devDependents: $devDependents, packageSpec: $packageSpec }' \
           )
         done
 
@@ -108,10 +114,14 @@ runs:
         # }
 
         echo json=$json | tee --append $GITHUB_OUTPUT | jq -r
+
+        echo ::endgroup::
       shell: bash
 
     - name: Uninstall all local packages
       run: |
+        echo ::group::Uninstall all local packages
+
         # Uninstall all local packages before installing newer version. We must uninstall all at once.
         # If we have 2+ packages that are not published, `npm install` one of them will say the other one is not found.
 
@@ -121,10 +131,14 @@ runs:
 
         echo npm uninstall $local_names --workspaces
         npm uninstall $local_names --workspaces
+
+        echo ::endgroup::
       shell: bash
 
     - name: Reinstall all local packages
       run: |
+        echo ::group::Reinstall all local packages
+
         # Reinstall dependencies with newer version according to the order in package.json/workspaces.
         for path in $(cat ./package.json | jq -r '.workspaces[]')
         do
@@ -168,20 +182,31 @@ runs:
               $package_spec
           fi
         done
+
+        echo ::endgroup::
       shell: bash
 
     - if: inputs.stage
       name: Stage package.json
       run: |
+        echo ::group::Stage package.json
+
         for path in $(cat ./package.json | jq -r '.workspaces[]')
         do
           git add $path/package.json
         done
+
+        echo ::endgroup::
       shell: bash
 
     - if: inputs.stage
       name: Stage package-lock.json
-      run: git add package-lock.json
+      run: |
+        echo ::group::Stage package-loc.json
+
+        git add package-lock.json
+
+        echo ::endgroup::
       shell: bash
 
     - run: exit 1
