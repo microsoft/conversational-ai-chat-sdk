@@ -306,7 +306,7 @@ jobs:
 
       - env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: "!steps.has-published.outputs.published && env.dry-run != 'true'"
+        if: "steps.has-published.outputs.published == 'false' && env.dry-run != 'true'"
         name: "Publish ${{ format('{0}@{1}', matrix.name, matrix.version) }}"
         run: npm publish --json ${{ matrix.tarball }} --provenance
 
