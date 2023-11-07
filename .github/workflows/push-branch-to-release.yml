@@ -269,6 +269,8 @@ jobs:
       - build
       - prepare
       - sanity-check
+    permission:
+      id-token: write
     runs-on: ubuntu-latest
     strategy:
       matrix:
