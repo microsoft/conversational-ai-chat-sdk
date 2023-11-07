@@ -269,7 +269,7 @@ jobs:
       - build
       - prepare
       - sanity-check
-    permission:
+    permissions:
       id-token: write
     runs-on: ubuntu-latest
     strategy:
