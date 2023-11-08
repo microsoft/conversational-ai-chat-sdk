@@ -140,6 +140,9 @@ jobs:
       - name: List directory
         run: ls -la ./_site/
 
+      - name: Configure Pages
+        uses: actions/configure-pages@v3
+
       - name: 'Sanity check: must have index.html'
         run: '[[ -f ./_site/index.html ]]'
 
