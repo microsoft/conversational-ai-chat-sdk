@@ -180,16 +180,19 @@ jobs:
 
       - if: steps.prepare.outputs.is-private != 'true'
         name: 'Sanity check: all exports exists'
-        run: cat ./package.json | jq '.exports | map(flatten) | flatten | .[]' | xargs -L1 test -f
+        run: cat ./package.json | jq '.exports | leaf_paths as $path | getpath($path)' | xargs -L1 test -f
 
       - if: steps.prepare.outputs.is-private != 'true'
         name: 'Sanity check: all exports has "types" condition'
-        run: cat ./package.json | jq '.exports | map(select(.types == null)) | if length > 0 then halt_error(1) else empty end'
+        run: cat ./package.json | jq '.exports as $e | $e | leaf_paths | .[0:-1] as $p | $e | getpath($p) | if has("types") then empty else halt_error(1) end'
 
       - if: steps.prepare.outputs.is-private != 'true'
         name: 'Sanity check: has source maps'
-        # TODO: Check if abc.js has abc.js.map, instead of just *.js.map.
-        run: compgen -G lib/**/*.js.map
+        # TODO: Rewrite it without mkdir.
+        run: |
+          mkdir -p ./dist
+          mkdir -p ./lib
+          find ./dist/ ./lib/ -name *.js -print0 | xargs -0 -i test -f {}.map
 
       - if: steps.prepare.outputs.is-private != 'true'
         name: 'Sanity check: no lib/**/*.spec.*'
