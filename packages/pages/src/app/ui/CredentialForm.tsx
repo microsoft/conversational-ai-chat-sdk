@@ -222,7 +222,7 @@ export default memo(function CredentialForm({
               type="radio"
               value="server sent events"
             />
-            Server sent events
+            Server Sent Events
           </label>
         </dd>
         {type === 'test canvas bot' ? (
