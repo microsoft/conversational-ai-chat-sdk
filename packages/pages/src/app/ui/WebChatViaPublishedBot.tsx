@@ -1,17 +1,22 @@
-import { PublishedBotAPIStrategy } from 'powerva-chat-adapter';
+import ReactWebChat from 'botframework-webchat';
+import {
+  PublishedBotAPIStrategy,
+  createHalfDuplexChatAdapter,
+  toDirectLineJS
+} from 'copilot-studio-direct-to-engine-chat-adapter';
 import { Fragment, memo, useCallback, useEffect, useMemo } from 'react';
 
-import ReactWebChat from 'botframework-webchat';
-import { createHalfDuplexChatAdapter, toDirectLineJS } from 'copilot-studio-direct-to-engine-chat-adapter';
+import { Transport } from '../types/Transport';
 
 type Props = {
   botSchema: string;
   environmentID: string;
   hostnameSuffix: string;
   token: string;
+  transport: Transport;
 };
 
-export default memo(function WebChat({ botSchema, environmentID, hostnameSuffix, token }: Props) {
+export default memo(function WebChat({ botSchema, environmentID, hostnameSuffix, token, transport }: Props) {
   // Should use PowerPlatformApiDiscovery to find out the base URL.
   const environmentIDWithoutHyphens = useMemo(() => environmentID.replaceAll('-', ''), [environmentID]);
   const getTokenCallback = useCallback<() => Promise<string>>(() => Promise.resolve(token), [token]);
@@ -29,11 +34,10 @@ export default memo(function WebChat({ botSchema, environmentID, hostnameSuffix,
   const environmentEndpointURL = new URL(`https://${hostnamePrefix}.environment.${hostnameSuffix}`);
 
   const strategy = useMemo(
-    () => new PublishedBotAPIStrategy({ botSchema, environmentEndpointURL, getTokenCallback }),
-    [botSchema, environmentEndpointURL, getTokenCallback]
+    () => new PublishedBotAPIStrategy({ botSchema, environmentEndpointURL, getTokenCallback, transport }),
+    [botSchema, environmentEndpointURL, getTokenCallback, transport]
   );
 
-  // const chatAdapter = useMemo(() => fromTurnBasedChatAdapterAPI(new PowerPlatformAPIChatAdapter(strategy)), [strategy]);
   const chatAdapter = useMemo(() => toDirectLineJS(createHalfDuplexChatAdapter(strategy)), [strategy]);
 
   useEffect(() => () => chatAdapter?.end(), [chatAdapter]);

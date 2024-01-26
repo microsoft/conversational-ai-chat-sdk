@@ -121,6 +121,7 @@ export default memo(function App() {
                 hostnameSuffix={submittedCredential.hostnameSuffix}
                 key={submittedCredential.key}
                 token={submittedCredential.token}
+                transport={submittedCredential.transport}
               />
             )
           : type === 'test canvas bot'
@@ -141,6 +142,7 @@ export default memo(function App() {
                 hostnameSuffix={submittedCredential.hostnameSuffix}
                 key={submittedCredential.key}
                 token={submittedCredential.token}
+                transport={submittedCredential.transport}
               />
             ))}
     </Fragment>
