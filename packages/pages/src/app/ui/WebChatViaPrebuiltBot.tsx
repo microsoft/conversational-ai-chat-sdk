@@ -1,4 +1,3 @@
-import ReactWebChat from 'botframework-webchat';
 import {
   PrebuiltBotAPIStrategy,
   createHalfDuplexChatAdapter,
@@ -7,6 +6,7 @@ import {
 import { Fragment, memo, useCallback, useEffect, useMemo } from 'react';
 
 import { type Transport } from '../types/Transport';
+import ReactWebChatShim from './ReactWebChatShim';
 
 type Props = {
   botIdentifier: string;
@@ -55,7 +55,7 @@ export default memo(function WebChat({ botIdentifier, environmentID, hostnameSuf
         {'\n}'})
       </pre>
       <div className="webchat">
-        <ReactWebChat directLine={chatAdapter} />
+        <ReactWebChatShim directLine={chatAdapter} />
       </div>
     </Fragment>
   );

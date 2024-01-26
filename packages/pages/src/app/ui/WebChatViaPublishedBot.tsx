@@ -1,4 +1,3 @@
-import ReactWebChat from 'botframework-webchat';
 import {
   PublishedBotAPIStrategy,
   createHalfDuplexChatAdapter,
@@ -6,7 +5,8 @@ import {
 } from 'copilot-studio-direct-to-engine-chat-adapter';
 import { Fragment, memo, useCallback, useEffect, useMemo } from 'react';
 
-import { Transport } from '../types/Transport';
+import { type Transport } from '../types/Transport';
+import ReactWebChatShim from './ReactWebChatShim';
 
 type Props = {
   botSchema: string;
@@ -54,7 +54,7 @@ export default memo(function WebChat({ botSchema, environmentID, hostnameSuffix,
         {'\n}'})
       </pre>
       <div className="webchat">
-        <ReactWebChat directLine={chatAdapter} />
+        <ReactWebChatShim directLine={chatAdapter} />
       </div>
     </Fragment>
   );
