@@ -1,3 +1,4 @@
+import ReactWebChat from 'botframework-webchat';
 import {
   TestCanvasBotAPIStrategy,
   createHalfDuplexChatAdapter,
@@ -5,20 +6,28 @@ import {
 } from 'copilot-studio-direct-to-engine-chat-adapter';
 import { Fragment, memo, useCallback, useEffect, useMemo } from 'react';
 
-import ReactWebChat from 'botframework-webchat';
+import { type Transport } from '../types/Transport';
 
 type Props = {
   botId: string;
   environmentId: string;
   islandURI: string;
   token: string;
+  transport: Transport;
 };
 
-export default memo(function WebChat({ botId, environmentId, islandURI, token }: Props) {
+export default memo(function WebChat({ botId, environmentId, islandURI, token, transport }: Props) {
   const getTokenCallback = useCallback<() => Promise<string>>(() => Promise.resolve(token), [token]);
 
   const strategy = useMemo(
-    () => new TestCanvasBotAPIStrategy({ botId, environmentId, getTokenCallback, islandURI: new URL(islandURI) }),
+    () =>
+      new TestCanvasBotAPIStrategy({
+        botId,
+        environmentId,
+        getTokenCallback,
+        islandURI: new URL(islandURI),
+        transport
+      }),
     [botId, environmentId, getTokenCallback, islandURI]
   );
 

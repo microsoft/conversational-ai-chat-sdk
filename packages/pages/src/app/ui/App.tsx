@@ -3,6 +3,7 @@ import { useRefFrom } from 'use-ref-from';
 
 import useAppReducer from '../data/useAppReducer';
 import { type PropsOf } from '../types/PropsOf';
+import { type Transport } from '../types/Transport';
 import CredentialForm from './CredentialForm';
 import WebChatViaPrebuiltBot from './WebChatViaPrebuiltBot';
 import WebChatViaPublishedBot from './WebChatViaPublishedBot';
@@ -17,6 +18,7 @@ type SubmittedCredential = {
   islandURI?: string;
   tenantID?: string;
   token: string;
+  transport: Transport;
   type: string;
 };
 
@@ -24,7 +26,7 @@ type CredentialFormChangeCallback = Exclude<PropsOf<typeof CredentialForm>['onCh
 
 export default memo(function App() {
   const [
-    { botIdentifier, botSchema, environmentID, hostnameSuffix, islandURI, token, type },
+    { botIdentifier, botSchema, environmentID, hostnameSuffix, islandURI, token, transport, type },
     {
       reset,
       saveToSessionStorage,
@@ -34,6 +36,7 @@ export default memo(function App() {
       setHostnameSuffix,
       setIslandURI,
       setToken,
+      setTransport,
       setType
     }
   ] = useAppReducer();
@@ -44,16 +47,18 @@ export default memo(function App() {
   const hostnameSuffixRef = useRefFrom(hostnameSuffix);
   const islandURIRef = useRefFrom(islandURI);
   const tokenRef = useRefFrom(token);
+  const transportRef = useRefFrom(transport);
   const typeRef = useRefFrom(type);
 
   const handleCredentialFormChange = useCallback<CredentialFormChangeCallback>(
-    ({ botIdentifier, botSchema, environmentID, hostnameSuffix, islandURI, token, type }) => {
+    ({ botIdentifier, botSchema, environmentID, hostnameSuffix, islandURI, token, transport, type }) => {
       setBotIdentifier(botIdentifier);
       setBotSchema(botSchema);
       setEnvironmentID(environmentID);
       setHostnameSuffix(hostnameSuffix);
       setIslandURI(islandURI);
       setToken(token);
+      setTransport(transport);
       setType(type);
 
       saveToSessionStorage();
@@ -66,6 +71,7 @@ export default memo(function App() {
       setHostnameSuffix,
       setIslandURI,
       setToken,
+      setTransport,
       setType
     ]
   );
@@ -82,9 +88,10 @@ export default memo(function App() {
         islandURI: islandURIRef.current,
         key: Date.now(),
         token: tokenRef.current,
+        transport: transportRef.current || 'rest',
         type: typeRef.current
       }),
-    [botIdentifierRef, environmentIDRef, hostnameSuffixRef, setSubmittedCredential, tokenRef]
+    [botIdentifierRef, environmentIDRef, hostnameSuffixRef, setSubmittedCredential, transportRef, tokenRef]
   );
 
   return (
@@ -99,6 +106,7 @@ export default memo(function App() {
         hostnameSuffix={hostnameSuffix}
         islandURI={islandURI}
         token={token}
+        transport={transport}
         type={type}
         onChange={handleCredentialFormChange}
         onReset={handleReset}
@@ -123,6 +131,7 @@ export default memo(function App() {
                 islandURI={submittedCredential.islandURI}
                 key={submittedCredential.key}
                 token={submittedCredential.token}
+                transport={submittedCredential.transport}
               />
             )
           : submittedCredential.botIdentifier && (

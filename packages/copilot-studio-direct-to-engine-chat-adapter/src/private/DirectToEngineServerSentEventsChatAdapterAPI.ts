@@ -6,21 +6,17 @@ import { type Activity } from 'botframework-directlinejs';
 import { EventSourceParserStream, type ParsedEvent } from 'eventsource-parser/stream';
 import pRetry from 'p-retry';
 import { type TelemetryClient } from 'powerva-turn-based-chat-adapter-framework';
-import { type JsonObject } from 'type-fest';
 
-import combineAsyncIterables from './combineAsyncIterables';
-import iterableToAsyncIterable from './iterableToAsyncIterable';
+import { type Transport } from '../types/Transport';
 import iterateReadableStream from './iterateReadableStream';
+import { parseBotResponse, type BotResponse } from './types/BotResponse';
 import { type ConversationId } from './types/ConversationId';
-import { parseExecuteTurnResponse } from './types/ExecuteTurnResponse';
 import { type HalfDuplexChatAdapterAPI } from './types/HalfDuplexChatAdapterAPI';
 import { type HalfDuplexChatAdapterAPIStrategy } from './types/HalfDuplexChatAdapterAPIStrategy';
-import {
-  parseStartNewConversationResponseHead,
-  parseStartNewConversationResponseRest
-} from './types/StartNewConversationResponse';
 
-type Init = { telemetry?: MinimalTelemetryClient };
+type Init = {
+  telemetry?: MinimalTelemetryClient;
+};
 type MinimalTelemetryClient = Pick<TelemetryClient, 'trackException'>;
 
 const RETRY_COUNT = 4; // Will call 5 times.
@@ -54,39 +50,11 @@ export default class DirectToEngineServerSentEventsChatAdapterAPI implements Hal
   }
 
   public async startNewConversation(emitStartConversationEvent: boolean): Promise<AsyncIterableIterator<Activity>> {
-    const { baseURL, body, headers } = await this.#strategy.prepareStartNewConversation();
+    const { baseURL, body, headers, transport } = await this.#strategy.prepareStartNewConversation();
 
-    const response = await this.#postWithStream(resolveURLWithQueryAndHash('conversations', baseURL), {
-      body: { ...body, emitStartConversationEvent },
-      headers
-    });
+    const response = await this.#post(baseURL, { body: { ...body, emitStartConversationEvent }, headers, transport });
 
-    const headReader = response.getReader();
-    const head = await headReader.read();
-
-    if (head.done) {
-      return iterableToAsyncIterable([]);
-    }
-
-    const { activities, conversationId } = parseStartNewConversationResponseHead(head.value);
-
-    this.#conversationId = conversationId;
-
-    headReader.releaseLock();
-
-    const restReadable = response.pipeThrough(
-      new TransformStream<JsonObject, Activity>({
-        transform(data, controller) {
-          const { activities } = parseStartNewConversationResponseRest(data);
-
-          activities.map(controller.enqueue.bind(controller));
-        }
-      })
-    );
-
-    return combineAsyncIterables<Activity>(
-      iterableToAsyncIterable([iterableToAsyncIterable(activities), iterateReadableStream<Activity>(restReadable)])
-    );
+    return response;
   }
 
   public async executeTurn(activity: Activity): Promise<AsyncIterableIterator<Activity>> {
@@ -94,43 +62,119 @@ export default class DirectToEngineServerSentEventsChatAdapterAPI implements Hal
       throw new Error(`startNewConversation() must be called before executeTurn().`);
     }
 
-    const { baseURL, body, headers } = await this.#strategy.prepareExecuteTurn();
+    const { baseURL, body, headers, transport } = await this.#strategy.prepareExecuteTurn();
 
-    const response = await this.#postWithStream(
-      resolveURLWithQueryAndHash(`conversations/${this.#conversationId}`, baseURL),
-      {
-        body: { ...body, activity },
-        headers: { ...headers, 'x-ms-conversationid': this.#conversationId }
-      }
-    );
+    const response = await this.#post(baseURL, { body: { ...body, activity }, headers, transport });
 
-    return iterateReadableStream<Activity>(
-      response.pipeThrough(
-        new TransformStream<JsonObject, Activity>({
-          transform(data, controller) {
-            const { activities } = parseExecuteTurnResponse(data);
-
-            activities.map(controller.enqueue.bind(controller));
-          }
-        })
-      )
-    );
+    return response;
   }
 
-  async #postWithStream(
-    url: URL,
-    { body, headers, signal }: { body?: Record<string, unknown>; headers?: HeadersInit; signal?: AbortSignal }
-  ): Promise<ReadableStream<JsonObject>> {
+  async #post(
+    baseURL: URL,
+    { body, headers, transport }: { body?: Record<string, unknown>; headers?: HeadersInit; transport?: Transport }
+  ): Promise<AsyncIterableIterator<Activity>> {
+    if (transport === 'server sent events') {
+      return this.#postWithServerSentEvents(baseURL, { body, headers });
+    }
+
+    return this.#postWithREST(baseURL, { body, headers });
+  }
+
+  async #postWithREST(
+    baseURL: URL,
+    { body, headers }: { body?: Record<string, unknown>; headers?: HeadersInit }
+  ): Promise<AsyncIterableIterator<Activity>> {
+    const post = async (): Promise<AsyncIterableIterator<Activity>> => {
+      let currentResponse: Response;
+
+      const initialPromise = pRetry(
+        async (): Promise<BotResponse> => {
+          const url = resolveURLWithQueryAndHash(`conversations/${this.#conversationId || ''}`, baseURL);
+
+          currentResponse = await fetch(url.toString(), {
+            method: 'POST',
+            body: JSON.stringify(body),
+            headers: {
+              ...headers,
+              ...(this.#conversationId ? { 'x-ms-conversationid': this.#conversationId } : {}),
+              'content-type': 'application/json'
+            }
+          });
+
+          if (!currentResponse.ok) {
+            throw new Error(`Server returned ${currentResponse.status} while calling the service.`);
+          }
+
+          return parseBotResponse(await currentResponse.json());
+        },
+        {
+          onFailedAttempt: (error: unknown) => {
+            if (currentResponse && currentResponse.status < 500) {
+              throw error;
+            }
+          },
+          retries: RETRY_COUNT
+        }
+      );
+
+      const telemetry = this.#telemetry;
+
+      telemetry &&
+        initialPromise.catch((error: unknown) => {
+          // TODO [hawo]: We should rework on this telemetry for a couple of reasons:
+          //              1. We did not handle it, why call it "handledAt"?
+          //              2. We should indicate this error is related to the protocol
+          error instanceof Error &&
+            telemetry.trackException(
+              { error },
+              {
+                handledAt: 'withRetries',
+                retryCount: RETRY_COUNT + 1 + ''
+              }
+            );
+        });
+
+      const botResponse = await initialPromise;
+
+      if (botResponse.conversationId) {
+        this.#conversationId = botResponse.conversationId;
+      }
+
+      return (async function* (): AsyncIterableIterator<Activity> {
+        for await (const activity of botResponse.activities) {
+          yield activity;
+        }
+
+        if (botResponse.action === 'continue') {
+          yield* await post();
+        }
+      })();
+    };
+
+    return post();
+  }
+
+  async #postWithServerSentEvents(
+    baseURL: URL,
+    { body, headers }: { body?: Record<string, unknown>; headers?: HeadersInit }
+  ): Promise<AsyncIterableIterator<Activity>> {
     let currentResponse: Response;
 
     const responseBodyPromise = pRetry(
       async (): Promise<ReadableStream<Uint8Array>> => {
-        currentResponse = await fetch(url.toString(), {
-          method: 'POST',
-          body: JSON.stringify(body),
-          headers: { ...headers, accept: 'text/event-stream', 'content-type': 'application/json' },
-          signal
-        });
+        currentResponse = await fetch(
+          resolveURLWithQueryAndHash(`conversations/${this.#conversationId || ''}`, baseURL),
+          {
+            method: 'POST',
+            body: JSON.stringify(body),
+            headers: {
+              ...headers,
+              ...(this.#conversationId ? { 'x-ms-conversationid': this.#conversationId } : {}),
+              accept: 'text/event-stream',
+              'content-type': 'application/json'
+            }
+          }
+        );
 
         if (!currentResponse.ok) {
           throw new Error(`Server returned ${currentResponse.status} while calling the service.`);
@@ -154,8 +198,7 @@ export default class DirectToEngineServerSentEventsChatAdapterAPI implements Hal
             throw error;
           }
         },
-        retries: RETRY_COUNT,
-        signal
+        retries: RETRY_COUNT
       }
     );
 
@@ -178,19 +221,27 @@ export default class DirectToEngineServerSentEventsChatAdapterAPI implements Hal
 
     const responseBody = await responseBodyPromise;
 
-    return responseBody
-      .pipeThrough(new TextDecoderStream())
-      .pipeThrough(new EventSourceParserStream())
-      .pipeThrough(
-        new TransformStream<ParsedEvent, JsonObject>({
-          transform({ data }, controller) {
-            if (data === 'DONE') {
-              controller.terminate();
-            } else {
-              controller.enqueue(JSON.parse(data));
+    return iterateReadableStream(
+      responseBody
+        .pipeThrough(new TextDecoderStream())
+        .pipeThrough(new EventSourceParserStream())
+        .pipeThrough(
+          new TransformStream<ParsedEvent, Activity>({
+            transform: ({ data }, controller) => {
+              if (data === '[DONE]') {
+                controller.terminate();
+              } else {
+                const botResponse = parseBotResponse(JSON.parse(data));
+
+                if (!this.#conversationId && botResponse.conversationId) {
+                  this.#conversationId = botResponse.conversationId;
+                }
+
+                botResponse.activities.map(controller.enqueue.bind(controller));
+              }
             }
-          }
-        })
-      );
+          })
+        )
+    );
   }
 }

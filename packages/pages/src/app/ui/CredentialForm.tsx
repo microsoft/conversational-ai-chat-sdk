@@ -3,6 +3,7 @@ import { memo, useCallback, useMemo, type ChangeEventHandler } from 'react';
 import { useRefFrom } from 'use-ref-from';
 
 import { type BotType } from '../types/BotType';
+import { type Transport } from '../types/Transport';
 import onErrorResumeNext from '../util/onErrorResumeNext';
 import DoubleTapButton from './DoubleTapButton';
 
@@ -20,11 +21,13 @@ type Props = {
     hostnameSuffix: string;
     islandURI: string;
     token: string;
+    transport: Transport;
     type: BotType;
   }) => void;
   onReset?: () => void;
   onSubmit?: () => void;
   token?: string;
+  transport?: Transport;
   type?: BotType;
 };
 
@@ -39,6 +42,7 @@ export default memo(function CredentialForm({
   onReset,
   onSubmit,
   token,
+  transport = 'rest',
   type = 'prebuilt bot'
 }: Props) {
   const botIdentifierRef = useRefFrom(botIdentifier);
@@ -50,6 +54,7 @@ export default memo(function CredentialForm({
   const onResetRef = useRefFrom(onReset);
   const onSubmitRef = useRefFrom(onSubmit);
   const tokenRef = useRefFrom(token);
+  const transportRef = useRefFrom(transport);
   const typeRef = useRefFrom(type);
 
   const dispatchChange = useCallback(
@@ -61,8 +66,10 @@ export default memo(function CredentialForm({
       islandURI?: string;
       // tenantID?: string;
       token?: string;
+      transport?: Transport;
       type?: BotType;
     }) => {
+      const transport: Transport = transportRef.current === 'server sent events' ? transportRef.current : 'rest';
       const type: BotType =
         typeRef.current === 'published bot' || typeRef.current === 'test canvas bot' ? typeRef.current : 'prebuilt bot';
 
@@ -73,6 +80,7 @@ export default memo(function CredentialForm({
         hostnameSuffix: hostnameSuffixRef.current || '',
         islandURI: islandURIRef.current || '',
         token: tokenRef.current || '',
+        transport,
         type,
         ...overrides
       });
@@ -117,6 +125,11 @@ export default memo(function CredentialForm({
   const handleTokenChange = useCallback<ChangeEventHandler<HTMLInputElement>>(
     ({ currentTarget: { value } }) =>
       dispatchChange({ token: /^bearer\s/iu.test(value) ? value.substring(6).trimStart() : value }),
+    [dispatchChange]
+  );
+
+  const handleTransportChange = useCallback<ChangeEventHandler<HTMLInputElement>>(
+    ({ currentTarget: { value } }) => dispatchChange({ transport: value === 'server sent events' ? value : 'rest' }),
     [dispatchChange]
   );
 
@@ -185,6 +198,31 @@ export default memo(function CredentialForm({
               value="test canvas bot"
             />
             Test canvas bot
+          </label>
+        </dd>
+        <dt>Transport</dt>
+        <dd>
+          <label>
+            <input
+              checked={transport !== 'server sent events'}
+              name="transport"
+              onChange={handleTransportChange}
+              type="radio"
+              value="rest"
+            />
+            REST
+          </label>
+        </dd>
+        <dd>
+          <label>
+            <input
+              checked={transport === 'server sent events'}
+              name="transport"
+              onChange={handleTransportChange}
+              type="radio"
+              value="server sent events"
+            />
+            Server sent events
           </label>
         </dd>
         {type === 'test canvas bot' ? (

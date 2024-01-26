@@ -131,7 +131,7 @@ app.post(
       turn = 'continue';
     }
 
-    res.write('data: DONE\n\n');
+    res.write('data: [DONE]\n\n');
 
     res.end();
   }

@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useReducer } from 'react';
 
 import { type BotType } from '../types/BotType';
+import { type Transport } from '../types/Transport';
 import onErrorResumeNext from '../util/onErrorResumeNext';
 
 type State = {
@@ -11,6 +12,7 @@ type State = {
   islandURI?: string;
   tenantID?: string;
   token: string;
+  transport?: Transport;
   type: BotType;
 };
 
@@ -19,9 +21,10 @@ type SaveToSessionStorageAction = { type: 'SAVE_TO_SESSION_STORAGE' };
 type SetBotIdentifierAction = { payload: string; type: 'SET_BOT_IDENTIFIER' };
 type SetBotSchemaAction = { payload: string; type: 'SET_BOT_SCHEMA' };
 type SetEnvironmentIDAction = { payload: string; type: 'SET_ENVIRONMENT_ID' };
-type SetIslandURIAction = { payload: string; type: 'SET_ISLAND_URI' };
 type SetHostnameSuffixAction = { payload: string; type: 'SET_HOSTNAME_SUFFIX' };
+type SetIslandURIAction = { payload: string; type: 'SET_ISLAND_URI' };
 type SetTokenAction = { payload: string; type: 'SET_TOKEN' };
+type SetTransportAction = { payload: Transport; type: 'SET_TRANSPORT' };
 type SetTypeAction = { payload: BotType; type: 'SET_TYPE' };
 
 type Action =
@@ -33,6 +36,7 @@ type Action =
   | SetHostnameSuffixAction
   | SetIslandURIAction
   | SetTokenAction
+  | SetTransportAction
   | SetTypeAction;
 
 type DispatchAction = {
@@ -44,6 +48,7 @@ type DispatchAction = {
   setHostnameSuffix: (hostnameSuffix: string) => void;
   setIslandURI: (islandURI: string) => void;
   setToken: (token: string) => void;
+  setTransport: (transport: Transport) => void;
   setType: (type: BotType) => void;
 };
 
@@ -54,6 +59,7 @@ const DEFAULT_STATE: State = {
   hostnameSuffix: 'api.powerplatform.com',
   islandURI: 'https://pvaruntime.us-il102.gateway.prod.island.powerapps.com',
   token: '',
+  transport: 'rest',
   type: 'prebuilt bot'
 };
 
@@ -86,6 +92,10 @@ export default function useAppReducer(): readonly [State, Readonly<DispatchActio
     } else if (action.type === 'SET_TOKEN') {
       if (state.token !== action.payload) {
         state = { ...state, token: action.payload };
+      }
+    } else if (action.type === 'SET_TRANSPORT') {
+      if (state.token !== action.payload) {
+        state = { ...state, transport: action.payload };
       }
     } else if (action.type === 'SET_TYPE') {
       state = {
@@ -133,6 +143,12 @@ export default function useAppReducer(): readonly [State, Readonly<DispatchActio
   );
 
   const setToken = useCallback((token: string) => dispatch({ payload: token, type: 'SET_TOKEN' }), [dispatch]);
+
+  const setTransport = useCallback(
+    (transport: Transport) => dispatch({ payload: transport, type: 'SET_TRANSPORT' }),
+    [dispatch]
+  );
+
   const setType = useCallback(
     (type: BotType) =>
       dispatch({
@@ -153,9 +169,10 @@ export default function useAppReducer(): readonly [State, Readonly<DispatchActio
         setHostnameSuffix,
         setIslandURI,
         setToken,
+        setTransport,
         setType
       }),
-    [setBotIdentifier, setBotSchema, setEnvironmentID, setHostnameSuffix, setToken, setType]
+    [setBotIdentifier, setBotSchema, setEnvironmentID, setHostnameSuffix, setToken, setTransport, setType]
   );
 
   return Object.freeze([state, dispatchActions]);
