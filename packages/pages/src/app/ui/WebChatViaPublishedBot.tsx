@@ -1,11 +1,8 @@
+import { PublishedBotAPIStrategy } from 'powerva-chat-adapter';
 import { Fragment, memo, useCallback, useEffect, useMemo } from 'react';
-import {
-  fromTurnBasedChatAdapterAPI,
-  PowerPlatformAPIChatAdapter,
-  PublishedBotAPIStrategy
-} from 'powerva-chat-adapter';
 
 import ReactWebChat from 'botframework-webchat';
+import { createHalfDuplexChatAdapter, toDirectLineJS } from 'copilot-studio-direct-to-engine-chat-adapter';
 
 type Props = {
   botSchema: string;
@@ -36,7 +33,8 @@ export default memo(function WebChat({ botSchema, environmentID, hostnameSuffix,
     [botSchema, environmentEndpointURL, getTokenCallback]
   );
 
-  const chatAdapter = useMemo(() => fromTurnBasedChatAdapterAPI(new PowerPlatformAPIChatAdapter(strategy)), [strategy]);
+  // const chatAdapter = useMemo(() => fromTurnBasedChatAdapterAPI(new PowerPlatformAPIChatAdapter(strategy)), [strategy]);
+  const chatAdapter = useMemo(() => toDirectLineJS(createHalfDuplexChatAdapter(strategy)), [strategy]);
 
   useEffect(() => () => chatAdapter?.end(), [chatAdapter]);
 
