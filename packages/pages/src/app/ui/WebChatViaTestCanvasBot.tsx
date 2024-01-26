@@ -48,14 +48,13 @@ export default memo(function WebChat({ botId, environmentId, islandURI, token, t
     <Fragment>
       <h2>Chat adapter strategy parameters</h2>
       <pre>
-        new TestCanvasBotAPIStrategy({'{\n  '}botId: {"'"}
-        {botId}
-        {"',\n  "}environmentId: {"'"}
-        {environmentId.toString()}
-        {"',\n  "}getTokenCallback: () =&gt; token
-        {',\n  '}islandURI: new URL({"'"}
-        {islandURI.toString()}
-        {"')\n}"})
+        new TestCanvasBotAPIStrategy({'{'}
+        {'\n  '}botId: {`'${botId}',`}
+        {'\n  '}environmentId: {`'${environmentId.toString()}',`}
+        {'\n  '}getTokenCallback: () =&gt; token,
+        {'\n  '}islandURI: {`new URL('${islandURI.toString()}'),`}
+        {'\n  '}transport: {`'${transport}'`}
+        {'\n}'})
       </pre>
       <div className="webchat">
         <ReactWebChat directLine={chatAdapter} />

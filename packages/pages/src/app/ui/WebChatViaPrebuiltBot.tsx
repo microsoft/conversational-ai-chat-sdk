@@ -48,12 +48,10 @@ export default memo(function WebChat({ botIdentifier, environmentID, hostnameSuf
       <h2>Chat adapter strategy parameters</h2>
       <pre>
         new PrebuiltBotAPIStrategy({'{'}
-        {'\n  '}botIdentifier: {"'"}
-        {botIdentifier}
-        {"'"},{'\n  '}environmentEndpointURL: {"'"}
-        {environmentEndpointURL.toString()}
-        {"'"}
-        {'\n  '}getTokenCallback: () =&gt; token
+        {'\n  '}botIdentifier: {`'${botIdentifier}',`}
+        {'\n  '}environmentEndpointURL: {`'${environmentEndpointURL.toString()}',`}
+        {'\n  '}getTokenCallback: () =&gt; token,
+        {'\n  '}transport: {`'${transport}'`}
         {'\n}'})
       </pre>
       <div className="webchat">

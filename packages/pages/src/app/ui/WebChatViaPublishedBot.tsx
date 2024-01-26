@@ -47,12 +47,10 @@ export default memo(function WebChat({ botSchema, environmentID, hostnameSuffix,
       <h2>Chat adapter strategy parameters</h2>
       <pre>
         new PublishedBotAPIStrategy({'{'}
-        {'\n  '}botSchema: {"'"}
-        {botSchema}
-        {"'"},{'\n  '}environmentEndpointURL: {"'"}
-        {environmentEndpointURL.toString()}
-        {"'"}
-        {'\n  '}getTokenCallback: () =&gt; token
+        {'\n  '}botSchema: {`'${botSchema}',`}
+        {'\n  '}environmentEndpointURL: {`'${environmentEndpointURL.toString()}',`}
+        {'\n  '}getTokenCallback: () =&gt; token,
+        {'\n  '}transport: {`'${transport}'`}
         {'\n}'})
       </pre>
       <div className="webchat">
